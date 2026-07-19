@@ -7,7 +7,7 @@ import { ApplicationWorkflowError } from "../../src/core/index.js";
 import { ApplicationProvider, useApplicationRuntime, useApplicationWorkflow } from "../../src/web/ApplicationProvider.jsx";
 import { MusicTheoryWebApp } from "../../src/web/MusicTheoryWebApp.jsx";
 import { createWebApplication } from "../../src/web/bootstrap.js";
-import { usePlaybackTransport } from "../../src/web/usePlaybackTransport.js";
+import { usePlaybackTransport, useStopActivePlaybackOnCleanup } from "../../src/web/usePlaybackTransport.js";
 
 const catalogs = Object.freeze({
     scales: Object.freeze([{ id: "major", name: "Major" }, { id: "dorian", name: "Dorian" }]),
@@ -29,6 +29,10 @@ class FakeTransport {
         this.sequence += 1;
         this.snapshot = Object.freeze({ state, plan: this.plan, hasPlan: Boolean(this.plan), sessionId: null, operationSequence: this.sequence, error });
         for (const listener of [...this.listeners]) listener();
+    }
+    transitionSilently(state, error = null) {
+        this.sequence += 1;
+        this.snapshot = Object.freeze({ state, plan: this.plan, hasPlan: Boolean(this.plan), sessionId: null, operationSequence: this.sequence, error });
     }
     load(plan) { this.plan = plan; this.transition("ready"); return this.snapshot; }
     async play() { this.playCalls += 1; this.transition("starting"); this.transition("scheduled"); return this.snapshot; }
@@ -396,18 +400,41 @@ it("usePlaybackTransport has one Strict Mode subscription and unmount stops acti
         maximumSubscriptions = Math.max(maximumSubscriptions, transport.listeners.size);
         return unsubscribe;
     };
-    function Probe() { const value = usePlaybackTransport(transport); return <output>{value.state}</output>; }
+    function Probe() {
+        const value = usePlaybackTransport(transport);
+        useStopActivePlaybackOnCleanup(transport);
+        return <output>{value.state}</output>;
+    }
     const probe = render(<StrictMode><Probe /></StrictMode>);
     expect(maximumSubscriptions).toBe(1);
+    transport.transitionSilently("playing");
     probe.unmount();
     expect(transport.listeners.size).toBe(0);
+    expect(transport.stopCalls).toBe(1);
 
-    const { runtime } = await playableRuntime({ transport });
+    const componentTransport = new FakeTransport();
+    const { runtime } = await playableRuntime({ transport: componentTransport });
     const view = render(<ApplicationProvider bootstrap={async () => runtime}><MusicTheoryWebApp /></ApplicationProvider>);
     const user = userEvent.setup();
     await screen.findByRole("button", { name: /generate scale/i });
     await user.click(screen.getByRole("button", { name: /generate scale/i }));
-    act(() => transport.transition("playing"));
+    componentTransport.transitionSilently("playing");
     view.unmount();
-    expect(transport.stopCalls).toBe(1);
+    expect(componentTransport.stopCalls).toBe(1);
+});
+
+it("cleanup captures transport A during replacement and never stops replacement transport B", () => {
+    const transportA = new FakeTransport();
+    const transportB = new FakeTransport();
+    function CleanupProbe({ transport }) {
+        useStopActivePlaybackOnCleanup(transport);
+        return <output>{transport.snapshot.state}</output>;
+    }
+    const view = render(<CleanupProbe transport={transportA} />);
+    transportA.transitionSilently("scheduled");
+    view.rerender(<CleanupProbe transport={transportB} />);
+    expect(transportA.stopCalls).toBe(1);
+    expect(transportB.stopCalls).toBe(0);
+    view.unmount();
+    expect(transportB.stopCalls).toBe(0);
 });

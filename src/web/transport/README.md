@@ -32,4 +32,4 @@ Construction, import, registration, application bootstrap, and React rendering c
 
 ## Validation
 
-Playback Transport has 19 focused acceptance tests. The complete repository suite contains **200 passing tests**.
+Playback Transport has 19 focused acceptance tests. The complete repository suite contains **201 passing tests**.

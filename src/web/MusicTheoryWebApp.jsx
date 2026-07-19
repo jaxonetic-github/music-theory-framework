@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useApplicationRuntime, useApplicationWorkflow } from "./ApplicationProvider.jsx";
 import { downloadExport, exportFilenameBase } from "./download.js";
-import { usePlaybackTransport } from "./usePlaybackTransport.js";
+import { usePlaybackTransport, useStopActivePlaybackOnCleanup } from "./usePlaybackTransport.js";
 import {
     buildWorkflowRequest,
     createInitialWorkflowState,
@@ -192,8 +192,7 @@ function ReadyApplication({ runtime }) {
     const planned = useRef({ result: null, engine: null, plan: null });
     const commandSequence = useRef(0);
     const pendingAction = useRef(null);
-    const snapshotRef = useRef(snapshot);
-    snapshotRef.current = snapshot;
+    useStopActivePlaybackOnCleanup(runtime.transport);
 
     useEffect(() => {
         if (workflow.status !== "success") return;
@@ -220,9 +219,6 @@ function ReadyApplication({ runtime }) {
     useEffect(() => () => {
         commandSequence.current += 1;
         pendingAction.current = null;
-        if (activePlaybackStates.has(snapshotRef.current.state)) {
-            try { runtime.transport.stop(); } catch {}
-        }
     }, [runtime.transport]);
 
     const currentPlan = workflow.status === "success" && playback.result === workflow.result ? playback.plan : null;
