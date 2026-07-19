@@ -1,0 +1,8 @@
+{
+  "name": "music-theory-framework",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
