@@ -2,6 +2,8 @@
 
 The Web namespace also exports the v7.4 browser-only `WebAudio` adapter package from `src/web/audio`. It is not installed by application bootstrap and creates or resumes audio only after an explicit adapter `play()` call. No playback controls are present in the React UI. See [`audio/README.md`](audio/README.md) for timing, synthesis, ownership, cleanup, and exclusion boundaries.
 
+The v7.5 frozen `Transport` namespace provides UI-neutral PlaybackPlan/session orchestration under `src/web/transport`. It is likewise absent from bootstrap and React rendering. See [`transport/README.md`](transport/README.md) for its state machine, stale-operation protection, ownership, and subscription policy.
+
 The v7.2 Web package is a React adapter over the headless `application.engine`. It does not contain theory generation, notation, SVG serialization, MusicXML serialization, registries, or workflow orchestration.
 
 ## Bootstrap and React integration

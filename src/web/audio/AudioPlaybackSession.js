@@ -1,10 +1,11 @@
-import { cloneDeep, freezeDeep } from "../../core/index.js";
+import { cloneDeep, freezeDeep, ValidationError } from "../../core/index.js";
 import { AudioPlaybackState } from "./AudioPlaybackState.js";
 
 export class AudioPlaybackSession {
     #state = AudioPlaybackState.SCHEDULED;
     #stop;
     #dispose;
+    #listeners = new Set();
 
     constructor({ id, request, contextTime, startTime, endTime, voices, metadata, stop, dispose, control }) {
         Object.defineProperties(this, {
@@ -18,13 +19,29 @@ export class AudioPlaybackSession {
         });
         this.#stop = stop;
         this.#dispose = dispose;
-        control.transition = state => { this.#state = state; };
+        control.transition = state => {
+            if (this.#state === state) return;
+            this.#state = state;
+            for (const listener of [...this.#listeners]) {
+                try { listener(state, this); } catch {}
+            }
+        };
         Object.freeze(this);
     }
 
     get state() { return this.#state; }
     stop() { return this.#stop(); }
     dispose() { return this.#dispose(); }
+    subscribe(listener) {
+        if (typeof listener !== "function") throw new ValidationError("Audio playback session listener must be a function.");
+        this.#listeners.add(listener);
+        let subscribed = true;
+        return () => {
+            if (!subscribed) return false;
+            subscribed = false;
+            return this.#listeners.delete(listener);
+        };
+    }
 }
 
 export default AudioPlaybackSession;

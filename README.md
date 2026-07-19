@@ -10,6 +10,7 @@ An immutable, plugin-scoped music theory framework with generation, notation, re
 - v7.2 React Web Application Adapter
 - v7.3 Playback Planning Core for exact, audio-free ScoreGraph scheduling
 - v7.4 browser-scoped Web Audio Playback Adapter for explicit PlaybackPlan execution
+- v7.5 browser-scoped, UI-neutral Playback Transport Controller
 
 Playback Planning produces immutable tick plans only. The Web Audio adapter consumes those plans explicitly without changing Core timing. Web MIDI, transport controls, and React playback UI remain outside the current architecture.
 
@@ -32,4 +33,4 @@ git diff --check
 
 The production build is emitted to `dist/`. See [`src/web/README.md`](src/web/README.md) for the adapter architecture, trusted SVG boundary, and MusicXML download behavior.
 
-The current repository suite contains **173 passing tests**.
+The current repository suite contains **192 passing tests**.

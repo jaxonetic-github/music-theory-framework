@@ -6,3 +6,5 @@ export { MusicTheoryWebApp } from "./MusicTheoryWebApp.jsx";
 export { reactWebPackageDescriptor } from "./package.descriptor.js";
 export * from "./audio/index.js";
 export { default as WebAudio } from "./audio/index.js";
+export * from "./transport/index.js";
+export { default as Transport } from "./transport/index.js";
