@@ -502,6 +502,56 @@ test("NotationModule preserves pre-existing values at every registration collisi
     }
 });
 
+test("NotationModule preserves same-object registry collisions and rolls back earlier steps", () => {
+    const cases = [
+        {
+            area: "services",
+            descriptor: notationServiceDescriptors.engine,
+            value: module => module.engine
+        },
+        {
+            area: "services",
+            descriptor: notationServiceDescriptors.strategies,
+            value: module => module.strategyRegistry
+        },
+        {
+            area: "renderers",
+            descriptor: notationRendererDescriptors.scale,
+            value: module => module.scaleStrategy
+        },
+        {
+            area: "renderers",
+            descriptor: notationRendererDescriptors.chord,
+            value: module => module.chordStrategy
+        }
+    ];
+
+    for (const scenario of cases) {
+        const kernel = new Kernel();
+        const module = new NotationModule();
+        const value = scenario.value(module);
+        const originalRecord = kernel.registries[scenario.area].register(
+            scenario.descriptor,
+            { value }
+        );
+
+        assert.throws(() => module.configure(kernel.context), /Duplicate registration/);
+        assert.equal(kernel.registries[scenario.area].getRecord(scenario.descriptor.id), originalRecord);
+        assert.equal(kernel.registries[scenario.area].resolve(scenario.descriptor.id), value);
+        assert.equal(kernel.services.has("notation.engine"), false);
+        assert.equal(kernel.services.has("notation.strategyRegistry"), false);
+        assert.equal(
+            kernel.registries.services.size,
+            scenario.area === "services" ? 1 : 0
+        );
+        assert.equal(kernel.registries.plugins.size, 0);
+        assert.equal(
+            kernel.registries.renderers.size,
+            scenario.area === "renderers" ? 1 : 0
+        );
+    }
+});
+
 test("NotationModule configure is idempotent after a successful transaction", () => {
     const kernel = new Kernel();
     const module = new NotationModule();

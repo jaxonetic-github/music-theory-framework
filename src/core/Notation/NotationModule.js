@@ -45,15 +45,22 @@ export class NotationModule {
             });
         };
         const registerValue = (registry, descriptor, value) => {
-            const unregister = () => {
-                if (registry.getRecord(descriptor.id)?.value === value) registry.unregister(descriptor.id);
+            const previousRecord = registry.getRecord(descriptor.id);
+            let registeredRecord = null;
+            const unregister = record => {
+                if (registry.getRecord(descriptor.id) === record) registry.unregister(descriptor.id);
             };
-            try { registry.register(descriptor, { value }); }
+            try { registeredRecord = registry.register(descriptor, { value }); }
             catch (error) {
-                try { unregister(); } catch {}
+                const currentRecord = registry.getRecord(descriptor.id);
+                if (!previousRecord
+                    && currentRecord?.descriptor === descriptor
+                    && currentRecord?.value === value) {
+                    try { unregister(currentRecord); } catch {}
+                }
                 throw error;
             }
-            undo.push(unregister);
+            undo.push(() => unregister(registeredRecord));
         };
 
         try {
