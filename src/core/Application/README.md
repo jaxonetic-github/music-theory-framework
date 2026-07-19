@@ -60,4 +60,4 @@ This package contains no React or other UI framework, browser or DOM integration
 
 ## Validation
 
-The Milestone 8 implementation passes all 111 repository tests. `git diff --check` also passes.
+The Milestone 8 implementation passes all 113 repository tests. `git diff --check` also passes.

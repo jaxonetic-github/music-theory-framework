@@ -13,6 +13,7 @@ import {
     NotationModule,
     RenderingModule,
     RenderingOutput,
+    RendererStrategy,
     ScoreGraph,
     TheoryModule,
     applicationCommandDescriptors,
@@ -46,6 +47,12 @@ const chordRequest = (extra = {}) => ({
     notationOptions: { octave: 3 },
     ...extra
 });
+
+class TestPngRenderer extends RendererStrategy {
+    constructor() { super({ id: "png", pluginId: "test.rendering.png", format: "png" }); }
+    supports() { return true; }
+    render() { return "PNG:test"; }
+}
 
 test("Application runs complete scale and chord generation-to-notation workflows", async () => {
     const kernel = await fullKernel();
@@ -123,6 +130,37 @@ test("Application passes plugin and strategy selections through all existing eng
     assert.equal(result.metadata.rendering.pluginId, "core.rendering.svg");
     assert.equal(result.metadata.export.pluginId, "core.export.musicxml");
     assert.match(result.rendering.content, /width="720"/);
+    await kernel.dispose();
+});
+
+test("Application rendering requests select and report the renderer matching normalized format", async () => {
+    const kernel = await fullKernel();
+    const app = kernel.services.resolve("application.engine");
+    const rendering = kernel.services.resolve("rendering.engine");
+    rendering.registry.register("test.rendering.png", new TestPngRenderer());
+
+    const png = app.run(scaleRequest({ rendering: { format: " PNG " } }));
+    assert.equal(png.rendering.format, "png");
+    assert.equal(png.rendering.content, "PNG:test");
+    assert.equal(png.metadata.rendering.pluginId, "test.rendering.png");
+    assert.equal(png.metadata.rendering.strategyId, "png");
+
+    const svg = app.run(scaleRequest({ rendering: { format: "SVG" } }));
+    assert.match(svg.rendering.content, /^<svg /);
+    assert.equal(svg.metadata.rendering.pluginId, "core.rendering.svg");
+    assert.equal(svg.metadata.rendering.strategyId, "svg");
+
+    assert.throws(
+        () => app.run(scaleRequest({ rendering: { format: "unknown" } })),
+        error => error.stage === "rendering" && /No renderer strategy/.test(error.cause.message)
+    );
+    assert.throws(
+        () => app.run(scaleRequest({ rendering: {
+            format: "png", pluginId: "core.rendering.svg", strategyId: "svg"
+        } })),
+        error => error.stage === "rendering"
+            && /produces "svg", not requested format "png"/.test(error.cause.message)
+    );
     await kernel.dispose();
 });
 

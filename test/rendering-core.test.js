@@ -104,6 +104,28 @@ test("RenderingEngine validates score input, options, selection, and renderer ou
     assert.throws(() => new RenderingEngine(registry).render(graph), /non-empty string output/);
 });
 
+test("RenderingEngine filters implicit and explicit renderer selection by normalized format", () => {
+    class MarkerRenderer extends RendererStrategy {
+        constructor({ id, pluginId, format }) { super({ id, pluginId, format }); }
+        supports() { return true; }
+        render() { return `${this.format}:${this.id}`; }
+    }
+    const graph = scoreOnly();
+    const registry = new RendererStrategyRegistry();
+    registry.register("plugin.svg", new MarkerRenderer({ id: "svg", pluginId: "plugin.svg", format: "svg" }));
+    registry.register("plugin.png", new MarkerRenderer({ id: "png", pluginId: "plugin.png", format: "png" }));
+    const engine = new RenderingEngine(registry);
+
+    assert.equal(engine.render(graph, { format: " PNG " }), "png:png");
+    assert.equal(engine.render(graph, { format: "SvG" }), "svg:svg");
+    assert.throws(() => engine.render(graph, { format: "pdf" }), /No renderer strategy/);
+    assert.throws(
+        () => engine.render(graph, { format: "png", pluginId: "plugin.svg", strategyId: "svg" }),
+        /produces "svg", not requested format "png"/
+    );
+    assert.equal(engine.render(graph), "svg:svg");
+});
+
 test("malformed score graphs are rejected before rendering", () => {
     assert.throws(() => new ScoreGraph({
         nodes: [
