@@ -1,4 +1,4 @@
-import { ExportResult } from "../core/index.js";
+import { ApplicationResult, ExportResult } from "../core/index.js";
 
 export function safeFilename(value) {
     const normalized = String(value ?? "music-theory")
@@ -8,6 +8,13 @@ export function safeFilename(value) {
         .replace(/[.-]+$/, "")
         .toLowerCase();
     return normalized || "music-theory";
+}
+
+export function exportFilenameBase(result) {
+    if (!(result instanceof ApplicationResult) || !result.export) {
+        throw new TypeError("A completed ApplicationResult with an export is required for a filename.");
+    }
+    return safeFilename(`${result.request.root}-${result.request.type}`);
 }
 
 export function downloadExport(result, {

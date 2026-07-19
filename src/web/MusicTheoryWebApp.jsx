@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useApplicationRuntime, useApplicationWorkflow } from "./ApplicationProvider.jsx";
-import { downloadExport } from "./download.js";
+import { downloadExport, exportFilenameBase } from "./download.js";
 import {
     buildWorkflowRequest,
     createInitialWorkflowState,
@@ -78,7 +78,7 @@ function WorkflowControls({ catalogs, state, onChange, onSubmit, loading }) {
     );
 }
 
-function WorkflowResult({ state, workflow }) {
+function WorkflowResult({ workflow }) {
     if (workflow.status === "empty") {
         return <div className="status empty-state"><p className="eyebrow">Ready</p><h2>Your score will appear here</h2><p>Choose a workflow and generate an immutable result.</p></div>;
     }
@@ -118,7 +118,7 @@ function WorkflowResult({ state, workflow }) {
                 </section>
             )}
             <button type="button" className="download-action" disabled={!result.export}
-                onClick={() => downloadExport(result.export, { filenameBase: `${state.root}-${state.type}` })}>
+                onClick={() => downloadExport(result.export, { filenameBase: exportFilenameBase(result) })}>
                 Download {title || "score"} as MusicXML
             </button>
         </article>
@@ -144,7 +144,7 @@ function ReadyApplication({ runtime }) {
                 <WorkflowControls catalogs={runtime.catalogs} state={state} onChange={update} onSubmit={submit}
                     loading={workflow.status === "loading"} />
                 <section className="results-panel" aria-label="Workflow results">
-                    <WorkflowResult state={state} workflow={workflow} />
+                    <WorkflowResult workflow={workflow} />
                 </section>
             </div>
         </main>

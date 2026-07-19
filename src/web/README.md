@@ -16,7 +16,7 @@ The score view inserts SVG only from `ApplicationResult.rendering`, which is pro
 
 ## MusicXML download
 
-`downloadExport()` is the browser-only delivery adapter. An explicit button action creates a Blob from immutable `ExportResult.content` and `mediaType`, generates a safe filename using its `extension`, clicks a temporary anchor, and always revokes the object URL. Export Core remains free of browser and filesystem behavior.
+`downloadExport()` is the browser-only delivery adapter. An explicit button action creates a Blob from immutable `ExportResult.content` and `mediaType`, generates a safe filename using its `extension`, clicks a temporary anchor, and always revokes the object URL. The filename base comes from the completed immutable `ApplicationResult.request`, so later form edits cannot rename an earlier export. Export Core remains free of browser and filesystem behavior.
 
 ## Scope boundary
 
@@ -24,4 +24,4 @@ This package intentionally excludes playback, Web Audio, MIDI, authentication, p
 
 ## Validation
 
-Milestone 9 passes **131 tests**: 120 plain-Node core and adapter tests plus 11 React DOM tests. Production validation uses `npm run build`, and the Vite build succeeds without requiring browser globals in Core.
+Milestone 9 passes **133 tests**: 121 plain-Node core and adapter tests plus 12 React DOM tests. Production validation uses `npm run build`, and the Vite build succeeds without requiring browser globals in Core.

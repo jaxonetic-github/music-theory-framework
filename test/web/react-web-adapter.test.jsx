@@ -153,3 +153,50 @@ it("download remains unavailable when no export result was requested", async () 
     const button = await screen.findByRole("button", { name: /download .* as musicxml/i });
     expect(button.disabled).toBe(true);
 });
+
+it("download keeps the completed C scale identity after controls are edited to D", async () => {
+    const runtime = await createWebApplication();
+    render(<ApplicationProvider bootstrap={async () => runtime}><MusicTheoryWebApp /></ApplicationProvider>);
+    const user = userEvent.setup();
+    await screen.findByLabelText("Root pitch");
+    await user.click(screen.getByLabelText("Prepare MusicXML export"));
+    await user.click(screen.getByRole("button", { name: /generate scale/i }));
+    const download = await screen.findByRole("button", { name: /download c major as musicxml/i });
+
+    const root = screen.getByLabelText("Root pitch");
+    await user.clear(root);
+    await user.type(root, "D");
+    expect(screen.getByRole("button", { name: /download c major as musicxml/i })).toBe(download);
+
+    let downloadedFilename = null;
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function clickDownload() {
+        downloadedFilename = this.download;
+    });
+    const createObjectURL = vi.fn(() => "blob:completed-c-scale");
+    const revokeObjectURL = vi.fn();
+    const previousCreate = URL.createObjectURL;
+    const previousRevoke = URL.revokeObjectURL;
+    URL.createObjectURL = createObjectURL;
+    URL.revokeObjectURL = revokeObjectURL;
+    try {
+        await user.click(download);
+        const blob = createObjectURL.mock.calls[0][0];
+        const content = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error);
+            reader.readAsText(blob);
+        });
+        expect(content).toContain("<work-title>C Major</work-title>");
+        expect(content).not.toContain("<work-title>D Major</work-title>");
+        expect(blob.type).toBe("application/vnd.recordare.musicxml+xml");
+        expect(downloadedFilename).toBe("c-scale.musicxml");
+        expect(revokeObjectURL).toHaveBeenCalledWith("blob:completed-c-scale");
+    } finally {
+        click.mockRestore();
+        if (previousCreate) URL.createObjectURL = previousCreate;
+        else delete URL.createObjectURL;
+        if (previousRevoke) URL.revokeObjectURL = previousRevoke;
+        else delete URL.revokeObjectURL;
+    }
+});

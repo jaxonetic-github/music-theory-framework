@@ -2,9 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { ExportResult, Kernel } from "../src/core/index.js";
+import { ApplicationRequest, ApplicationResult, ExportResult, Kernel } from "../src/core/index.js";
 import { createWebApplication } from "../src/web/bootstrap.js";
-import { downloadExport, safeFilename } from "../src/web/download.js";
+import { downloadExport, exportFilenameBase, safeFilename } from "../src/web/download.js";
 import { reactWebPackageDescriptor } from "../src/web/package.descriptor.js";
 import { buildWorkflowRequest, createInitialWorkflowState, transitionWorkflow } from "../src/web/workflow.js";
 
@@ -115,6 +115,29 @@ test("MusicXML object URL is revoked even when the browser click fails", () => {
         BlobType: class {}
     }), /blocked/);
     assert.equal(revoked, true);
+});
+
+test("export filename identity comes from the completed immutable workflow request", async () => {
+    const runtime = await createWebApplication();
+    const chord = runtime.application.run({
+        type: "chord", root: "C", quality: "major", notationOptions: { octave: 4 },
+        export: { format: "musicxml" }
+    });
+    assert.equal(exportFilenameBase(chord), "c-chord");
+
+    const unsafeRequest = new ApplicationRequest({
+        type: "chord", root: "../../Unsafe Root", quality: "major",
+        export: { format: "musicxml" }
+    });
+    const unsafe = new ApplicationResult({
+        request: unsafeRequest,
+        generation: chord.generation,
+        score: chord.score,
+        exported: chord.export
+    });
+    assert.equal(exportFilenameBase(unsafe), "unsafe-root-chord");
+    assert.throws(() => exportFilenameBase({ request: unsafeRequest, export: chord.export }), /ApplicationResult/);
+    await runtime.dispose();
 });
 
 test("core public entry remains free of React and DOM imports", async () => {
