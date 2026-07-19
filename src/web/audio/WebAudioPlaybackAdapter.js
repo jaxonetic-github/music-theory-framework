@@ -89,9 +89,11 @@ export class WebAudioPlaybackAdapter {
         const cleanup = cancel => {
             const errors = [];
             for (const record of records) {
-                if (cancel) attempt(() => record.oscillator?.stop?.(), errors);
-                attempt(() => record.oscillator?.disconnect?.(), errors);
-                attempt(() => record.gain?.disconnect?.(), errors);
+                if (record.oscillator) {
+                    if (cancel && typeof record.oscillator.stop === "function") attempt(() => record.oscillator.stop(), errors);
+                    if (typeof record.oscillator.disconnect === "function") attempt(() => record.oscillator.disconnect(), errors);
+                }
+                if (record.gain && typeof record.gain.disconnect === "function") attempt(() => record.gain.disconnect(), errors);
             }
             return errors;
         };
@@ -134,8 +136,10 @@ export class WebAudioPlaybackAdapter {
                     throw new ValidationError(`Playback event "${event.sourceEventId}" has invalid derived timing.`);
                 }
                 const oscillator = context.createOscillator();
+                const record = { oscillator, gain: null };
+                records.push(record);
                 const gain = context.createGain();
-                records.push({ oscillator, gain });
+                record.gain = gain;
                 const frequency = midiToFrequency(event.midi);
                 const peakGain = velocityToGain(event.velocity, request.masterGain);
                 oscillator.type = request.waveform;

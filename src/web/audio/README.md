@@ -31,7 +31,9 @@ Session voice metadata preserves written pitch spelling, source event identity, 
 
 Passing `context` borrows it. A borrowed context is never closed and unrelated external nodes are untouched. Passing `contextFactory`, or allowing explicit playback to resolve the browser `AudioContext` constructor, creates an adapter-owned context lazily. An owned context closes only during explicit adapter disposal. A suspended context resumes only inside an explicit `play()` call.
 
-Every session owns only its oscillators and gains. Stop/dispose is idempotent, cancels that session’s sources, and does not affect concurrent sessions. Natural oscillator completion disconnects nodes and completes the session. Scheduling failures cancel and disconnect all nodes created by the failed transaction. Empty plans complete without creating audio nodes.
+`WebAudioPlaybackModule` owns adapters that it creates through its default or supplied `adapterFactory`. Module disposal explicitly disposes that adapter, and a later configure creates a fresh playable adapter. An adapter injected through the `adapter` option is borrowed by default, so module disposal removes registrations without disposing it; the caller retains explicit adapter-disposal responsibility. An injected adapter may be marked owned only when an `adapterFactory` is also supplied for reusable configuration.
+
+Every session owns only its oscillators and gains. Ownership begins immediately after each individual allocation: an oscillator is tracked before gain creation, and the gain is attached to that record immediately after its own allocation. Stop/dispose is idempotent, cancels that session’s sources, and does not affect concurrent sessions. Natural oscillator completion disconnects nodes and completes the session. Gain creation, automation, connection, start, stop, and later scheduling failures cancel and disconnect every node already created by the failed transaction. Empty plans complete without creating audio nodes.
 
 Browsers commonly require `play()` to be called from a user gesture before a suspended context may resume. Importing modules, bootstrapping the application, and rendering React never create, resume, or schedule an AudioContext.
 
@@ -43,4 +45,4 @@ This milestone intentionally excludes React playback controls, transport UI, Web
 
 ## Validation
 
-The adapter has 15 focused fake-audio tests. The complete repository suite contains **171 passing tests**.
+The adapter has 17 focused fake-audio tests. The complete repository suite contains **173 passing tests**.

@@ -31,8 +31,8 @@ function plan(events = [], { tempo = 120, resolution = 1, totalTicks = null } = 
 
 class FakeParam {
     calls = [];
-    setValueAtTime(value, time) { this.calls.push(["set", value, time]); }
-    linearRampToValueAtTime(value, time) { this.calls.push(["ramp", value, time]); }
+    setValueAtTime(value, time) { if (this.failSet) throw new Error("parameter set failed"); this.calls.push(["set", value, time]); }
+    linearRampToValueAtTime(value, time) { if (this.failRamp) throw new Error("parameter ramp failed"); this.calls.push(["ramp", value, time]); }
 }
 
 class FakeOscillator {
@@ -42,8 +42,8 @@ class FakeOscillator {
     stops = [];
     disconnected = 0;
     onended = null;
-    connect(node) { this.connected = node; return node; }
-    start(time) { this.starts.push(time); }
+    connect(node) { if (this.failConnect) throw new Error("oscillator connect failed"); this.connected = node; return node; }
+    start(time) { if (this.failStart) throw new Error("start failed"); this.starts.push(time); }
     stop(time) { if (this.failStop) throw new Error("stop failed"); this.stops.push(time); }
     disconnect() { this.disconnected += 1; }
     end() { this.onended?.(); }
@@ -52,7 +52,7 @@ class FakeOscillator {
 class FakeGain {
     gain = new FakeParam();
     disconnected = 0;
-    connect(node) { this.connected = node; return node; }
+    connect(node) { if (this.failConnect) throw new Error("gain connect failed"); this.connected = node; return node; }
     disconnect() { this.disconnected += 1; }
 }
 
@@ -64,15 +64,29 @@ class FakeAudioContext {
     closeCalls = 0;
     currentTimeReads = 0;
     failOscillatorAt = null;
+    failGainAt = null;
+    failOperation = null;
     #time;
 
     constructor({ currentTime = 10, state = "running" } = {}) { this.#time = currentTime; this.state = state; }
     get currentTime() { this.currentTimeReads += 1; return this.#time; }
     createOscillator() {
         if (this.failOscillatorAt === this.oscillators.length) throw new Error("oscillator failed");
-        const oscillator = new FakeOscillator(); this.oscillators.push(oscillator); return oscillator;
+        const oscillator = new FakeOscillator();
+        if (this.failOperation === "frequency") oscillator.frequency.failSet = true;
+        if (this.failOperation === "oscillator-connect") oscillator.failConnect = true;
+        if (this.failOperation === "start") oscillator.failStart = true;
+        if (this.failOperation === "stop") oscillator.failStop = true;
+        this.oscillators.push(oscillator); return oscillator;
     }
-    createGain() { const gain = new FakeGain(); this.gains.push(gain); return gain; }
+    createGain() {
+        if (this.failGainAt === this.gains.length) throw new Error("gain creation failed");
+        const gain = new FakeGain();
+        if (this.failOperation === "gain-set") gain.gain.failSet = true;
+        if (this.failOperation === "gain-ramp") gain.gain.failRamp = true;
+        if (this.failOperation === "gain-connect") gain.failConnect = true;
+        this.gains.push(gain); return gain;
+    }
     async resume() { this.resumeCalls += 1; this.state = "running"; }
     async close() { this.closeCalls += 1; this.state = "closed"; }
 }
@@ -229,6 +243,32 @@ test("partial scheduling failure cancels and disconnects every created node", as
     assert.equal(adapter.sessions.length, 0);
 });
 
+test("createGain failure cleans the oscillator allocated immediately before it", async () => {
+    const context = new FakeAudioContext();
+    context.failGainAt = 0;
+    const adapter = new WebAudioPlaybackAdapter({ context });
+    await assert.rejects(() => adapter.play(plan([playbackEvent(1, "C4", 0)])), /gain creation failed/);
+    assert.equal(context.oscillators.length, 1);
+    assert.equal(context.gains.length, 0);
+    assert.equal(context.oscillators[0].stops.length, 1);
+    assert.equal(context.oscillators[0].disconnected, 1);
+    assert.equal(adapter.sessions.length, 0);
+});
+
+test("automation, connection, start, and stop failures clean every allocated node", async () => {
+    for (const operation of ["frequency", "gain-set", "gain-ramp", "oscillator-connect", "gain-connect", "start", "stop"]) {
+        const context = new FakeAudioContext();
+        context.failOperation = operation;
+        const adapter = new WebAudioPlaybackAdapter({ context });
+        await assert.rejects(() => adapter.play(plan([playbackEvent(1, "C4", 0)])));
+        assert.equal(context.oscillators.length, 1, operation);
+        assert.equal(context.gains.length, 1, operation);
+        assert.ok(context.oscillators[0].disconnected >= 1, operation);
+        assert.ok(context.gains[0].disconnected >= 1, operation);
+        assert.equal(adapter.sessions.length, 0, operation);
+    }
+});
+
 test("session metadata retains spelling and identity without mutating the source plan", async () => {
     const source = plan([playbackEvent(1, "Cb4", 0, 1, { sourceEventId: "written-cb" })]);
     const before = JSON.stringify(source);
@@ -242,17 +282,32 @@ test("session metadata retains spelling and identity without mutating the source
 
 test("WebAudioPlaybackModule registers only service and plugin discovery transactionally", async () => {
     const kernel = new Kernel();
-    const module = new WebAudioPlaybackModule({ adapter: new WebAudioPlaybackAdapter({ context: new FakeAudioContext() }) });
+    const contexts = [];
+    const module = new WebAudioPlaybackModule({
+        adapterFactory: () => {
+            const context = new FakeAudioContext();
+            contexts.push(context);
+            return new WebAudioPlaybackAdapter({ contextFactory: () => context });
+        }
+    });
     module.configure(kernel.context);
+    const firstAdapter = module.adapter;
     assert.strictEqual(kernel.services.resolve("web.audio.playback"), module.adapter);
     assert.strictEqual(kernel.registries.services.resolve("web.audio.playback"), module.adapter);
     assert.strictEqual(kernel.registries.plugins.resolve("web.audio.oscillator"), module.plugin);
     assert.equal(kernel.registries.playbacks.size, 0);
     assert.equal(kernel.registries.renderers.size, 0);
+    await module.adapter.play(plan([playbackEvent(1, "C4", 0)]));
     await module.dispose();
+    assert.equal(contexts[0].closeCalls, 1);
     module.configure(kernel.context);
+    assert.notStrictEqual(module.adapter, firstAdapter);
     assert.strictEqual(kernel.services.resolve("web.audio.playback"), module.adapter);
+    const session = await module.adapter.play(plan([playbackEvent(1, "D4", 0)]));
+    assert.equal(session.state, AudioPlaybackState.PLAYING);
+    assert.equal(contexts[1].oscillators.length, 1);
     await module.dispose();
+    assert.equal(contexts[1].closeCalls, 1);
 });
 
 test("WebAudioPlaybackModule preserves collisions, same objects, listener failures, and replacements", async () => {
