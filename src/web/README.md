@@ -1,31 +1,35 @@
-# React Web Application Adapter
+# React Web Application and Playback Adapter
 
-The Web namespace also exports the v7.4 browser-only `WebAudio` adapter package from `src/web/audio`. It is not installed by application bootstrap and creates or resumes audio only after an explicit adapter `play()` call. No playback controls are present in the React UI. See [`audio/README.md`](audio/README.md) for timing, synthesis, ownership, cleanup, and exclusion boundaries.
+The v7.6 Web package connects the headless Application workflow to Playback Planning, browser-scoped Transport, and Web Audio through accessible React controls. React does not generate theory, traverse `ScoreGraph`, calculate musical timing, serialize SVG or MusicXML, schedule audio nodes, or manage AudioContext directly.
 
-The v7.5 frozen `Transport` namespace provides UI-neutral PlaybackPlan/session orchestration under `src/web/transport`. It is likewise absent from bootstrap and React rendering. See [`transport/README.md`](transport/README.md) for its state machine, stale-operation protection, ownership, and subscription policy.
+## Bootstrap and ownership
 
-The v7.2 Web package is a React adapter over the headless `application.engine`. It does not contain theory generation, notation, SVG serialization, MusicXML serialization, registries, or workflow orchestration.
+`createWebApplication()` installs Theory, Notation, Rendering, Export, Application, Playback, Web Audio, and Transport modules in dependency order. The Web Audio module intentionally owns the shared adapter; Transport borrows it. Reverse Kernel disposal stops and disposes Transport before the audio module closes its owned context. React borrows the runtime transport and never disposes shared services.
 
-## Bootstrap and React integration
+Bootstrap, registration, rendering, and effects do not create or resume an AudioContext. Browser audio begins only when a user activates Play or Replay. Component unmount may stop its active transport session, while runtime disposal retains responsibility for service disposal.
 
-`createWebApplication()` creates one Kernel, installs `TheoryModule`, `NotationModule`, `RenderingModule`, `ExportModule`, and `ApplicationModule` in dependency order, starts it once, and resolves `application.engine`. It exposes only the application service and immutable scale/chord catalog choices to React. `dispose()` is reusable and shuts the Kernel down cleanly. Tests can inject a Kernel or module list.
+`ApplicationProvider` owns bootstrap lifecycle. `useApplicationRuntime()` exposes the runtime, and `useApplicationWorkflow()` preserves empty, loading, success, stage-error, and stale-request behavior.
 
-`ApplicationProvider` owns this bootstrap lifecycle. `useApplicationRuntime()` exposes the safe runtime boundary and `useApplicationWorkflow()` provides empty, loading, success, and stage-aware error state. Generation tokens prevent stale or unmounted async workflow completions from changing React state.
+## Generated score to audio
 
-Pure helpers in `workflow.js` build validated scale and chord `ApplicationRequest` values. Switching workflow types replaces `pattern` with `quality`, or vice versa, so contradictory request fields cannot survive. Pattern and quality controls come from the registered Theory catalogs rather than duplicated musical formulas.
+After a current workflow succeeds, React passes the exact immutable `ApplicationResult.score` to `playback.engine.plan()`, retains result identity, and loads the immutable plan into Transport. Planning creates no sound. Transport orchestrates sessions; Web Audio alone converts canonical ticks and schedules oscillators. Playback never derives from rendered SVG, MusicXML, DOM, or form state.
 
-## Trusted SVG boundary
+Starting another workflow stops current playback immediately. Loading its result causes Transport to clean the previous session. Editing form fields without executing a workflow does not interrupt playback. Planning failures are announced separately and leave the successful result, pitches, SVG, and MusicXML export intact.
 
-The score view inserts SVG only from `ApplicationResult.rendering`, which is produced by the registered Rendering Core service. The UI never accepts SVG markup from a user and never reconstructs score notation. Dynamic SVG text and metadata escaping remain Rendering Core responsibilities.
+## Controls, state, and errors
 
-## MusicXML download
+The successful result contains native Play, Stop, and Replay buttons in a labeled fieldset. Play is disabled while starting, scheduled, or playing. Stop is enabled only during those states. Replay is enabled after stopped, completed, or failed while the current plan remains loaded. Status changes use a polite atomic live region, and planning, autoplay, playback, and cleanup failures use alerts.
 
-`downloadExport()` is the browser-only delivery adapter. An explicit button action creates a Blob from immutable `ExportResult.content` and `mediaType`, generates a safe filename using its `extension`, clicks a temporary anchor, and always revokes the object URL. The filename base comes from the completed immutable `ApplicationResult.request`, so later form edits cannot rename an earlier export. Export Core remains free of browser and filesystem behavior.
+`usePlaybackTransport()` uses `useSyncExternalStore` to read immutable snapshots with one subscription per transport identity and no polling. Deterministic command generations prevent stale promise completion from replacing newer UI state. New Play or Replay commands clear stale execution errors. Listener and component cleanup never move focus automatically.
 
-## Scope boundary
+Browser autoplay policy may reject audio even after a visible action; the original safe error remains visible with guidance to initiate audio from Play or Replay.
 
-This package intentionally excludes playback, Web Audio, MIDI, authentication, persistence, networking, accounts, collaboration, server APIs, and external state management. Core imports remain React- and DOM-free.
+## Existing output boundaries
 
-## Validation
+Trusted SVG remains sourced only from `ApplicationResult.rendering`. `downloadExport()` still creates and revokes a browser Blob URL from immutable `ExportResult` data, with its filename derived from the completed request. Playback controls are visually and behaviorally separate from MusicXML download.
 
-Milestone 9 passes **133 tests**: 121 plain-Node core and adapter tests plus 12 React DOM tests. Production validation uses `npm run build`, and the Vite build succeeds without requiring browser globals in Core.
+## Exclusions and validation
+
+This milestone excludes pause/resume, seeking, scrubbing, looping, tempo changes during playback, score-following, cursor animation, Web MIDI, recording, samples, effects, mixer UI, server APIs, persistence, and networking. Core imports remain React-, DOM-, browser-, AudioContext-, and MIDI-free.
+
+The complete repository suite contains **200 passing tests**: 181 plain-Node tests and 19 React DOM tests.

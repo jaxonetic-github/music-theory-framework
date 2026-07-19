@@ -40,4 +40,4 @@ This package contains no `AudioContext`, Web Audio, Web MIDI, MIDI device access
 
 ## Validation
 
-Playback Planning Core is covered by 23 focused acceptance tests. The complete repository suite contains **156 passing tests**. Production Web build and `git diff --check` are also validated.
+Playback Planning Core is covered by 23 focused acceptance tests. The complete repository suite contains **200 passing tests**. Production Web build and `git diff --check` are also validated.

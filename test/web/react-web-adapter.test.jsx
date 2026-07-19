@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import React, { StrictMode, useState } from "react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -7,14 +7,44 @@ import { ApplicationWorkflowError } from "../../src/core/index.js";
 import { ApplicationProvider, useApplicationRuntime, useApplicationWorkflow } from "../../src/web/ApplicationProvider.jsx";
 import { MusicTheoryWebApp } from "../../src/web/MusicTheoryWebApp.jsx";
 import { createWebApplication } from "../../src/web/bootstrap.js";
+import { usePlaybackTransport } from "../../src/web/usePlaybackTransport.js";
 
 const catalogs = Object.freeze({
     scales: Object.freeze([{ id: "major", name: "Major" }, { id: "dorian", name: "Dorian" }]),
     chords: Object.freeze([{ id: "major", name: "Major" }, { id: "minor-7", name: "Minor Seventh" }])
 });
 
-function bootstrapWith(application, dispose = vi.fn(async () => {})) {
-    return vi.fn(async () => Object.freeze({ application, catalogs, dispose }));
+class FakeTransport {
+    constructor() {
+        this.listeners = new Set();
+        this.plan = null;
+        this.playCalls = 0;
+        this.stopCalls = 0;
+        this.replayCalls = 0;
+        this.sequence = 0;
+        this.snapshot = Object.freeze({ state: "idle", plan: null, hasPlan: false, sessionId: null, operationSequence: 0, error: null });
+    }
+    subscribe(listener) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
+    transition(state, error = null) {
+        this.sequence += 1;
+        this.snapshot = Object.freeze({ state, plan: this.plan, hasPlan: Boolean(this.plan), sessionId: null, operationSequence: this.sequence, error });
+        for (const listener of [...this.listeners]) listener();
+    }
+    load(plan) { this.plan = plan; this.transition("ready"); return this.snapshot; }
+    async play() { this.playCalls += 1; this.transition("starting"); this.transition("scheduled"); return this.snapshot; }
+    stop() { this.stopCalls += 1; this.transition("stopped"); return this.snapshot; }
+    async replay() { this.replayCalls += 1; this.transition("starting"); this.transition("scheduled"); return this.snapshot; }
+}
+
+function bootstrapWith(application, dispose = vi.fn(async () => {}), overrides = {}) {
+    return vi.fn(async () => Object.freeze({
+        application,
+        playback: { plan: vi.fn(() => { throw new Error("planning unavailable"); }) },
+        transport: new FakeTransport(),
+        catalogs,
+        dispose,
+        ...overrides
+    }));
 }
 
 function RuntimeProbe() {
@@ -199,4 +229,185 @@ it("download keeps the completed C scale identity after controls are edited to D
         if (previousRevoke) URL.revokeObjectURL = previousRevoke;
         else delete URL.revokeObjectURL;
     }
+});
+
+async function playableRuntime(overrides = {}) {
+    const base = await createWebApplication();
+    const transport = overrides.transport ?? new FakeTransport();
+    const plan = vi.fn(score => base.playback.plan(score));
+    const results = [];
+    const application = { run(request) { const result = base.application.run(request); results.push(result); return result; } };
+    return {
+        base,
+        transport,
+        results,
+        runtime: Object.freeze({
+            application,
+            playback: { plan },
+            transport,
+            catalogs: base.catalogs,
+            dispose: () => base.dispose(),
+            ...overrides.runtime
+        }),
+        plan
+    };
+}
+
+it("plans the exact successful score, loads transport, and renders accessible controls without producing audio", async () => {
+    const { runtime, transport, plan, results } = await playableRuntime();
+    const previousAudioContext = globalThis.AudioContext;
+    let audioReads = 0;
+    Object.defineProperty(globalThis, "AudioContext", { configurable: true, get() { audioReads += 1; throw new Error("eager audio"); } });
+    try {
+        render(<ApplicationProvider bootstrap={async () => runtime}><MusicTheoryWebApp /></ApplicationProvider>);
+        const user = userEvent.setup();
+        await screen.findByRole("button", { name: /generate scale/i });
+        await user.click(screen.getByRole("button", { name: /generate scale/i }));
+        await screen.findByRole("group", { name: "Playback controls" });
+        expect(plan).toHaveBeenCalledTimes(1);
+        expect(plan.mock.calls[0][0]).toBe(results[0].score);
+        expect(Object.isFrozen(results[0])).toBe(true);
+        expect(Object.isFrozen(results[0].score)).toBe(true);
+        expect(transport.plan).toBeTruthy();
+        expect(Object.isFrozen(transport.plan)).toBe(true);
+        expect(audioReads).toBe(0);
+        expect(screen.getByRole("button", { name: "Play" }).disabled).toBe(false);
+        expect(screen.getByRole("button", { name: "Stop" }).disabled).toBe(true);
+        expect(screen.getByRole("button", { name: "Replay" }).disabled).toBe(true);
+        expect(screen.getByRole("status").textContent).toContain("ready");
+    } finally {
+        if (previousAudioContext === undefined) delete globalThis.AudioContext;
+        else Object.defineProperty(globalThis, "AudioContext", { configurable: true, value: previousAudioContext, writable: true });
+    }
+});
+
+it("Play, Stop, and Replay issue only transport commands and preserve focus and form-edit playback", async () => {
+    const { runtime, transport } = await playableRuntime();
+    render(<ApplicationProvider bootstrap={async () => runtime}><MusicTheoryWebApp /></ApplicationProvider>);
+    const user = userEvent.setup();
+    await screen.findByRole("button", { name: /generate scale/i });
+    await user.click(screen.getByRole("button", { name: /generate scale/i }));
+    const play = await screen.findByRole("button", { name: "Play" });
+    play.focus();
+    await user.click(play);
+    expect(transport.playCalls).toBe(1);
+    expect(document.activeElement).toBe(play);
+    expect(screen.getByRole("status").textContent).toContain("scheduled");
+    const root = screen.getByLabelText("Root pitch");
+    await user.clear(root);
+    await user.type(root, "D");
+    expect(transport.stopCalls).toBe(0);
+    await user.click(screen.getByRole("button", { name: "Stop" }));
+    expect(transport.stopCalls).toBe(1);
+    expect(screen.getByRole("button", { name: "Replay" }).disabled).toBe(false);
+    await user.click(screen.getByRole("button", { name: "Replay" }));
+    expect(transport.replayCalls).toBe(1);
+});
+
+it("a new workflow stops active playback while stale form edits do not replace the loaded plan", async () => {
+    const { runtime, transport } = await playableRuntime();
+    render(<ApplicationProvider bootstrap={async () => runtime}><MusicTheoryWebApp /></ApplicationProvider>);
+    const user = userEvent.setup();
+    await screen.findByRole("button", { name: /generate scale/i });
+    await user.click(screen.getByRole("button", { name: /generate scale/i }));
+    await screen.findByRole("button", { name: "Play" });
+    const firstPlan = transport.plan;
+    act(() => transport.transition("playing"));
+    const root = screen.getByLabelText("Root pitch");
+    await user.clear(root);
+    await user.type(root, "D");
+    expect(transport.plan).toBe(firstPlan);
+    expect(transport.stopCalls).toBe(0);
+    await user.click(screen.getByRole("button", { name: /generate scale/i }));
+    expect(transport.stopCalls).toBe(1);
+    await waitFor(() => expect(transport.plan).not.toBe(firstPlan));
+});
+
+it("planning failures remain playback alerts without discarding the generated result", async () => {
+    const base = await createWebApplication();
+    const transport = new FakeTransport();
+    const runtime = Object.freeze({
+        application: base.application, playback: { plan() { throw new Error("planner offline"); } },
+        transport, catalogs: base.catalogs, dispose: () => base.dispose()
+    });
+    render(<ApplicationProvider bootstrap={async () => runtime}><MusicTheoryWebApp /></ApplicationProvider>);
+    const user = userEvent.setup();
+    await screen.findByRole("button", { name: /generate scale/i });
+    await user.click(screen.getByRole("button", { name: /generate scale/i }));
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Playback planning failed");
+    expect(alert.textContent).toContain("planner offline");
+    expect(screen.getByRole("heading", { name: /c major/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Play" }).disabled).toBe(true);
+});
+
+it("autoplay failures stay visible with the result and rapid Play clicks do not duplicate commands", async () => {
+    let rejectPlay;
+    const transport = new FakeTransport();
+    transport.play = vi.fn(() => {
+        transport.playCalls += 1;
+        transport.transition("starting");
+        return new Promise((resolve, reject) => { rejectPlay = reject; });
+    });
+    const { runtime } = await playableRuntime({ transport });
+    render(<ApplicationProvider bootstrap={async () => runtime}><MusicTheoryWebApp /></ApplicationProvider>);
+    const user = userEvent.setup();
+    await screen.findByRole("button", { name: /generate scale/i });
+    await user.click(screen.getByRole("button", { name: /generate scale/i }));
+    const play = await screen.findByRole("button", { name: "Play" });
+    fireEvent.click(play);
+    fireEvent.click(play);
+    await waitFor(() => expect(transport.play).toHaveBeenCalledTimes(1));
+    const error = new Error("Autoplay is not allowed");
+    error.name = "NotAllowedError";
+    rejectPlay(error);
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("Autoplay is not allowed");
+    expect(alert.textContent).toContain("Play or Replay action");
+    expect(screen.getByRole("heading", { name: /c major/i })).toBeTruthy();
+});
+
+it("stale Play completion after Stop cannot overwrite the stopped UI", async () => {
+    let resolvePlay;
+    const transport = new FakeTransport();
+    transport.play = vi.fn(() => {
+        transport.playCalls += 1;
+        transport.transition("starting");
+        return new Promise(resolve => { resolvePlay = resolve; });
+    });
+    const { runtime } = await playableRuntime({ transport });
+    render(<ApplicationProvider bootstrap={async () => runtime}><MusicTheoryWebApp /></ApplicationProvider>);
+    const user = userEvent.setup();
+    await screen.findByRole("button", { name: /generate scale/i });
+    await user.click(screen.getByRole("button", { name: /generate scale/i }));
+    fireEvent.click(await screen.findByRole("button", { name: "Play" }));
+    await user.click(screen.getByRole("button", { name: "Stop" }));
+    resolvePlay(transport.snapshot);
+    await waitFor(() => expect(screen.getByRole("status").textContent).toContain("stopped"));
+    expect(screen.getByRole("button", { name: "Replay" }).disabled).toBe(false);
+});
+
+it("usePlaybackTransport has one Strict Mode subscription and unmount stops active playback without disposing runtime services", async () => {
+    const transport = new FakeTransport();
+    let maximumSubscriptions = 0;
+    const subscribe = transport.subscribe.bind(transport);
+    transport.subscribe = listener => {
+        const unsubscribe = subscribe(listener);
+        maximumSubscriptions = Math.max(maximumSubscriptions, transport.listeners.size);
+        return unsubscribe;
+    };
+    function Probe() { const value = usePlaybackTransport(transport); return <output>{value.state}</output>; }
+    const probe = render(<StrictMode><Probe /></StrictMode>);
+    expect(maximumSubscriptions).toBe(1);
+    probe.unmount();
+    expect(transport.listeners.size).toBe(0);
+
+    const { runtime } = await playableRuntime({ transport });
+    const view = render(<ApplicationProvider bootstrap={async () => runtime}><MusicTheoryWebApp /></ApplicationProvider>);
+    const user = userEvent.setup();
+    await screen.findByRole("button", { name: /generate scale/i });
+    await user.click(screen.getByRole("button", { name: /generate scale/i }));
+    act(() => transport.transition("playing"));
+    view.unmount();
+    expect(transport.stopCalls).toBe(1);
 });

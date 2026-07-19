@@ -37,7 +37,8 @@ legend, .field > span { margin-bottom: .55rem; font-size: .82rem; font-weight: 7
 .output-options { display: grid; gap: .65rem; margin: 1.35rem 0; }
 .output-options label { display: flex; gap: .6rem; align-items: center; }
 .output-options input { width: 1.1rem; height: 1.1rem; accent-color: #b44b22; }
-.primary-action, .download-action { width: 100%; padding: .85rem 1rem; border: 0; border-radius: 10px; cursor: pointer; font-weight: 780; }
+.primary-action, .download-action, .playback-actions button { padding: .85rem 1rem; border: 0; border-radius: 10px; cursor: pointer; font-weight: 780; }
+.primary-action, .download-action { width: 100%; }
 .primary-action { color: white; background: #b44b22; }
 .primary-action:disabled { cursor: wait; opacity: .65; }
 .results-panel { min-width: 0; }
@@ -60,6 +61,15 @@ legend, .field > span { margin-bottom: .55rem; font-size: .82rem; font-weight: 7
 .metadata-list div { min-width: 0; padding: .7rem; border-left: 3px solid #d5aa70; background: #f6f3eb; }
 .metadata-list dt { color: #737b75; font-size: .72rem; text-transform: uppercase; }
 .metadata-list dd { overflow-wrap: anywhere; margin: .25rem 0 0; }
+.playback-section { margin-top: 1.5rem; padding: 1rem; border: 1px solid #c9c9be; border-radius: 12px; background: #f8f6ef; }
+.playback-section > h3 { margin-top: 0; }
+.playback-controls legend { margin-bottom: .65rem; }
+.playback-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; }
+.playback-actions button { color: white; background: #263c2d; }
+.playback-actions button:nth-child(2) { color: #6d2419; border: 1px solid #bd7768; background: #fff2ef; }
+.playback-actions button:disabled { cursor: not-allowed; opacity: .42; }
+.playback-status { min-height: 1.5em; margin: .8rem 0 0; color: #536158; }
+.playback-error { margin-top: .8rem; padding: .75rem; color: #7c291d; border-left: 3px solid #b44b22; background: #fff2ef; }
 .svg-frame { overflow: auto; max-width: 100%; padding: .65rem; border: 1px solid #d0cec5; border-radius: 12px; background: white; }
 .svg-frame svg { display: block; max-width: none; }
 .download-action { margin-top: 1.25rem; color: #173020; border: 1px solid #788a7c; background: #e3eadf; }
@@ -72,6 +82,7 @@ legend, .field > span { margin-bottom: .55rem; font-size: .82rem; font-weight: 7
     .hero h1 { font-size: clamp(2.5rem, 14vw, 4.7rem); }
     .metadata-list { grid-template-columns: 1fr; }
     .type-switch { flex-wrap: wrap; }
+    .playback-actions { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }

@@ -3,17 +3,30 @@ import {
     ExportModule,
     Kernel,
     NotationModule,
+    PlaybackModule,
     RenderingModule,
     TheoryModule
 } from "../core/index.js";
+import { WebAudioPlaybackModule } from "./audio/index.js";
+import { PlaybackTransportController, PlaybackTransportModule } from "./transport/index.js";
 
-const defaultModules = () => [
-    new TheoryModule(),
-    new NotationModule(),
-    new RenderingModule(),
-    new ExportModule(),
-    new ApplicationModule()
-];
+const defaultModules = () => {
+    const audio = new WebAudioPlaybackModule();
+    const controllerFactory = () => new PlaybackTransportController({ adapter: audio.adapter });
+    const transport = new PlaybackTransportModule({
+        controller: controllerFactory(), controllerFactory, ownsController: true
+    });
+    return [
+        new TheoryModule(),
+        new NotationModule(),
+        new RenderingModule(),
+        new ExportModule(),
+        new ApplicationModule(),
+        new PlaybackModule(),
+        audio,
+        transport
+    ];
+};
 
 function catalogOptions(catalog) {
     return Object.freeze(catalog.values().map(pattern => Object.freeze({
@@ -31,12 +44,16 @@ export async function createWebApplication({
         for (const module of modules) kernel.use(module);
         await kernel.start();
         const application = kernel.services.resolve("application.engine");
+        const playback = kernel.services.resolve("playback.engine");
+        const transport = kernel.services.resolve("web.playback.transport");
         const catalogs = Object.freeze({
             scales: catalogOptions(kernel.services.resolve("theory.scaleCatalog")),
             chords: catalogOptions(kernel.services.resolve("theory.chordCatalog"))
         });
         return Object.freeze({
             application,
+            playback,
+            transport,
             catalogs,
             async dispose() {
                 if (disposed) return;
