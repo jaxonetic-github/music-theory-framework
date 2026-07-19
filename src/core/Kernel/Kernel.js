@@ -45,8 +45,9 @@ export class Kernel {
         const id = String(module.id ?? module.descriptor?.id ?? "");
         if (!id) throw new ValidationError("A kernel module must expose an id or descriptor.id.");
         if (this.#modules.some(entry => entry.id === id)) throw new ValidationError(`Kernel module "${id}" is already installed.`);
-        this.#modules.push({ id, module });
         if (module.descriptor) this.#registryFor(module.descriptor)?.register(module.descriptor, { value: module });
+        this.#modules.push({ id, module });
+        if (this.#state === LifecycleState.CONFIGURED) this.#state = LifecycleState.CREATED;
         return this;
     }
 
@@ -56,8 +57,8 @@ export class Kernel {
         this.#state = LifecycleState.CONFIGURING;
         try {
             for (const entry of this.#modules) {
-                if (!this.#configured.includes(entry) && typeof entry.module.configure === "function") {
-                    await entry.module.configure(this.context);
+                if (!this.#configured.includes(entry)) {
+                    if (typeof entry.module.configure === "function") await entry.module.configure(this.context);
                     this.#configured.push(entry);
                 }
             }

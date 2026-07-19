@@ -73,6 +73,30 @@ test("kernel runs lifecycle hooks in safe order", async () => {
     ]);
 });
 
+test("kernel configures modules added after the configured state before starting", async () => {
+    const order = [];
+    const kernel = new Kernel();
+    kernel.use({
+        id: "initial",
+        configure() { order.push("configure:initial"); },
+        start() { order.push("start:initial"); }
+    });
+
+    await kernel.configure();
+    assert.equal(kernel.state, LifecycleState.CONFIGURED);
+
+    kernel.use({
+        id: "late",
+        configure() { order.push("configure:late"); },
+        start() { order.push("start:late"); }
+    });
+    assert.equal(kernel.state, LifecycleState.CREATED);
+
+    await kernel.start();
+    assert.deepEqual(order, ["configure:initial", "configure:late", "start:initial", "start:late"]);
+    await kernel.dispose();
+});
+
 test("kernel rolls back modules after a failed start", async () => {
     const order = [];
     const kernel = new Kernel();
