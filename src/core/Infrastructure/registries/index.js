@@ -9,6 +9,7 @@ export { ThemeRegistry } from "./ThemeRegistry.js";
 export { GeneratorRegistry } from "./GeneratorRegistry.js";
 export { RendererRegistry } from "./RendererRegistry.js";
 export { ExporterRegistry } from "./ExporterRegistry.js";
+export { PlaybackRegistry } from "./PlaybackRegistry.js";
 export { WorkspaceRegistry } from "./WorkspaceRegistry.js";
 export { registriesPackageDescriptor } from "./package.descriptor.js";
 
@@ -23,6 +24,7 @@ import { ThemeRegistry } from "./ThemeRegistry.js";
 import { GeneratorRegistry } from "./GeneratorRegistry.js";
 import { RendererRegistry } from "./RendererRegistry.js";
 import { ExporterRegistry } from "./ExporterRegistry.js";
+import { PlaybackRegistry } from "./PlaybackRegistry.js";
 import { WorkspaceRegistry } from "./WorkspaceRegistry.js";
 import { registriesPackageDescriptor } from "./package.descriptor.js";
 
@@ -38,6 +40,7 @@ export const Registries = Object.freeze({
     GeneratorRegistry,
     RendererRegistry,
     ExporterRegistry,
+    PlaybackRegistry,
     WorkspaceRegistry,
     descriptor: registriesPackageDescriptor
 });

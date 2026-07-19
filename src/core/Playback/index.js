@@ -17,6 +17,8 @@ import { PlaybackModule } from "./PlaybackModule.js";
 import { PlaybackStrategy, ScorePlaybackPlanner } from "./strategies/index.js";
 import { playbackServiceDescriptors, defaultPlaybackPluginDescriptor, playbackStrategyDescriptors } from "./descriptors.js";
 import { playbackPackageDescriptor } from "./package.descriptor.js";
+import { PlaybackDescriptor } from "../Foundation/index.js";
+import { PlaybackRegistry } from "../Infrastructure/index.js";
 
 export const Playback = Object.freeze({
     PlaybackRequest,
@@ -27,6 +29,8 @@ export const Playback = Object.freeze({
     PlaybackModule,
     PlaybackStrategy,
     ScorePlaybackPlanner,
+    PlaybackDescriptor,
+    PlaybackRegistry,
     serviceDescriptors: playbackServiceDescriptors,
     pluginDescriptor: defaultPlaybackPluginDescriptor,
     strategyDescriptors: playbackStrategyDescriptors,

@@ -3,19 +3,23 @@ import assert from "node:assert/strict";
 
 import {
     ChordNode,
+    Foundation,
     Kernel,
     MeasureNode,
     NoteNode,
     PartNode,
     Playback,
+    PlaybackDescriptor,
     PlaybackEngine,
     PlaybackEvent,
     PlaybackModule,
     PlaybackPlan,
     PlaybackRequest,
+    PlaybackRegistry,
     PlaybackStrategy,
     PlaybackStrategyRegistry,
     RestNode,
+    Registries,
     ScoreEdge,
     ScoreGraph,
     ScorePlaybackPlanner,
@@ -285,8 +289,27 @@ test("PlaybackModule integrates all services and descriptors with Kernel", async
     assert.strictEqual(kernel.registries.services.resolve("playback.engine"), module.engine);
     assert.strictEqual(kernel.registries.services.resolve("playback.strategy-registry"), module.strategyRegistry);
     assert.equal(kernel.registries.plugins.has("core.playback.score"), true);
-    assert.strictEqual(kernel.registries.renderers.resolve("playback.score"), module.scoreStrategy);
+    assert.strictEqual(kernel.registries.playbacks.resolve("playback.score"), module.scoreStrategy);
+    assert.equal(kernel.registries.renderers.has("playback.score"), false);
     await kernel.dispose();
+    assert.equal(kernel.registries.playbacks.size, 0);
+});
+
+test("PlaybackDescriptor routes through Kernel and PlaybackRegistry accepts only playback descriptors", async () => {
+    const descriptor = new PlaybackDescriptor({
+        id: "playback.test", plugin: { id: "plugin.test", kind: "plugin" },
+        capabilities: ["playback-planning"],
+        inputTypes: [{ id: "notation.score-graph", kind: "value" }],
+        outputTypes: [{ id: "playback.plan", kind: "value" }]
+    });
+    const kernel = new Kernel();
+    const module = { id: "playback.test.module", descriptor };
+    kernel.use(module);
+    assert.strictEqual(kernel.registries.playbacks.resolve("playback.test"), module);
+    assert.equal(kernel.registries.renderers.size, 0);
+    assert.throws(() => kernel.registries.playbacks.register(playbackServiceDescriptors.engine), /accepts descriptor types/);
+    await kernel.dispose();
+    assert.equal(kernel.registries.playbacks.size, 0);
 });
 
 test("PlaybackModule rolls back and preserves pre-existing values at every collision point", () => {
@@ -299,7 +322,7 @@ test("PlaybackModule rolls back and preserves pre-existing values at every colli
         if (point === "engine-descriptor") kernel.registries.services.register(playbackServiceDescriptors.engine, { value: existing });
         if (point === "registry-descriptor") kernel.registries.services.register(playbackServiceDescriptors.strategies, { value: existing });
         if (point === "plugin") kernel.registries.plugins.register(defaultPlaybackPluginDescriptor, { value: existing });
-        if (point === "strategy") kernel.registries.renderers.register(playbackStrategyDescriptors.score, { value: existing });
+        if (point === "strategy") kernel.registries.playbacks.register(playbackStrategyDescriptors.score, { value: existing });
         const module = new PlaybackModule();
         assert.throws(() => module.configure(kernel));
         assert.strictEqual(kernel.services.resolve("playback.engine", { optional: true }), point === "engine-service" ? existing : null);
@@ -307,7 +330,8 @@ test("PlaybackModule rolls back and preserves pre-existing values at every colli
         assert.strictEqual(kernel.registries.services.resolve("playback.engine"), point === "engine-descriptor" ? existing : null);
         assert.strictEqual(kernel.registries.services.resolve("playback.strategy-registry"), point === "registry-descriptor" ? existing : null);
         assert.strictEqual(kernel.registries.plugins.resolve("core.playback.score"), point === "plugin" ? existing : null);
-        assert.strictEqual(kernel.registries.renderers.resolve("playback.score"), point === "strategy" ? existing : null);
+        assert.strictEqual(kernel.registries.playbacks.resolve("playback.score"), point === "strategy" ? existing : null);
+        assert.equal(kernel.registries.renderers.size, 0);
     }
 });
 
@@ -321,26 +345,30 @@ test("PlaybackModule preserves same-object collisions and rolls back earlier ste
         if (point === "engine-descriptor") kernel.registries.services.register(playbackServiceDescriptors.engine, { value: module.engine });
         if (point === "registry-descriptor") kernel.registries.services.register(playbackServiceDescriptors.strategies, { value: module.strategyRegistry });
         if (point === "plugin") kernel.registries.plugins.register(defaultPlaybackPluginDescriptor, { value: module.plugin });
-        if (point === "strategy") kernel.registries.renderers.register(playbackStrategyDescriptors.score, { value: module.scoreStrategy });
+        if (point === "strategy") kernel.registries.playbacks.register(playbackStrategyDescriptors.score, { value: module.scoreStrategy });
         assert.throws(() => module.configure(kernel));
         assert.strictEqual(kernel.services.resolve("playback.engine", { optional: true }), point === "engine-service" ? module.engine : null);
         assert.strictEqual(kernel.services.resolve("playback.strategyRegistry", { optional: true }), point === "registry-service" ? module.strategyRegistry : null);
         assert.strictEqual(kernel.registries.services.resolve("playback.engine"), point === "engine-descriptor" ? module.engine : null);
         assert.strictEqual(kernel.registries.services.resolve("playback.strategy-registry"), point === "registry-descriptor" ? module.strategyRegistry : null);
         assert.strictEqual(kernel.registries.plugins.resolve("core.playback.score"), point === "plugin" ? module.plugin : null);
-        assert.strictEqual(kernel.registries.renderers.resolve("playback.score"), point === "strategy" ? module.scoreStrategy : null);
+        assert.strictEqual(kernel.registries.playbacks.resolve("playback.score"), point === "strategy" ? module.scoreStrategy : null);
+        assert.equal(kernel.registries.renderers.size, 0);
     }
 });
 
-test("PlaybackModule removes listener-failed insertions and rolls back prior registrations", () => {
+test("PlaybackModule removes listener-failed playback insertion and rolls back prior registrations", () => {
     const kernel = new Kernel();
     const module = new PlaybackModule();
-    const unsubscribe = kernel.registries.services.subscribe(() => { throw new Error("listener failed"); });
+    const unsubscribe = kernel.registries.playbacks.subscribe(() => { throw new Error("listener failed"); });
     assert.throws(() => module.configure(kernel), /listener failed/);
     unsubscribe();
     assert.equal(kernel.services.resolve("playback.engine", { optional: true }), null);
     assert.equal(kernel.services.resolve("playback.strategyRegistry", { optional: true }), null);
     assert.equal(kernel.registries.services.has("playback.engine"), false);
+    assert.equal(kernel.registries.plugins.has("core.playback.score"), false);
+    assert.equal(kernel.registries.playbacks.has("playback.score"), false);
+    assert.equal(kernel.registries.renderers.size, 0);
 });
 
 test("PlaybackModule configure/dispose is reusable, idempotent, and preserves replacements", () => {
@@ -359,7 +387,7 @@ test("PlaybackModule configure/dispose is reusable, idempotent, and preserves re
     kernel.registries.services.register(playbackServiceDescriptors.engine, { value: replacementRegistry, replace: true });
     kernel.registries.services.register(playbackServiceDescriptors.strategies, { value: replacementStrategyRegistry, replace: true });
     kernel.registries.plugins.register(defaultPlaybackPluginDescriptor, { value: replacementPlugin, replace: true });
-    kernel.registries.renderers.register(playbackStrategyDescriptors.score, { value: replacementStrategy, replace: true });
+    kernel.registries.playbacks.register(playbackStrategyDescriptors.score, { value: replacementStrategy, replace: true });
     module.dispose();
     module.dispose();
     assert.strictEqual(kernel.services.resolve("playback.engine"), replacementService);
@@ -367,13 +395,14 @@ test("PlaybackModule configure/dispose is reusable, idempotent, and preserves re
     assert.strictEqual(kernel.registries.services.resolve("playback.engine"), replacementRegistry);
     assert.strictEqual(kernel.registries.services.resolve("playback.strategy-registry"), replacementStrategyRegistry);
     assert.strictEqual(kernel.registries.plugins.resolve("core.playback.score"), replacementPlugin);
-    assert.strictEqual(kernel.registries.renderers.resolve("playback.score"), replacementStrategy);
+    assert.strictEqual(kernel.registries.playbacks.resolve("playback.score"), replacementStrategy);
+    assert.equal(kernel.registries.renderers.size, 0);
     kernel.services.unregister("playback.engine");
     kernel.services.unregister("playback.strategyRegistry");
     kernel.registries.services.unregister("playback.engine");
     kernel.registries.services.unregister("playback.strategy-registry");
     kernel.registries.plugins.unregister("core.playback.score");
-    kernel.registries.renderers.unregister("playback.score");
+    kernel.registries.playbacks.unregister("playback.score");
     module.configure(kernel);
     assert.strictEqual(kernel.services.resolve("playback.engine"), module.engine);
     module.dispose();
@@ -382,6 +411,17 @@ test("PlaybackModule configure/dispose is reusable, idempotent, and preserves re
 test("Playback public namespace and descriptors expose only planning contracts", () => {
     assert.equal(Playback.PlaybackEngine, PlaybackEngine);
     assert.equal(Playback.ScorePlaybackPlanner, ScorePlaybackPlanner);
+    assert.equal(Playback.PlaybackDescriptor, PlaybackDescriptor);
+    assert.equal(Playback.PlaybackRegistry, PlaybackRegistry);
+    assert.equal(Foundation.PlaybackDescriptor, PlaybackDescriptor);
+    assert.equal(Registries.PlaybackRegistry, PlaybackRegistry);
+    assert.ok(new Kernel().registries.playbacks instanceof PlaybackRegistry);
+    assert.ok(playbackStrategyDescriptors.score instanceof PlaybackDescriptor);
+    assert.equal(playbackStrategyDescriptors.score.descriptorType, "playback");
+    assert.equal(String(playbackStrategyDescriptors.score.plugin.id), "core.playback.score");
+    assert.deepEqual(playbackStrategyDescriptors.score.inputTypes.values.map(String), ["notation.score-graph"]);
+    assert.deepEqual(playbackStrategyDescriptors.score.outputTypes.values.map(String), ["playback.plan"]);
+    assert.equal(defaultPlaybackPluginDescriptor.extensionPoints.values[0].kind.toString(), "playback");
     assert.equal(String(playbackPackageDescriptor.id), "core.playback");
     assert.equal(String(playbackPackageDescriptor.version), "7.3.0");
     assert.equal(Object.isFrozen(Playback), true);

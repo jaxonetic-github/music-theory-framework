@@ -78,7 +78,7 @@ export class PlaybackModule {
             registerValue(registries.services, playbackServiceDescriptors.engine, this.engine);
             registerValue(registries.services, playbackServiceDescriptors.strategies, this.strategyRegistry);
             registerValue(registries.plugins, defaultPlaybackPluginDescriptor, this.plugin);
-            registerValue(registries.renderers, playbackStrategyDescriptors.score, this.scoreStrategy);
+            registerValue(registries.playbacks, playbackStrategyDescriptors.score, this.scoreStrategy);
             this.#undo = undo;
             this.#configured = true;
             return this;

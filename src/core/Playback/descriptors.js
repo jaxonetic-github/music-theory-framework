@@ -1,4 +1,4 @@
-import { PluginDescriptor, RendererDescriptor, ServiceDescriptor } from "../Foundation/index.js";
+import { PlaybackDescriptor, PluginDescriptor, ServiceDescriptor } from "../Foundation/index.js";
 
 export const playbackServiceDescriptors = Object.freeze({
     engine: new ServiceDescriptor({
@@ -21,15 +21,16 @@ export const defaultPlaybackPluginDescriptor = new PluginDescriptor({
     layer: "plugin", category: "plugin", role: "provider", stability: "stable", visibility: "public",
     capabilities: ["score-playback-plan", "rational-duration-timing", "polyphonic-scheduling", "enharmonic-preservation"],
     services: [{ id: "playback.engine", kind: "service" }],
-    extensionPoints: [{ id: "playback.strategy", kind: "renderer" }]
+    extensionPoints: [{ id: "playback.strategy", kind: "playback" }]
 });
 
 export const playbackStrategyDescriptors = Object.freeze({
-    score: new RendererDescriptor({
+    score: new PlaybackDescriptor({
         id: "playback.score", name: { value: "score-playback-planner", displayName: "Score Playback Planner" },
         description: "Converts immutable score graphs into exact-tick immutable playback plans.",
         layer: "application", category: "application", role: "strategy", stability: "stable", visibility: "public",
-        formats: ["playback-plan"],
+        capabilities: ["playback-planning", "exact-tick-timing", "score-graph-input", "immutable-plan-output"],
+        plugin: { id: "core.playback.score", kind: "plugin" },
         inputTypes: [{ id: "notation.score-graph", kind: "value" }],
         outputTypes: [{ id: "playback.plan", kind: "value" }],
         metadata: { pluginId: "core.playback.score", audioOutput: false, midiOutput: false }

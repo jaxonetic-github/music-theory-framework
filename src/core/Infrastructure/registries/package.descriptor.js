@@ -3,7 +3,7 @@ import { PackageDescriptor } from "../../Foundation/index.js";
 export const registriesPackageDescriptor = new PackageDescriptor({
     id: "core.infrastructure.registries",
     name: { value: "Infrastructure Registries", displayName: "Infrastructure Registries" },
-    description: "Typed runtime registries for packages, modules, services, plugins, themes, generators, renderers, exporters, and workspaces.",
+    description: "Typed runtime registries for packages, modules, services, plugins, themes, generators, renderers, exporters, playback planners, and workspaces.",
     version: "6.1.0",
     layer: "infrastructure",
     category: "infrastructure",

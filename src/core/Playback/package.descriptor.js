@@ -22,6 +22,7 @@ export const playbackPackageDescriptor = new PackageDescriptor({
     provides: [
         { id: "playback.engine", kind: "service" },
         { id: "playback.strategyRegistry", kind: "service" },
+        { id: "playback.score", kind: "playback" },
         { id: "playback.plan", kind: "value" }
     ],
     publicApi: [{ id: "core/Playback/index.js", kind: "module" }],

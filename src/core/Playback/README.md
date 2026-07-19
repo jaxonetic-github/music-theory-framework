@@ -6,7 +6,7 @@ Playback Planning Core is the v7.3 framework-neutral scheduling boundary. It con
 
 `PlaybackEngine.plan(scoreGraph, options)` validates a `PlaybackRequest`, selects a `PlaybackStrategy` through `PlaybackStrategyRegistry`, and validates the returned plan contract. Strategies are isolated by plugin id. Implicit selection follows registration order, while an explicit `pluginId` and `strategyId` selects one exact strategy without bypassing plugin scope.
 
-`PlaybackModule` registers `playback.engine`, `playback.strategyRegistry`, the default `core.playback.score` plugin, and its score planner descriptor transactionally. Failed configurations roll back only registrations owned by that attempt; disposal is reusable, idempotent, and preserves replacements.
+`PlaybackModule` registers `playback.engine`, `playback.strategyRegistry`, the default `core.playback.score` plugin, and its first-class `PlaybackDescriptor` transactionally. `PlaybackRegistry` exposes planner descriptors and implementations through `kernel.registries.playbacks`; playback planners never appear in renderer discovery. This global discovery registry is separate from the internal `PlaybackStrategyRegistry`, which retains plugin-scoped strategy selection. Failed configurations roll back only registrations owned by that attempt; disposal is reusable, idempotent, and preserves replacements.
 
 ## Exact rational timing
 
@@ -40,4 +40,4 @@ This package contains no `AudioContext`, Web Audio, Web MIDI, MIDI device access
 
 ## Validation
 
-Playback Planning Core is covered by 22 focused acceptance tests. The complete repository suite contains **155 passing tests**. Production Web build and `git diff --check` are also validated.
+Playback Planning Core is covered by 23 focused acceptance tests. The complete repository suite contains **156 passing tests**. Production Web build and `git diff --check` are also validated.
