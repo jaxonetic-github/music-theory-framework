@@ -35,6 +35,8 @@ Passing `context` borrows it. A borrowed context is never closed and unrelated e
 
 Every session owns only its oscillators and gains. Ownership begins immediately after each individual allocation: an oscillator is tracked before gain creation, and the gain is attached to that record immediately after its own allocation. Stop/dispose is idempotent, cancels that session’s sources, and does not affect concurrent sessions. Natural oscillator completion disconnects nodes and completes the session. Gain creation, automation, connection, start, stop, and later scheduling failures cancel and disconnect every node already created by the failed transaction. Empty plans complete without creating audio nodes.
 
+`AudioPlaybackSession.subscribe(listener)` provides ordered state notifications for browser orchestration without timers or polling. Unsubscribe is idempotent, duplicate state assignments do not emit, and listener exceptions are isolated so they cannot corrupt session state or audio cleanup.
+
 Browsers commonly require `play()` to be called from a user gesture before a suspended context may resume. Importing modules, bootstrapping the application, and rendering React never create, resume, or schedule an AudioContext.
 
 ## Registration and exclusions
