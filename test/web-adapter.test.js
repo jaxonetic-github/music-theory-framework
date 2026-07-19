@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { ApplicationRequest, ApplicationResult, ExportResult, Kernel } from "../src/core/index.js";
+import { ApplicationRequest, ApplicationResult, ExportResult, Kernel, PlaybackPlan, PlaybackRequest } from "../src/core/index.js";
 import { createWebApplication } from "../src/web/bootstrap.js";
 import { downloadExport, exportFilenameBase, safeFilename } from "../src/web/download.js";
 import { reactWebPackageDescriptor } from "../src/web/package.descriptor.js";
@@ -12,9 +12,14 @@ test("web bootstrap installs and resolves the complete application workflow", as
     const kernel = new Kernel({ name: "web-test" });
     const runtime = await createWebApplication({ kernel });
     assert.strictEqual(runtime.application, kernel.services.resolve("application.engine"));
+    assert.strictEqual(runtime.playback, kernel.services.resolve("playback.engine"));
+    assert.strictEqual(runtime.transport, kernel.services.resolve("web.playback.transport"));
     assert.deepEqual(kernel.modules.map(module => module.id), [
-        "core.theory", "core.notation", "core.rendering", "core.export", "core.application"
+        "core.theory", "core.notation", "core.rendering", "core.export", "core.application",
+        "core.playback", "web.audio-playback", "web.playback-transport"
     ]);
+    assert.strictEqual(runtime.transport.plan, null);
+    assert.equal(globalThis.AudioContext, undefined);
     assert.ok(runtime.catalogs.scales.some(pattern => pattern.id === "major"));
     assert.ok(runtime.catalogs.chords.some(pattern => pattern.id === "minor-7"));
     assert.equal(Object.isFrozen(runtime.catalogs), true);
@@ -32,6 +37,38 @@ test("web bootstrap disposes initialized resources after a startup failure", asy
     };
     await assert.rejects(() => createWebApplication({ kernel, modules: [{ id: "test.module" }] }), /startup failed/);
     assert.equal(disposeCalls, 1);
+});
+
+test("web bootstrap owns audio lazily while transport borrows it and runtime disposal closes it once", async () => {
+    const previous = globalThis.AudioContext;
+    let constructions = 0;
+    let closes = 0;
+    class RuntimeAudioContext {
+        constructor() { constructions += 1; this.state = "running"; this.currentTime = 0; this.destination = {}; }
+        createOscillator() { return {}; }
+        createGain() { return {}; }
+        async close() { closes += 1; this.state = "closed"; }
+    }
+    globalThis.AudioContext = RuntimeAudioContext;
+    try {
+        const runtime = await createWebApplication();
+        assert.equal(constructions, 0);
+        const empty = new PlaybackPlan({
+            request: new PlaybackRequest(), resolution: 1, events: [], totalTicks: 0,
+            metadata: { pluginId: "core.playback.score", strategyId: "score" }
+        });
+        runtime.transport.load(empty);
+        await runtime.transport.play();
+        assert.equal(constructions, 1);
+        assert.equal(runtime.transport.snapshot.state, "completed");
+        await runtime.dispose();
+        await runtime.dispose();
+        assert.equal(runtime.transport.snapshot.state, "disposed");
+        assert.equal(closes, 1);
+    } finally {
+        if (previous === undefined) delete globalThis.AudioContext;
+        else globalThis.AudioContext = previous;
+    }
 });
 
 test("workflow state derives defaults from catalogs and removes contradictory selections", () => {
@@ -147,5 +184,6 @@ test("core public entry remains free of React and DOM imports", async () => {
     assert.equal(typeof core.Kernel, "function");
     assert.equal("MusicTheoryWebApp" in core, false);
     assert.equal(String(reactWebPackageDescriptor.id), "web.react-application");
-    assert.equal(String(reactWebPackageDescriptor.version), "7.2.0");
+    assert.equal(String(reactWebPackageDescriptor.version), "7.6.0");
+    assert.ok(reactWebPackageDescriptor.capabilities.values.some(capability => String(capability.id) === "accessible-playback-controls"));
 });

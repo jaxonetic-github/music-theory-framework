@@ -3,8 +3,8 @@ import { PackageDescriptor } from "../core/index.js";
 export const reactWebPackageDescriptor = new PackageDescriptor({
     id: "web.react-application",
     name: { value: "react-web-application", displayName: "React Web Application Adapter" },
-    description: "Accessible React adapter over the headless music theory application workflow.",
-    version: "7.2.0",
+    description: "Accessible React workflow and playback controls over headless planning and browser audio services.",
+    version: "7.6.0",
     layer: "presentation",
     category: "application",
     role: "provider",
@@ -15,17 +15,22 @@ export const reactWebPackageDescriptor = new PackageDescriptor({
         { target: "core.notation", kind: "required" },
         { target: "core.rendering", kind: "required" },
         { target: "core.export", kind: "required" },
-        { target: "core.application", kind: "required" }
+        { target: "core.application", kind: "required" },
+        { target: "core.playback", kind: "required" },
+        { target: "web.audio-playback", kind: "required" },
+        { target: "web.playback-transport", kind: "required" }
     ],
-    capabilities: ["react-adapter", "accessible-workflow", "trusted-svg-view", "musicxml-download", "responsive-layout"],
+    capabilities: ["react-adapter", "accessible-workflow", "accessible-playback-controls", "transport-subscription", "trusted-svg-view", "musicxml-download", "responsive-layout"],
     consumes: [
         { id: "application.engine", kind: "service" },
         { id: "theory.scaleCatalog", kind: "service" },
-        { id: "theory.chordCatalog", kind: "service" }
+        { id: "theory.chordCatalog", kind: "service" },
+        { id: "playback.engine", kind: "service" },
+        { id: "web.playback.transport", kind: "service" }
     ],
     provides: [{ id: "web.react-application", kind: "module" }],
     publicApi: [{ id: "web/index.js", kind: "module" }],
-    metadata: { tags: ["web", "react", "accessibility", "adapter"] }
+    metadata: { tags: ["web", "react", "accessibility", "playback", "transport", "adapter"] }
 });
 
 export default reactWebPackageDescriptor;
