@@ -2,7 +2,26 @@
   "name": "music-theory-framework",
   "private": true,
   "type": "module",
+  "exports": {
+    "./core": "./src/core/index.js",
+    "./web": "./src/web/index.js"
+  },
   "scripts": {
-    "test": "node --test"
+    "dev": "vite",
+    "test": "node --test test/*.test.js && vitest run",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@vitejs/plugin-react": "^4.7.0",
+    "jsdom": "^26.1.0",
+    "vite": "^6.4.3",
+    "vitest": "^2.1.9"
   }
 }
