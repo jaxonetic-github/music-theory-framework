@@ -32,9 +32,14 @@ export class RendererStrategyRegistry {
 
     select(score, options = {}) {
         const pluginId = options.pluginId === undefined ? null : String(options.pluginId);
+        const format = options.format === undefined ? null : String(options.format).trim().toLowerCase();
+        if (format === "") throw new ValidationError("Renderer format must be a non-empty string.");
         if (options.strategyId !== undefined) {
             if (!pluginId) throw new ValidationError("Selecting a renderer strategy by id requires a pluginId.");
             const strategy = this.get(pluginId, options.strategyId, { required: true });
+            if (format && strategy.format !== format) {
+                throw new ValidationError(`Renderer strategy "${strategy.id}" produces "${strategy.format}", not requested format "${format}".`);
+            }
             if (!strategy.supports(score, options)) {
                 throw new ValidationError(`Renderer strategy "${strategy.id}" does not support this score graph.`);
             }
@@ -43,7 +48,7 @@ export class RendererStrategyRegistry {
         const records = [];
         for (const [owner, strategies] of this.#plugins) {
             if (pluginId && owner !== pluginId) continue;
-            records.push(...strategies.values());
+            records.push(...[...strategies.values()].filter(record => !format || record.strategy.format === format));
         }
         records.sort((a, b) => a.sequence - b.sequence);
         return records.find(record => record.strategy.supports(score, options))?.strategy ?? null;

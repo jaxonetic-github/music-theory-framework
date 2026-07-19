@@ -4,7 +4,7 @@ Rendering Core is the v6.5 boundary that turns an immutable Notation `ScoreGraph
 
 ## Engine and strategies
 
-`RenderingEngine.render(scoreGraph, options)` selects a `RendererStrategy` through `RendererStrategyRegistry`. Strategies are registered inside plugin scopes, so independent plugins can use the same strategy id without colliding. Selection is deterministic: an explicit `pluginId` and `strategyId` selects that exact strategy, while implicit selection uses registration order.
+`RenderingEngine.render(scoreGraph, options)` selects a `RendererStrategy` through `RendererStrategyRegistry`. Strategies are registered inside plugin scopes, so independent plugins can use the same strategy id without colliding. Selection is deterministic: an explicit `pluginId` and `strategyId` selects that exact strategy, while implicit selection uses registration order among strategies matching the normalized requested `format`. Omitting `format` preserves registration-order selection across all supported formats.
 
 The engine owns input, selection, and output-contract validation only. Format-specific layout and presentation remain inside renderer strategies.
 
@@ -32,4 +32,4 @@ Rendering Core does not implement MusicXML or other export pipelines, playback, 
 
 ## Validation
 
-Milestone 6 is validated by the repository's full `npm test` suite: **74 tests passing**. The acceptance suite includes exact SVG output, deterministic topological event ordering and rendering, complete score hierarchy coverage, notation-value preservation, XML escaping, immutability, malformed inputs, and transactional Kernel registration boundaries.
+Rendering Core is validated by the repository's full `npm test` suite: **113 tests passing**. The acceptance suite includes format-aware strategy selection, exact SVG output, deterministic topological event ordering and rendering, complete score hierarchy coverage, notation-value preservation, XML escaping, immutability, malformed inputs, and transactional Kernel registration boundaries.
