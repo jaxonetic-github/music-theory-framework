@@ -1,0 +1,152 @@
+// src/features/scaleExplorer/ScaleExplorerPanel.jsx
+
+import useTheory from "../../hooks/useTheory";
+
+import PluginTree from "./PluginTree";
+import RootSelector from "./RootSelector";
+import ExerciseSelector from "./ExerciseSelector";
+import ModeSelector from "./ModeSelector";
+
+import ExerciseToolbar from "../exercise/ExerciseToolbar";
+import ExerciseSummary from "../exercise/ExerciseSummary";
+import ExerciseTable from "../exercise/ExerciseTable";
+
+export default function ScaleExplorerPanel() {
+  const {
+    loading,
+    error,
+
+    selection,
+
+    generation,
+
+    rows,
+
+    currentRow,
+
+    selectPlugin,
+    selectRoot,
+    selectExercise,
+    selectMode,
+  } = useTheory();
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        Loading...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-red-600 whitespace-pre-wrap">
+        {error.stack ?? error.message}
+      </div>
+    );
+  }
+
+  if (!generation) {
+    return (
+      <div className="flex h-full items-center justify-center text-gray-500">
+        No exercise generated.
+      </div>
+    );
+  }
+
+  const {
+    exerciseModel,
+    score,
+    scoreGraph,
+    render,
+  } = generation;
+
+  return (
+    <div className="flex h-full overflow-hidden">
+
+      {/* Left Navigation */}
+
+      <aside className="w-80 border-r bg-white overflow-auto">
+
+        <PluginTree
+          selectedPlugin={selection.plugin}
+          onSelect={selectPlugin}
+        />
+
+      </aside>
+
+      {/* Main */}
+
+      <main className="flex flex-1 flex-col overflow-hidden">
+
+        {/* Selection Controls */}
+
+        <section className="border-b p-4">
+
+          <div className="grid gap-4 md:grid-cols-3">
+
+            <RootSelector
+              value={selection.root}
+              onChange={selectRoot}
+            />
+
+            <ExerciseSelector
+              value={selection.exercise}
+              onChange={selectExercise}
+            />
+
+            <ModeSelector
+              value={selection.mode}
+              onChange={selectMode}
+            />
+
+          </div>
+
+        </section>
+
+        {/* Toolbar */}
+
+        <ExerciseToolbar />
+
+        {/* Summary */}
+
+        <ExerciseSummary
+          generation={generation}
+        />
+
+        {/* Exercise */}
+
+        <div className="flex-1 overflow-auto">
+
+          <ExerciseTable
+            schema={exerciseModel.schema}
+            rows={rows}
+            currentRow={currentRow}
+          />
+
+        </div>
+
+        {/* Preview */}
+
+        {render && (
+          <section className="border-t bg-gray-50 p-4">
+
+            <h3 className="mb-3 text-sm font-semibold">
+              Notation Preview
+            </h3>
+
+            <div
+              className="overflow-auto rounded border bg-white p-4"
+              dangerouslySetInnerHTML={{
+                __html: render.content,
+              }}
+            />
+
+          </section>
+        )}
+
+      </main>
+
+    </div>
+  );
+}
