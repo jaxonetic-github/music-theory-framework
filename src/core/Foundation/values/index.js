@@ -1,0 +1,17 @@
+export { ImmutableValue } from "./ImmutableValue.js";
+export { Identifier } from "./Identifier.js";
+export { Name } from "./Name.js";
+export { Description } from "./Description.js";
+export { Version } from "./Version.js";
+export { Stability } from "./Stability.js";
+export { Visibility } from "./Visibility.js";
+export { ArchitectureRole } from "./ArchitectureRole.js";
+export { DescriptorCategory } from "./DescriptorCategory.js";
+export { DependencyKind } from "./DependencyKind.js";
+export { ReferenceKind } from "./ReferenceKind.js";
+export { Layer } from "./Layer.js";
+export { Metadata } from "./Metadata.js";
+export { Reference } from "./Reference.js";
+export { ReferenceSet } from "./ReferenceSet.js";
+export { CapabilitySet } from "./CapabilitySet.js";
+export { DependencySet } from "./DependencySet.js";

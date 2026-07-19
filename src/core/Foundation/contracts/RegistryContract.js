@@ -1,0 +1,1 @@
+export class RegistryContract{register(){throw new Error("RegistryContract.register() must be implemented.")}resolve(){throw new Error("RegistryContract.resolve() must be implemented.")}}export default RegistryContract;

@@ -1,0 +1,3 @@
+import { ImmutableValue } from "./ImmutableValue.js";import{Identifier}from"./Identifier.js";import{DependencyKind}from"./DependencyKind.js";
+export class DependencySet extends ImmutableValue{constructor(v=[]){if(v instanceof DependencySet)return v;const a=Array.isArray(v)?v:Object.entries(v).flatMap(([kind,xs])=>xs.map(x=>typeof x==="string"?{target:x,kind}:{...x,kind:x.kind??kind}));super({values:a.map(x=>{const s=typeof x==="string"?{target:x}:x;return{target:Identifier.from(s.target),kind:DependencyKind.from(s.kind??"required"),optional:Boolean(s.optional)}})})}static from(v){return v instanceof DependencySet?v:new DependencySet(v??[])}}
+export default DependencySet;

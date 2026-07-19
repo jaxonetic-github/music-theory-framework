@@ -1,0 +1,2 @@
+import{ArchitecturalDescriptor}from"../base/index.js";import{ReferenceSet}from"../../values/index.js";export class EventDescriptor extends ArchitecturalDescriptor{constructor(d={}){super(d,{finalize:false});this._defineDescriptorProperties({publishers: ReferenceSet.from(d.publishers),
+      subscribers: ReferenceSet.from(d.subscribers)});this._finalizeDescriptor()}get descriptorType(){return"event"}}export default EventDescriptor;

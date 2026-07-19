@@ -1,0 +1,2 @@
+export function equalsDeep(a,b,seen=new WeakMap()){if(Object.is(a,b))return true;if(a===null||b===null||typeof a!=="object"||typeof b!=="object")return false;if(Object.getPrototypeOf(a)!==Object.getPrototypeOf(b))return false;if(seen.get(a)===b)return true;seen.set(a,b);const ak=Reflect.ownKeys(a),bk=Reflect.ownKeys(b);return ak.length===bk.length&&ak.every(k=>bk.includes(k)&&equalsDeep(a[k],b[k],seen))}
+export default equalsDeep;

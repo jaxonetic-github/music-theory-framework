@@ -1,0 +1,2 @@
+export function cloneDeep(v,seen=new WeakMap()){if(v===null||typeof v!=="object")return v;if(seen.has(v))return seen.get(v);if(v instanceof Date)return new Date(v.getTime());if(Array.isArray(v)){const r=[];seen.set(v,r);for(const x of v)r.push(cloneDeep(x,seen));return r}const r=Object.create(Object.getPrototypeOf(v));seen.set(v,r);for(const k of Reflect.ownKeys(v)){const d=Object.getOwnPropertyDescriptor(v,k);if("value" in d)d.value=cloneDeep(d.value,seen);Object.defineProperty(r,k,d)}return r}
+export default cloneDeep;

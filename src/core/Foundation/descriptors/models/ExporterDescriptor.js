@@ -1,0 +1,2 @@
+import{ArchitecturalDescriptor}from"../base/index.js";import{CapabilitySet,ReferenceSet}from"../../values/index.js";export class ExporterDescriptor extends ArchitecturalDescriptor{constructor(d={}){super(d,{finalize:false});this._defineDescriptorProperties({formats: CapabilitySet.from(d.formats),
+      inputTypes: ReferenceSet.from(d.inputTypes)});this._finalizeDescriptor()}get descriptorType(){return"exporter"}}export default ExporterDescriptor;

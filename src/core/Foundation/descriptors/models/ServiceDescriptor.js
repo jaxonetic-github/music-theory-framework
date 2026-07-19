@@ -1,0 +1,2 @@
+import{ArchitecturalDescriptor}from"../base/index.js";import{CapabilitySet,ReferenceSet}from"../../values/index.js";export class ServiceDescriptor extends ArchitecturalDescriptor{constructor(d={}){super(d,{finalize:false});this._defineDescriptorProperties({capabilities: CapabilitySet.from(d.capabilities),
+      contracts: ReferenceSet.from(d.contracts)});this._finalizeDescriptor()}get descriptorType(){return"service"}}export default ServiceDescriptor;

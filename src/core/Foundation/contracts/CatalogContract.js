@@ -1,0 +1,1 @@
+export class CatalogContract{add(){throw new Error("CatalogContract.add() must be implemented.")}get(){throw new Error("CatalogContract.get() must be implemented.")}has(){throw new Error("CatalogContract.has() must be implemented.")}}export default CatalogContract;

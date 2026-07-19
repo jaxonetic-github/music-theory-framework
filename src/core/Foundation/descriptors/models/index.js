@@ -1,0 +1,9 @@
+export { PackageDescriptor } from "./PackageDescriptor.js";
+export { PluginDescriptor } from "./PluginDescriptor.js";
+export { ServiceDescriptor } from "./ServiceDescriptor.js";
+export { RendererDescriptor } from "./RendererDescriptor.js";
+export { ExporterDescriptor } from "./ExporterDescriptor.js";
+export { GeneratorDescriptor } from "./GeneratorDescriptor.js";
+export { EventDescriptor } from "./EventDescriptor.js";
+export { CommandDescriptor } from "./CommandDescriptor.js";
+export { WorkspaceDescriptor } from "./WorkspaceDescriptor.js";
