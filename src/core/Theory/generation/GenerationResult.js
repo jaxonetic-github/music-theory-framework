@@ -27,7 +27,7 @@ export class GenerationResult extends ImmutableValue {
                 from: outputId,
                 to: `tone:${index + 1}`,
                 type: "contains-tone",
-                metadata: { degree: index + 1, semitones: model.pattern.intervals[index] }
+                metadata: { attributes: { degree: index + 1, semitones: model.pattern.intervals[index] } }
             }))
         ];
         return new GenerationResult({ generatorId, model, graph: new TheoryGraph({ nodes, edges }) });
