@@ -7,9 +7,9 @@ const containment = Object.freeze({
     score: new Set(["part"]),
     part: new Set(["measure"]),
     measure: new Set(["voice"]),
-    voice: new Set(["note", "chord"])
+    voice: new Set(["note", "rest", "chord"])
 });
-const eventTypes = new Set(["note", "chord"]);
+const eventTypes = new Set(["note", "rest", "chord"]);
 
 export class ScoreGraph extends TheoryGraph {
     constructor({ nodes = [], edges = [] } = {}) {
@@ -34,7 +34,7 @@ export class ScoreGraph extends TheoryGraph {
                 if (parents.has(childId)) throw new ValidationError(`Score node "${childId}" has multiple parents.`);
                 parents.set(childId, String(from.id));
             } else if (!eventTypes.has(String(from.type)) || !eventTypes.has(String(to.type))) {
-                throw new ValidationError("Sequential score edges must connect note or chord events.");
+                throw new ValidationError("Sequential score edges must connect note, rest, or chord events.");
             } else sequential.push(edge);
         }
         for (const node of normalizedNodes) {

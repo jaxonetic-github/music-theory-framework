@@ -6,7 +6,19 @@ import {
 } from "./descriptors.js";
 import { notationPackageDescriptor } from "./package.descriptor.js";
 
+function runUndo(actions) {
+    const errors = [];
+    for (const undo of [...actions].reverse()) {
+        try { undo(); }
+        catch (error) { errors.push(error); }
+    }
+    return errors;
+}
+
 export class NotationModule {
+    #configured = false;
+    #undo = [];
+
     constructor(options = {}) {
         this.id = String(notationPackageDescriptor.id);
         this.descriptor = notationPackageDescriptor;
@@ -20,27 +32,67 @@ export class NotationModule {
     }
 
     configure({ services, registries }) {
-        services.register("notation.engine", this.engine);
-        services.register("notation.strategyRegistry", this.strategyRegistry);
-        registries.services.register(notationServiceDescriptors.engine, { value: this.engine });
-        registries.services.register(notationServiceDescriptors.strategies, { value: this.strategyRegistry });
-        registries.plugins.register(defaultNotationPluginDescriptor, { value: Object.freeze({
+        if (this.#configured) return this;
+        const undo = [];
+        const plugin = Object.freeze({
             id: String(defaultNotationPluginDescriptor.id),
             strategies: Object.freeze([this.scaleStrategy, this.chordStrategy])
-        }) });
-        registries.renderers.register(notationRendererDescriptors.scale, { value: this.scaleStrategy });
-        registries.renderers.register(notationRendererDescriptors.chord, { value: this.chordStrategy });
+        });
+        const registerService = (id, value) => {
+            services.register(id, value);
+            undo.push(() => {
+                if (services.resolve(id, { optional: true }) === value) services.unregister(id);
+            });
+        };
+        const registerValue = (registry, descriptor, value) => {
+            const unregister = () => {
+                if (registry.getRecord(descriptor.id)?.value === value) registry.unregister(descriptor.id);
+            };
+            try { registry.register(descriptor, { value }); }
+            catch (error) {
+                try { unregister(); } catch {}
+                throw error;
+            }
+            undo.push(unregister);
+        };
+
+        try {
+            registerService("notation.engine", this.engine);
+            registerService("notation.strategyRegistry", this.strategyRegistry);
+            registerValue(registries.services, notationServiceDescriptors.engine, this.engine);
+            registerValue(registries.services, notationServiceDescriptors.strategies, this.strategyRegistry);
+            registerValue(registries.plugins, defaultNotationPluginDescriptor, plugin);
+            registerValue(registries.renderers, notationRendererDescriptors.scale, this.scaleStrategy);
+            registerValue(registries.renderers, notationRendererDescriptors.chord, this.chordStrategy);
+            this.#undo = undo;
+            this.#configured = true;
+            return this;
+        } catch (error) {
+            const rollbackErrors = runUndo(undo);
+            if (rollbackErrors.length) {
+                throw new AggregateError([error, ...rollbackErrors], "NotationModule configuration and rollback failed.", { cause: error });
+            }
+            throw error;
+        }
     }
 
-    dispose({ services, registries }) {
-        services.unregister("notation.engine");
-        services.unregister("notation.strategyRegistry");
-        registries.services.unregister("notation.engine");
-        registries.services.unregister("notation.strategy-registry");
-        registries.plugins.unregister("core.notation.defaults");
-        registries.renderers.unregister("notation.scale");
-        registries.renderers.unregister("notation.chord");
-        this.strategyRegistry.unregisterPlugin("core.notation.defaults");
+    dispose() {
+        const undo = this.#undo;
+        this.#undo = [];
+        this.#configured = false;
+        const errors = runUndo(undo);
+        try {
+            if (this.strategyRegistry.get(this.scaleStrategy.pluginId, this.scaleStrategy.id) === this.scaleStrategy) {
+                this.strategyRegistry.unregister(this.scaleStrategy.pluginId, this.scaleStrategy.id);
+            }
+        } catch (error) { errors.push(error); }
+        try {
+            if (this.strategyRegistry.get(this.chordStrategy.pluginId, this.chordStrategy.id) === this.chordStrategy) {
+                this.strategyRegistry.unregister(this.chordStrategy.pluginId, this.chordStrategy.id);
+            }
+        } catch (error) { errors.push(error); }
+        if (errors.length) throw new AggregateError(errors, "NotationModule disposal failed.");
+        return this;
     }
 }
 

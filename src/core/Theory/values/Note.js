@@ -1,6 +1,14 @@
 import { ImmutableValue, ValidationError } from "../../Foundation/index.js";
 import { PitchClass } from "./PitchClass.js";
 
+const naturalSemitones = Object.freeze({ C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 });
+
+function writtenMidi(pitchClass, octave) {
+    const match = /^([A-G])([#b]*)$/.exec(String(pitchClass));
+    const accidental = [...match[2]].reduce((total, token) => total + (token === "#" ? 1 : -1), 0);
+    return (octave + 1) * 12 + naturalSemitones[match[1]] + accidental;
+}
+
 function noteParts(value, octave) {
     if (value instanceof Note) return { pitchClass: value.pitchClass, octave: value.octave };
     if (octave !== undefined) return { pitchClass: PitchClass.from(value), octave: Number(octave) };
@@ -14,7 +22,7 @@ export class Note extends ImmutableValue {
         if (value instanceof Note && octave === undefined) return value;
         const parts = noteParts(value, octave);
         if (!Number.isInteger(parts.octave)) throw new ValidationError("A note octave must be an integer.");
-        const midi = (parts.octave + 1) * 12 + parts.pitchClass.semitones;
+        const midi = writtenMidi(parts.pitchClass, parts.octave);
         if (midi < 0 || midi > 127) throw new ValidationError(`Note is outside the MIDI range: ${parts.pitchClass}${parts.octave}.`);
         super({ pitchClass: parts.pitchClass, octave: parts.octave, midi });
     }

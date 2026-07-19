@@ -1,7 +1,7 @@
 import { ValidationError } from "../Foundation/index.js";
-import { GenerationResult } from "../Theory/index.js";
 import { ScoreGraph } from "./graph/index.js";
 import { NotationStrategyRegistry } from "./NotationStrategyRegistry.js";
+import { resolveGenerationInput } from "./resolveGenerationInput.js";
 
 export class NotationEngine {
     constructor(registry = new NotationStrategyRegistry()) {
@@ -9,8 +9,8 @@ export class NotationEngine {
         Object.seal(this);
     }
 
-    notate(result, options = {}) {
-        if (!(result instanceof GenerationResult)) throw new ValidationError("NotationEngine requires a GenerationResult.");
+    notate(input, options = {}) {
+        const result = resolveGenerationInput(input);
         const strategy = this.registry.select(result, options);
         if (!strategy) throw new ValidationError("No notation strategy supports this generation result.");
         const graph = strategy.notate(result, options);

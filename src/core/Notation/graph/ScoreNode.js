@@ -1,9 +1,9 @@
 import { ValidationError } from "../../Foundation/index.js";
 import { TheoryNode } from "../../Theory/index.js";
 import { Note } from "../../Theory/index.js";
-import { Duration } from "../values/index.js";
+import { Clef, Duration, KeySignature, Rest } from "../values/index.js";
 
-const scoreNodeTypes = Object.freeze(["score", "part", "measure", "voice", "note", "chord"]);
+const scoreNodeTypes = Object.freeze(["score", "part", "measure", "voice", "note", "rest", "chord"]);
 
 function properties(source) {
     if (source?.value && source?.type) return { id: source.id, ...source.value };
@@ -19,6 +19,7 @@ export class ScoreNode extends TheoryNode {
             case "measure": return new MeasureNode(value);
             case "voice": return new VoiceNode(value);
             case "note": return new NoteNode(value);
+            case "rest": return new RestNode(value);
             case "chord": return new ChordNode(value);
             default: throw new ValidationError(`Unsupported score node type: "${String(value?.type)}".`);
         }
@@ -36,10 +37,16 @@ export class ScoreRootNode extends ScoreNode {
 export class PartNode extends ScoreNode {
     constructor(source = {}) {
         const data = properties(source);
-        super({ id: data.id, type: "part", value: { name: String(data.name ?? "Part"), instrument: String(data.instrument ?? "piano") }, metadata: source.metadata });
+        super({
+            id: data.id,
+            type: "part",
+            value: { name: String(data.name ?? "Part"), instrument: String(data.instrument ?? "piano"), clef: Clef.from(data.clef) },
+            metadata: source.metadata
+        });
     }
     get name() { return this.value.name; }
     get instrument() { return this.value.instrument; }
+    get clef() { return this.value.clef; }
 }
 
 export class MeasureNode extends ScoreNode {
@@ -52,9 +59,15 @@ export class MeasureNode extends ScoreNode {
         if (!Number.isInteger(beats) || beats < 1 || !Number.isInteger(beatUnit) || beatUnit < 1) {
             throw new ValidationError("A measure requires positive integer time-signature values.");
         }
-        super({ id: data.id, type: "measure", value: { number, beats, beatUnit }, metadata: source.metadata });
+        super({
+            id: data.id,
+            type: "measure",
+            value: { number, beats, beatUnit, keySignature: KeySignature.from(data.keySignature) },
+            metadata: source.metadata
+        });
     }
     get number() { return this.value.number; }
+    get keySignature() { return this.value.keySignature; }
 }
 
 export class VoiceNode extends ScoreNode {
@@ -82,6 +95,17 @@ export class NoteNode extends ScoreNode {
     get pitch() { return this.value.pitch; }
     get duration() { return this.value.duration; }
     get offset() { return this.value.offset; }
+}
+
+export class RestNode extends ScoreNode {
+    constructor(source = {}) {
+        const data = properties(source);
+        const rest = Rest.from(data.rest ?? data);
+        super({ id: data.id, type: "rest", value: { rest }, metadata: source.metadata });
+    }
+    get rest() { return this.value.rest; }
+    get duration() { return this.rest.duration; }
+    get offset() { return this.rest.offset; }
 }
 
 export class ChordNode extends ScoreNode {

@@ -1,6 +1,6 @@
 # Notation Core and ScoreGraph
 
-Milestone 5 translates immutable `GenerationResult` objects into validated score-domain graphs.
+Milestone 5 translates immutable `GenerationResult` objects into validated score-domain graphs with notes, chords, rests, clefs, key signatures, and time signatures.
 
 ```js
 import { Kernel, TheoryModule, NotationModule } from "../index.js";
@@ -14,3 +14,7 @@ console.log(score.nodesOfType("note").map(node => String(node.pitch)));
 ```
 
 Strategies are isolated by plugin ID. Call `notate(result, { pluginId, strategyId })` to select a particular plugin strategy deterministically.
+
+Notation uses the generated model's exact pitch-class spellings. Pass `notes` in the notation options when explicit source `Note` spellings and octaves must be retained verbatim.
+
+`NotationEngine.notate()` accepts either a complete `GenerationResult` or its `TheoryGraph`. Graph conversion validates and orders tones by their degree and interval metadata before applying a notation strategy.

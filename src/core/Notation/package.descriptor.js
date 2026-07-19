@@ -16,7 +16,7 @@ export const notationPackageDescriptor = new PackageDescriptor({
         { target: "core.kernel", kind: "required" },
         { target: "core.theory", kind: "required" }
     ],
-    capabilities: ["score-graph", "notation-engine", "plugin-scoped-strategies", "scale-notation", "chord-notation"],
+    capabilities: ["score-graph", "theory-graph-conversion", "rests", "clefs", "key-signatures", "enharmonic-preservation", "notation-engine", "plugin-scoped-strategies", "scale-notation", "chord-notation"],
     provides: [
         { id: "notation.engine", kind: "service" },
         { id: "notation.scale", kind: "renderer" },

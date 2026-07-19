@@ -5,7 +5,7 @@ export const notationServiceDescriptors = Object.freeze({
         id: "notation.engine", name: { value: "notation-engine", displayName: "Notation Engine" },
         description: "Selects plugin-scoped notation strategies and produces validated score graphs.",
         layer: "application", category: "application", role: "service", stability: "stable", visibility: "public",
-        capabilities: ["notation-strategy-selection", "score-graph-generation"]
+        capabilities: ["notation-strategy-selection", "score-graph-generation", "theory-graph-conversion", "enharmonic-preservation", "rests", "clefs", "key-signatures"]
     }),
     strategies: new ServiceDescriptor({
         id: "notation.strategy-registry", name: { value: "notation-strategy-registry", displayName: "Notation Strategy Registry" },
@@ -29,14 +29,18 @@ export const notationRendererDescriptors = Object.freeze({
         id: "notation.scale", name: { value: "scale-notation", displayName: "Scale Notation Strategy" },
         description: "Converts generated scales into sequential note score graphs.",
         layer: "application", category: "application", role: "strategy", stability: "stable", visibility: "public",
-        formats: ["score-graph"], inputTypes: [{ id: "theory.generation-result", kind: "value" }],
+        formats: ["score-graph"], inputTypes: [
+            { id: "theory.generation-result", kind: "value" }, { id: "theory.graph", kind: "value" }
+        ],
         outputTypes: [{ id: "notation.score-graph", kind: "value" }], metadata: { pluginId: "core.notation.defaults" }
     }),
     chord: new RendererDescriptor({
         id: "notation.chord", name: { value: "chord-notation", displayName: "Chord Notation Strategy" },
         description: "Converts generated chords into chord-event score graphs.",
         layer: "application", category: "application", role: "strategy", stability: "stable", visibility: "public",
-        formats: ["score-graph"], inputTypes: [{ id: "theory.generation-result", kind: "value" }],
+        formats: ["score-graph"], inputTypes: [
+            { id: "theory.generation-result", kind: "value" }, { id: "theory.graph", kind: "value" }
+        ],
         outputTypes: [{ id: "notation.score-graph", kind: "value" }], metadata: { pluginId: "core.notation.defaults" }
     })
 });

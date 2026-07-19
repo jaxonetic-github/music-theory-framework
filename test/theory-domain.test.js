@@ -46,6 +46,10 @@ test("notes convert MIDI, transpose across octaves, and calculate frequency", ()
     assert.equal(a4.frequency(), 440);
     assert.equal(String(new Note("B3").transpose(1)), "C4");
     assert.equal(String(Note.fromMidi(60)), "C4");
+    assert.equal(new Note("Cb4").midi, 59);
+    assert.equal(new Note("B#3").midi, 60);
+    assert.equal(String(new Note("Cb4")), "Cb4");
+    assert.equal(String(new Note("B#3")), "B#3");
     assert.throws(() => Note.fromMidi(128), /Invalid MIDI note/);
 });
 
