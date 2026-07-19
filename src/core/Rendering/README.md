@@ -32,4 +32,4 @@ Rendering Core does not implement MusicXML or other export pipelines, playback, 
 
 ## Validation
 
-Milestone 6 is validated by the repository's full `npm test` suite: **70 tests passing**. The acceptance suite includes exact SVG output, deterministic selection and rendering, complete score hierarchy coverage, notation-value preservation, XML escaping, immutability, malformed inputs, and transactional Kernel registration boundaries.
+Milestone 6 is validated by the repository's full `npm test` suite: **74 tests passing**. The acceptance suite includes exact SVG output, deterministic topological event ordering and rendering, complete score hierarchy coverage, notation-value preservation, XML escaping, immutability, malformed inputs, and transactional Kernel registration boundaries.

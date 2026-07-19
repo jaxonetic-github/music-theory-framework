@@ -51,6 +51,33 @@ function richScore() {
     return new ScoreGraph({ nodes, edges });
 }
 
+function eventScore(events, nextEdges = []) {
+    const nodes = [
+        new ScoreRootNode({ id: "score", title: "Event Order" }),
+        new PartNode({ id: "part:1", name: "Order", instrument: "piano" }),
+        new MeasureNode({ id: "measure:1", number: 1 }),
+        new VoiceNode({ id: "voice:1", index: 1 }),
+        ...events
+    ];
+    const edges = [
+        new ScoreEdge({ from: "score", to: "part:1", type: "contains" }),
+        new ScoreEdge({ from: "part:1", to: "measure:1", type: "contains" }),
+        new ScoreEdge({ from: "measure:1", to: "voice:1", type: "contains" }),
+        ...events.map(event => new ScoreEdge({ from: "voice:1", to: event.id, type: "contains" })),
+        ...nextEdges.map(([from, to]) => new ScoreEdge({ from, to, type: "next" }))
+    ];
+    return new ScoreGraph({ nodes, edges });
+}
+
+function noteEvent(id, offset) {
+    return new NoteNode({ id, pitch: "C4", duration: { numerator: 1, denominator: 4 }, offset });
+}
+
+function renderedEventIds(graph) {
+    return [...defaultEngine().render(graph).matchAll(/class="event [^"]+" data-node-id="([^"]+)"/g)]
+        .map(match => match[1]);
+}
+
 function defaultEngine() {
     const registry = new RendererStrategyRegistry();
     registry.register("core.rendering.svg", new SvgScoreRenderer());
@@ -147,6 +174,37 @@ test("SVG follows explicit event order across chord, rest, and notes", () => {
     assert.match(output, /data-node-id="rest:1" data-order="2"/);
     assert.match(output, /data-node-id="note:cb" data-order="3"/);
     assert.match(output, /data-node-id="note:bs" data-order="4"/);
+});
+
+test("SVG interleaves a disconnected event within a partial next chain by offset", () => {
+    const graph = eventScore(
+        [noteEvent("A", 0), noteEvent("C", 2), noteEvent("B", 1)],
+        [["A", "C"]]
+    );
+    assert.deepEqual(renderedEventIds(graph), ["A", "B", "C"]);
+});
+
+test("SVG topologically interleaves multiple independent next chains", () => {
+    const graph = eventScore(
+        [noteEvent("A", 0), noteEvent("D", 3), noteEvent("B", 1), noteEvent("C", 2)],
+        [["A", "D"], ["B", "C"]]
+    );
+    assert.deepEqual(renderedEventIds(graph), ["A", "B", "C", "D"]);
+});
+
+test("SVG orders equal-offset disconnected events by node ID", () => {
+    const graph = eventScore([noteEvent("note:z", 1), noteEvent("note:a", 1), noteEvent("note:m", 1)]);
+    assert.deepEqual(renderedEventIds(graph), ["note:a", "note:m", "note:z"]);
+});
+
+test("SVG event output is invariant to reversed node and edge arrays", () => {
+    const graph = eventScore(
+        [noteEvent("A", 0), noteEvent("D", 3), noteEvent("B", 1), noteEvent("C", 2)],
+        [["A", "D"], ["B", "C"]]
+    );
+    const reversed = new ScoreGraph({ nodes: [...graph.nodes].reverse(), edges: [...graph.edges].reverse() });
+    assert.deepEqual(renderedEventIds(reversed), renderedEventIds(graph));
+    assert.equal(defaultEngine().render(reversed), defaultEngine().render(graph));
 });
 
 test("SVG preserves exact flat, sharp, Cb, and B# spellings", () => {

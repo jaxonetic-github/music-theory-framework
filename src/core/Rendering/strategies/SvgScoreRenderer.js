@@ -10,32 +10,40 @@ function children(score, parent, type) {
     return score.nodes.filter(node => ids.has(String(node.id)) && (!type || String(node.type) === type));
 }
 
+function compareIds(left, right) {
+    const leftId = String(left.id);
+    const rightId = String(right.id);
+    return leftId < rightId ? -1 : leftId > rightId ? 1 : 0;
+}
+
 function eventOrder(score, voice) {
     const events = children(score, voice).filter(node => ["note", "rest", "chord"].includes(String(node.type)));
     const eventIds = new Set(events.map(event => String(event.id)));
-    const next = new Map();
-    const predecessors = new Set();
+    const successors = new Map(events.map(event => [String(event.id), []]));
+    const indegree = new Map(events.map(event => [String(event.id), 0]));
     for (const edge of score.edges) {
         if (String(edge.type) !== "next" || !eventIds.has(String(edge.from)) || !eventIds.has(String(edge.to))) continue;
-        next.set(String(edge.from), String(edge.to));
-        predecessors.add(String(edge.to));
+        successors.get(String(edge.from)).push(String(edge.to));
+        indegree.set(String(edge.to), indegree.get(String(edge.to)) + 1);
     }
-    const index = new Map(events.map((event, position) => [String(event.id), position]));
     const compare = (left, right) => left.offset - right.offset
-        || index.get(String(left.id)) - index.get(String(right.id))
-        || String(left.id).localeCompare(String(right.id));
-    const roots = events.filter(event => !predecessors.has(String(event.id))).sort(compare);
+        || compareIds(left, right);
+    const available = events.filter(event => indegree.get(String(event.id)) === 0).sort(compare);
     const ordered = [];
-    const visited = new Set();
-    for (const root of roots) {
-        let current = root;
-        while (current && !visited.has(String(current.id))) {
-            ordered.push(current);
-            visited.add(String(current.id));
-            current = score.node(next.get(String(current.id)));
+
+    while (available.length) {
+        const event = available.shift();
+        ordered.push(event);
+        for (const successor of successors.get(String(event.id))) {
+            const remaining = indegree.get(successor) - 1;
+            indegree.set(successor, remaining);
+            if (remaining === 0) {
+                available.push(score.node(successor));
+                available.sort(compare);
+            }
         }
     }
-    ordered.push(...events.filter(event => !visited.has(String(event.id))).sort(compare));
+    if (ordered.length !== events.length) throw new ValidationError("Score event precedence constraints contain a cycle.");
     return ordered;
 }
 
@@ -82,7 +90,7 @@ export class SvgScoreRenderer extends RendererStrategy {
     supports(score) { return score instanceof ScoreGraph; }
 
     render(score, options = {}) {
-        const parts = children(score, score.score, "part");
+        const parts = children(score, score.score, "part").sort(compareIds);
         const measureCount = Math.max(1, ...parts.map(part => children(score, part, "measure").length));
         const height = Number(options.height ?? Math.max(240, 90 + parts.length * (45 + measureCount * 130)));
         const width = Number(options.width ?? 1200);
