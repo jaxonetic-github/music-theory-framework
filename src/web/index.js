@@ -4,3 +4,5 @@ export { createInitialWorkflowState, transitionWorkflow, buildWorkflowRequest, w
 export { safeFilename, exportFilenameBase, downloadExport } from "./download.js";
 export { MusicTheoryWebApp } from "./MusicTheoryWebApp.jsx";
 export { reactWebPackageDescriptor } from "./package.descriptor.js";
+export * from "./audio/index.js";
+export { default as WebAudio } from "./audio/index.js";
