@@ -15,7 +15,7 @@ export const theoryPackageDescriptor = new PackageDescriptor({
         { target: "core.infrastructure.registries", kind: "required" },
         { target: "core.kernel", kind: "required" }
     ],
-    capabilities: ["pitch-modeling", "intervals", "scale-generation", "chord-generation", "pattern-catalogs"],
+    capabilities: ["pitch-modeling", "intervals", "theory-graphs", "deterministic-generation", "scale-generation", "chord-generation", "pattern-catalogs"],
     provides: [
         { id: "theory.scale-generator", kind: "generator" },
         { id: "theory.chord-generator", kind: "generator" }

@@ -4,6 +4,7 @@ import {
     ChordCatalog,
     ChordGenerator,
     ChordPattern,
+    GenerationResult,
     Interval,
     Kernel,
     Note,
@@ -13,7 +14,11 @@ import {
     ScaleGenerator,
     ScalePattern,
     Theory,
+    TheoryEdge,
+    TheoryGraph,
     TheoryModule,
+    TheoryNode,
+    TraversalOrder,
     theoryGeneratorDescriptors,
     theoryPackageDescriptor
 } from "../src/core/index.js";
@@ -114,4 +119,73 @@ test("TheoryModule integrates catalogs and generators with Kernel registries", a
     await kernel.dispose();
     assert.equal(kernel.services.has("theory.scaleGenerator"), false);
     assert.equal(kernel.registries.generators.size, 0);
+});
+
+test("theory graphs deeply freeze their nodes, edges, and collections", () => {
+    const graph = new TheoryGraph({
+        nodes: [{ id: "a", type: "pitch-class", value: new PitchClass("C") }],
+        edges: []
+    });
+    assert.ok(Object.isFrozen(graph));
+    assert.ok(Object.isFrozen(graph.nodes));
+    assert.ok(Object.isFrozen(graph.nodes[0]));
+    assert.ok(graph.nodes[0] instanceof TheoryNode);
+    assert.throws(() => graph.nodes.push(new TheoryNode({ id: "b", type: "pitch-class" })), TypeError);
+    assert.throws(() => { graph.nodes[0].type = "chord"; }, TypeError);
+});
+
+test("theory graphs reject edges whose endpoints do not exist", () => {
+    assert.throws(() => new TheoryGraph({
+        nodes: [{ id: "a", type: "pitch-class" }],
+        edges: [{ id: "missing-target", from: "a", to: "b", type: "related-to" }]
+    }), /references a missing node/);
+});
+
+test("theory graphs reject duplicate node identifiers", () => {
+    assert.throws(() => new TheoryGraph({
+        nodes: [
+            { id: "duplicate", type: "scale" },
+            { id: "duplicate", type: "chord" }
+        ]
+    }), /Duplicate theory node id/);
+});
+
+test("theory graph traversal is deterministic for breadth-first and depth-first orders", () => {
+    const graph = new TheoryGraph({
+        nodes: ["a", "b", "c", "d"].map(id => ({ id, type: "test-node" })),
+        edges: [
+            new TheoryEdge({ from: "a", to: "b", type: "next" }),
+            new TheoryEdge({ from: "a", to: "c", type: "next" }),
+            new TheoryEdge({ from: "b", to: "d", type: "next" }),
+            new TheoryEdge({ from: "c", to: "d", type: "next" })
+        ]
+    });
+    assert.deepEqual(graph.traverse("a").map(String), ["a", "b", "c", "d"]);
+    assert.deepEqual(graph.traverse("a", { order: TraversalOrder.DEPTH_FIRST }).map(String), ["a", "b", "d", "c"]);
+    assert.deepEqual(graph.traverse("a").map(String), ["a", "b", "c", "d"]);
+});
+
+test("repeated generation produces identical domain models and graph traversal", () => {
+    const generator = new ScaleGenerator();
+    const first = generator.generateResult("Eb", "dorian", { prefer: "flats" });
+    const second = generator.generateResult("Eb", "dorian", { prefer: "flats" });
+    assert.ok(first.equals(second));
+    assert.deepEqual(first.graph.traverse("output:scale").map(String), second.graph.traverse("output:scale").map(String));
+    assert.deepEqual(first.model.pitchClasses.map(String), second.model.pitchClasses.map(String));
+});
+
+test("scale and chord generators share one immutable generation result contract", () => {
+    const scales = new ScaleGenerator();
+    const chords = new ChordGenerator();
+    const scaleResult = scales.generateResult("C", "major");
+    const chordResult = chords.generateResult("C", "major-7");
+
+    assert.ok(scaleResult instanceof GenerationResult);
+    assert.ok(chordResult instanceof GenerationResult);
+    assert.ok(scaleResult.graph instanceof TheoryGraph);
+    assert.equal(scaleResult.model.toString(), scales.generate("C", "major").toString());
+    assert.equal(chordResult.model.toString(), chords.generate("C", "major-7").toString());
+    assert.equal(String(scaleResult.generatorId), "theory.scale-generator");
+    assert.ok(Object.isFrozen(scaleResult));
+    assert.ok(Object.isFrozen(scaleResult.graph));
 });

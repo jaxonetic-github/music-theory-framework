@@ -2,6 +2,7 @@ import { FactoryContract } from "../../Foundation/index.js";
 import { Scale } from "../models/index.js";
 import { Note, PitchClass } from "../values/index.js";
 import { ScaleCatalog } from "../catalogs/index.js";
+import { GenerationResult } from "./GenerationResult.js";
 
 export class ScaleGenerator extends FactoryContract {
     constructor(catalog = new ScaleCatalog()) { super(); this.catalog = catalog; Object.seal(this); }
@@ -17,6 +18,10 @@ export class ScaleGenerator extends FactoryContract {
         const scale = this.generate(root, pattern, options);
         const tonic = new Note(scale.root, octave);
         return Object.freeze(scale.pattern.intervals.map(interval => tonic.transpose(interval, options)));
+    }
+
+    generateResult(root, pattern = "major", options = {}) {
+        return GenerationResult.fromModel(this.generate(root, pattern, options), "theory.scale-generator");
     }
 
     build(specification = {}) { return this.generate(specification.root, specification.pattern, specification); }

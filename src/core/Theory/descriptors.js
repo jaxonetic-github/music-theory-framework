@@ -19,13 +19,13 @@ export const theoryGeneratorDescriptors = Object.freeze({
         description: "Generates scales and pitched scale notes from roots and patterns.", layer: "domain", category: "domain",
         role: "factory", stability: "stable", visibility: "public", capabilities: ["scale-generation", "scale-note-generation"],
         inputTypes: [{ id: "theory.pitch-class", kind: "value" }, { id: "theory.scale-pattern", kind: "value" }],
-        outputTypes: [{ id: "theory.scale", kind: "value" }]
+        outputTypes: [{ id: "theory.scale", kind: "value" }, { id: "theory.generation-result", kind: "value" }]
     }),
     chord: new GeneratorDescriptor({
         id: "theory.chord-generator", name: { value: "chord-generator", displayName: "Chord Generator" },
         description: "Generates chords and voiced chord notes from roots and patterns.", layer: "domain", category: "domain",
         role: "factory", stability: "stable", visibility: "public", capabilities: ["chord-generation", "chord-note-generation"],
         inputTypes: [{ id: "theory.pitch-class", kind: "value" }, { id: "theory.chord-pattern", kind: "value" }],
-        outputTypes: [{ id: "theory.chord", kind: "value" }]
+        outputTypes: [{ id: "theory.chord", kind: "value" }, { id: "theory.generation-result", kind: "value" }]
     })
 });
