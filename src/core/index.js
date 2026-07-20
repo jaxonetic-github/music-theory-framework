@@ -20,3 +20,5 @@ export * from "./ExerciseNotation/index.js";
 export { default as ExerciseNotation } from "./ExerciseNotation/index.js";
 export * from "./ExerciseApplication/index.js";
 export { default as ExerciseApplication } from "./ExerciseApplication/index.js";
+export * from "./ExerciseSet/index.js";
+export { default as ExerciseSet } from "./ExerciseSet/index.js";

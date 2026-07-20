@@ -1,0 +1,16 @@
+export { EXERCISE_SET_LIMITS } from "./limits.js";
+export { ExerciseSetMetadata } from "./ExerciseSetMetadata.js";
+export { ExerciseSetItemRequest } from "./ExerciseSetItemRequest.js";
+export { ExerciseSetRequest } from "./ExerciseSetRequest.js";
+export { ExerciseSetItem } from "./ExerciseSetItem.js";
+export { ExerciseSetSection } from "./ExerciseSetSection.js";
+export { ExerciseSetDocument } from "./ExerciseSetDocument.js";
+export { ExerciseSetResult } from "./ExerciseSetResult.js";
+export { ExerciseSetWorkflowError } from "./ExerciseSetWorkflowError.js";
+export { ExerciseSetApplication } from "./ExerciseSetApplication.js";
+export { ExerciseSetModule } from "./ExerciseSetModule.js";
+export { exerciseSetServiceDescriptor, exerciseSetPluginDescriptor, exerciseSetWorkflowDescriptor } from "./descriptors.js";
+export { exerciseSetPackageDescriptor } from "./package.descriptor.js";
+import { EXERCISE_SET_LIMITS } from "./limits.js"; import { ExerciseSetMetadata } from "./ExerciseSetMetadata.js"; import { ExerciseSetItemRequest } from "./ExerciseSetItemRequest.js"; import { ExerciseSetRequest } from "./ExerciseSetRequest.js"; import { ExerciseSetItem } from "./ExerciseSetItem.js"; import { ExerciseSetSection } from "./ExerciseSetSection.js"; import { ExerciseSetDocument } from "./ExerciseSetDocument.js"; import { ExerciseSetResult } from "./ExerciseSetResult.js"; import { ExerciseSetWorkflowError } from "./ExerciseSetWorkflowError.js"; import { ExerciseSetApplication } from "./ExerciseSetApplication.js"; import { ExerciseSetModule } from "./ExerciseSetModule.js"; import { exerciseSetServiceDescriptor, exerciseSetPluginDescriptor, exerciseSetWorkflowDescriptor } from "./descriptors.js"; import { exerciseSetPackageDescriptor } from "./package.descriptor.js";
+export const ExerciseSet = Object.freeze({ EXERCISE_SET_LIMITS, ExerciseSetMetadata, ExerciseSetItemRequest, ExerciseSetRequest, ExerciseSetItem, ExerciseSetSection, ExerciseSetDocument, ExerciseSetResult, ExerciseSetWorkflowError, ExerciseSetApplication, ExerciseSetModule, serviceDescriptor: exerciseSetServiceDescriptor, pluginDescriptor: exerciseSetPluginDescriptor, workflowDescriptor: exerciseSetWorkflowDescriptor, descriptor: exerciseSetPackageDescriptor });
+export default ExerciseSet;

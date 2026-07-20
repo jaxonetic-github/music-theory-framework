@@ -18,6 +18,7 @@ An immutable, plugin-scoped music theory framework with generation, first-class 
 - v8.3 accessible React Exercise Practice UI over authoritative immutable presentation results
 - v8.4 Advanced Exercise Generation Core for deterministic approach notes, enclosures, and semantic chord progressions
 - v8.5 React Advanced Exercise Practice UI with catalog-driven targets and chord progressions
+- v8.6 Exercise Set and Worksheet Workflow for immutable heterogeneous practice documents
 
 Playback Planning produces immutable tick plans only. React passes generated scores to the planning engine, loads returned plans into Transport, and issues explicit user commands. Web Audio alone converts ticks and schedules sound. Core remains browser-free. Pause, seek, looping, score-following, and Web MIDI remain excluded.
 
@@ -28,6 +29,8 @@ The v8.4 advanced strategy adds sequential approach-note and enclosure phrases p
 Exercise Notation consumes those semantic models without changing them. It converts each row through the shared Notation strategy infrastructure into one self-contained ScoreGraph and adds measure/system grouping as renderer-neutral semantic layout guidance.
 
 Exercise Application orchestrates the active Exercise, ExerciseNotation, and Rendering services into immutable row presentations. The v8.5 React adapter submits one validated foundational or advanced request to that service, preserves completed-result ownership, validates trusted SVG metadata, and presents independent rows and semantic systems responsively. Exercise audio, MIDI, transport, downloads, persistence, networking, and grading remain deferred.
+
+Exercise Set v8.6 sequentially composes ordered `ExerciseApplicationRequest` values into an atomic immutable worksheet. Each set item retains its exact authoritative application result, independent ScoreGraphs, renderer identity, spelling, and advanced semantic metadata. The React worksheet editor keeps mutable draft intent separate from completed output, uses stable identities for reordering and duplication, validates every SVG row through the existing trust boundary, and adds responsive and print-oriented presentation without PDF or download generation.
 
 ## Development
 
@@ -48,4 +51,4 @@ git diff --check
 
 The production build is emitted to `dist/`. See [`src/web/README.md`](src/web/README.md) for the adapter architecture, trusted SVG boundary, and MusicXML download behavior.
 
-The v8.5 repository suite contains **303 passing tests**: 268 plain-Node tests and 35 React DOM tests. `npm audit` reports **0 vulnerabilities**.
+The v8.6 repository suite contains **325 passing tests**: 284 plain-Node tests and 41 React DOM tests. `npm audit` reports **0 vulnerabilities**. The production Vite build transforms **313 modules**.

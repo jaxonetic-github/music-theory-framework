@@ -129,3 +129,26 @@ legend, .field > span { margin-bottom: .55rem; font-size: .82rem; font-weight: 7
 @media (max-width: 420px) { .exercise-choice-grid { grid-template-columns: 1fr; } }
 
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+.exercise-set { margin-top: clamp(3rem, 8vw, 7rem); padding-top: 2rem; border-top: 1px solid #bbb9ae; }
+.worksheet-workspace { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(0, 1.25fr); gap: 1.25rem; align-items: start; }
+.worksheet-editor, .worksheet-document { padding: 1.25rem; border: 1px solid #c8c4b8; border-radius: 20px; background: rgba(255,255,252,.82); }
+.worksheet-editor > fieldset + fieldset { margin-top: 1rem; }
+.worksheet-metadata, .worksheet-item-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.worksheet-wide { grid-column: 1 / -1; }
+.worksheet-wide textarea { min-height: 6rem; resize: vertical; padding: .75rem; font: inherit; }
+.worksheet-section-editor, .worksheet-item-editor { padding: 1rem; border: 1px solid #c8c4b8; border-radius: 12px; }
+.worksheet-item-editor { margin-top: .8rem; background: #f8f6ef; }
+.worksheet-section-heading { display: grid; gap: .7rem; }
+.worksheet-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .7rem; }
+.worksheet-actions button, .worksheet-add { padding: .5rem .65rem; border: 1px solid #788a7c; border-radius: 8px; background: white; cursor: pointer; }
+.worksheet-add { margin-top: .75rem; }
+.worksheet-generate { margin-top: 1rem; }
+.worksheet-document:focus { outline: 3px solid #db6b35; outline-offset: 3px; }
+.worksheet-document h3 { font-family: Georgia, serif; font-size: 2rem; }
+.worksheet-document h4 { margin-top: 1.8rem; padding-bottom: .4rem; border-bottom: 2px solid #263c2d; }
+.worksheet-result-item { break-inside: avoid; }
+.worksheet-result-item h5 { font-size: 1.1rem; }
+.worksheet-result-item h6 { margin: .5rem 0; font-size: 1rem; }
+@media (max-width: 760px) { .worksheet-workspace, .worksheet-metadata, .worksheet-item-fields { grid-template-columns: 1fr; } .worksheet-wide { grid-column: auto; } }
+@media print { body { background: white; } .hero, .workspace, .exercise-practice, .worksheet-editor, .worksheet-generate, .exercise-live, .exercise-error { display: none !important; } .app-shell { width: 100%; padding: 0; } .exercise-set { margin: 0; padding: 0; border: 0; } .worksheet-workspace { display: block; } .worksheet-document { padding: 0; border: 0; box-shadow: none; } .exercise-svg-frame { overflow: visible; border: 0; } .exercise-svg-frame svg { max-width: 100%; height: auto; } }
