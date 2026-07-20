@@ -12,6 +12,12 @@ export const exerciseServiceDescriptors = Object.freeze({
         description: "Stores deterministic exercise generation strategies in isolated plugin scopes.",
         layer: "application", category: "application", role: "registry", stability: "stable", visibility: "public",
         capabilities: ["plugin-scoped-strategies", "deterministic-strategy-selection"]
+    }),
+    progressions: new ServiceDescriptor({
+        id: "exercise.progressionCatalog", name: { value: "exercise-progression-catalog", displayName: "Exercise Progression Catalog" },
+        description: "Provides immutable semantic chord-progression definitions for advanced exercise generation.",
+        layer: "domain", category: "domain", role: "catalog", stability: "stable", visibility: "public",
+        capabilities: ["ordered-progressions", "roman-numeral-harmony", "deterministic-lookup"]
     })
 });
 
@@ -23,6 +29,15 @@ export const defaultExercisePluginDescriptor = new PluginDescriptor({
     services: [{ id: "exercise.engine", kind: "service" }], extensionPoints: [{ id: "exercise.strategy", kind: "exercise" }]
 });
 
+export const advancedExercisePluginDescriptor = new PluginDescriptor({
+    id: "core.exercise.advanced", name: { value: "advanced-exercises", displayName: "Advanced Exercise Generator" },
+    description: "Deterministic approach-note, enclosure, and chord-progression exercise generation.",
+    layer: "plugin", category: "plugin", role: "provider", stability: "stable", visibility: "public",
+    capabilities: ["approach-notes", "enclosures", "chord-progressions", "exact-spelling"],
+    services: [{ id: "exercise.engine", kind: "service" }, { id: "exercise.progressionCatalog", kind: "service" }],
+    extensionPoints: [{ id: "exercise.strategy", kind: "exercise" }]
+});
+
 export const exerciseStrategyDescriptors = Object.freeze({
     foundational: new ExerciseDescriptor({
         id: "exercise.foundational", name: { value: "foundational-exercise-generator", displayName: "Foundational Exercise Generator" },
@@ -32,5 +47,14 @@ export const exerciseStrategyDescriptors = Object.freeze({
         plugin: { id: "core.exercise.foundational", kind: "plugin" },
         inputTypes: [{ id: "exercise.request", kind: "value" }], outputTypes: [{ id: "exercise.model", kind: "value" }],
         metadata: { pluginId: "core.exercise.foundational", notationOutput: false, playbackOutput: false }
+    }),
+    advanced: new ExerciseDescriptor({
+        id: "exercise.advanced", name: { value: "advanced-exercise-generator", displayName: "Advanced Exercise Generator" },
+        description: "Generates deterministic approach-note, enclosure, and semantic chord-progression models.",
+        layer: "application", category: "application", role: "strategy", stability: "stable", visibility: "public",
+        capabilities: ["approach-notes", "enclosures", "chord-progressions", "exact-spelling", "immutable-model-output"],
+        plugin: { id: "core.exercise.advanced", kind: "plugin" },
+        inputTypes: [{ id: "exercise.request", kind: "value" }], outputTypes: [{ id: "exercise.model", kind: "value" }],
+        metadata: { pluginId: "core.exercise.advanced", notationOutput: false, playbackOutput: false }
     })
 });

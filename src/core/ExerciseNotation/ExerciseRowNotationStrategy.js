@@ -8,7 +8,7 @@ function sourceMetadata(modelId, sectionId, row, step, emittedIndex, member = nu
 function keyFor(row, request) {
     if (request.keySignaturePolicy === "none") return null;
     if (request.keySignaturePolicy === "explicit") return request.keySignature;
-    const mode = row.pattern === "major" ? "major" : row.pattern === "melodic-minor" ? "minor" : null;
+    const mode = row.metadata.progressionMode ?? (row.pattern === "major" ? "major" : row.pattern === "melodic-minor" ? "minor" : null);
     if (!mode) throw new ValidationError(`Cannot safely derive a key signature for exercise row "${row.id}".`);
     return new KeySignature({ tonic: row.root, mode });
 }

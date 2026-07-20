@@ -5,6 +5,7 @@ export function identityToken(value) {
 
 export function requestIdentity(request) {
     const roots = request.roots.map(identityToken).join("-");
-    return ["exercise", request.type, roots, request.pattern ?? request.quality,
-        request.direction, `${request.octaves}oct`, `from${request.startingOctave}`].map(String).join(":");
+    const base = ["exercise", request.type, roots, request.pattern ?? request.quality ?? request.progression];
+    if (["approach-note", "enclosure"].includes(String(request.type))) base.push(request.approachPattern ?? request.enclosurePattern, request.target);
+    return [...base, request.direction, `${request.octaves}oct`, `from${request.startingOctave}`].map(String).join(":");
 }

@@ -1,7 +1,8 @@
 import { ImmutableValue, ValidationError } from "../Foundation/index.js";
 
 export const EXERCISE_TYPES = Object.freeze([
-    "scale", "scale-thirds", "arpeggio-triad", "arpeggio-seventh", "chord-blocked", "chord-broken"
+    "scale", "scale-thirds", "arpeggio-triad", "arpeggio-seventh", "chord-blocked", "chord-broken",
+    "approach-note", "enclosure", "chord-progression"
 ]);
 
 export class ExerciseType extends ImmutableValue {
