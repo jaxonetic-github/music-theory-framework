@@ -14,6 +14,8 @@ each row ScoreGraph -> RenderingEngine -> ExercisePresentationDocument
 
 Every presentation row retains its source `ExerciseRow`, source `ExerciseNotationRow`, complete independent `ScoreGraph`, semantic systems, and ordered measure IDs. Stable IDs and metadata carry model, section, exercise-row, notation-row, renderer-plugin, renderer-strategy, format, and row-sequence identity. Existing note spelling, chord-member order, durations, event metadata, and cross-measure `next` precedence remain in the source graph unchanged.
 
+Normalized renderer options participate in request and presentation identity. Width, height, title, and metadata use recursive canonical serialization: object keys are sorted, array order is preserved, and unsupported or cyclic metadata is rejected. Equivalent metadata objects therefore share identity regardless of insertion order, while material rendering-option changes cannot collide.
+
 Semantic systems are renderer-neutral measure groupings from ExerciseNotation. They are guidance for a future interface, not publication geometry. Renderers consume only each row's `ScoreGraph`; the workflow never parses SVG, MusicXML, playback data, or other output to recover musical meaning or layout.
 
 ## Rendering and failure behavior

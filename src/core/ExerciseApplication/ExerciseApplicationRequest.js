@@ -1,4 +1,4 @@
-import { cloneDeep, freezeDeep, ValidationError } from "../Foundation/index.js";
+import { canonicalSerialize, cloneDeep, freezeDeep, ValidationError } from "../Foundation/index.js";
 import { ExerciseModel, ExerciseRequest } from "../Exercise/index.js";
 import { Clef, Duration, KeySignature } from "../Notation/index.js";
 
@@ -43,10 +43,11 @@ function renderingOptions(value) {
     const pluginId = optionalId(source.pluginId, "Rendering pluginId"), strategyId = optionalId(source.strategyId, "Rendering strategyId");
     if (strategyId && !pluginId) throw new ValidationError("Rendering strategyId requires pluginId.");
     const options = object(source.options, "Renderer-specific options", {}); rejectUnknown(options, rendererOptionKeys, "renderer-specific");
-    for (const key of ["width", "height"]) if (options[key] !== undefined && (!Number.isFinite(Number(options[key])) || Number(options[key]) <= 0)) throw new ValidationError(`Renderer ${key} must be a positive finite number.`);
-    if (options.title !== undefined && !String(options.title).trim()) throw new ValidationError("Renderer title must be a non-empty string.");
-    if (options.metadata !== undefined) object(options.metadata, "Renderer metadata");
-    return Object.freeze({ format, pluginId, strategyId, options: freezeDeep(cloneDeep(options)) });
+    const normalized = {};
+    for (const key of ["width", "height"]) if (options[key] !== undefined) { const number = Number(options[key]); if (!Number.isFinite(number) || number <= 0) throw new ValidationError(`Renderer ${key} must be a positive finite number.`); normalized[key] = number; }
+    if (options.title !== undefined) { const title = String(options.title); if (!title.trim()) throw new ValidationError("Renderer title must be a non-empty string."); normalized.title = title; }
+    if (options.metadata !== undefined) { object(options.metadata, "Renderer metadata"); try { canonicalSerialize(options.metadata); } catch (cause) { throw new ValidationError(`Renderer metadata is not deterministically serializable: ${cause.message}`, { cause }); } normalized.metadata = options.metadata; }
+    return Object.freeze({ format, pluginId, strategyId, options: freezeDeep(cloneDeep(normalized)) });
 }
 
 export class ExerciseApplicationRequest {
@@ -59,7 +60,7 @@ export class ExerciseApplicationRequest {
         const model = source.model ?? null;
         const notation = notationOptions(source.notation), rendering = renderingOptions(source.rendering);
         const sourceId = model?.id ?? exercise.identity;
-        const identity = `exercise-presentation-request:${sourceId}:duration:${notation.duration}:clef:${notation.clef}:time:${notation.timeSignature.beats}-${notation.timeSignature.beatUnit}:systems:${notation.measuresPerSystem}:key:${notation.keySignaturePolicy}${notation.keySignature ? `-${notation.keySignature}` : ""}:notation:${notation.pluginId ?? "implicit"}-${notation.strategyId ?? "implicit"}:rendering:${rendering.format}-${rendering.pluginId ?? "implicit"}-${rendering.strategyId ?? "implicit"}`;
+        const identity = `exercise-presentation-request:${sourceId}:duration:${notation.duration}:clef:${notation.clef}:time:${notation.timeSignature.beats}-${notation.timeSignature.beatUnit}:systems:${notation.measuresPerSystem}:key:${notation.keySignaturePolicy}${notation.keySignature ? `-${notation.keySignature}` : ""}:notation:${notation.pluginId ?? "implicit"}-${notation.strategyId ?? "implicit"}:rendering:${rendering.format}-${rendering.pluginId ?? "implicit"}-${rendering.strategyId ?? "implicit"}:options:${canonicalSerialize(rendering.options)}`;
         Object.defineProperties(this, { exercise: { value: exercise, enumerable: true }, model: { value: model, enumerable: true }, notation: { value: notation, enumerable: true }, rendering: { value: rendering, enumerable: true }, identity: { value: identity, enumerable: true } }); Object.freeze(this);
     }
     static from(value) { return value instanceof ExerciseApplicationRequest ? value : new ExerciseApplicationRequest(value); }
