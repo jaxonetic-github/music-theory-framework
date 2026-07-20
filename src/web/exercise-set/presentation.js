@@ -1,0 +1,3 @@
+import { ExerciseSetResult } from "../../core/index.js"; import { validateExercisePresentation } from "../exercise/presentation.js";
+export function validateExerciseSetPresentation(result) { if (!(result instanceof ExerciseSetResult) || result.document.request !== result.request) throw new TypeError("A completed ExerciseSetResult is required."); for (const section of result.document.sections) for (const item of section.items) { if (item.result.request !== item.request.application || item.result.presentation !== item.presentation) throw new TypeError(`Worksheet item "${item.id}" has mismatched result ownership.`); validateExercisePresentation(item.result); } return result.document; }
+export default validateExerciseSetPresentation;

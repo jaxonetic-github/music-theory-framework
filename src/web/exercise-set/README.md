@@ -1,0 +1,9 @@
+# React Exercise Set Worksheet
+
+The v8.6 Web adapter exposes the active `exercise.set.application` service through `ExerciseSetPanel`. Its immutable draft state uses stable section and item IDs, supports metadata editing, all nine existing exercise families, duplication, removal, and deterministic movement, and delegates every item normalization to the existing Exercise Practice workflow helpers. Active immutable scale, chord, target-compatibility, and progression choices come from bootstrap; extended chords remain available to foundational families and excluded from unsupported advanced targeting.
+
+Generating builds one immutable `ExerciseSetRequest`. Core then invokes the active ExerciseApplication service sequentially for each item. The completed `ExerciseSetResult` is authoritative: React renders its title, sections, item labels, semantic summaries, and exact per-item presentation rows. Draft edits never relabel that result; they mark it stale. Operation identities reject stale async success/failure, unmount invalidates pending work, duplicate submission is guarded, and later failures preserve the previous successful worksheet.
+
+Every nested `ExerciseApplicationResult` passes the existing strict trusted-SVG validator independently. React never concatenates SVG, merges ScoreGraphs, parses notation, or reconstructs musical metadata. Native controls, fieldsets, legends, headings, alerts, focus handling, polite status text, stable React keys, responsive grids, horizontal notation scrolling, and print-specific CSS provide the interaction and presentation boundary.
+
+Browser print CSS is the only print feature. Audio, PlaybackEngine, PlaybackPlan, Transport, Web Audio, AudioContext, MIDI, metronomes, timers, recording, grading, persistence, networking, downloads, PDF generation, filesystem access, authentication, collaboration, cloud storage, and server functionality are explicitly deferred.

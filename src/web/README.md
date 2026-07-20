@@ -1,6 +1,6 @@
 # React Web Application, Playback, and Exercise Practice Adapters
 
-The v8.5 Web package preserves the general workflow and playback UI and extends the accessible Exercise Practice adapter with approach-note, enclosure, and chord-progression controls. React does not generate theory or exercises, traverse `ScoreGraph`, calculate musical timing, serialize SVG or MusicXML, schedule audio nodes, or manage AudioContext directly.
+The v8.6 Web package preserves the general workflow, playback UI, and Exercise Practice adapter while adding an accessible heterogeneous Exercise Set worksheet. React does not generate theory or exercises, traverse `ScoreGraph`, calculate musical timing, serialize SVG or MusicXML, schedule audio nodes, or manage AudioContext directly.
 
 ## Bootstrap and ownership
 
@@ -30,8 +30,10 @@ Trusted SVG remains sourced only from `ApplicationResult.rendering`. `downloadEx
 
 Exercise Practice consumes only `exercise.application.engine`. Bootstrap adapts the active Theory catalogs and required `exercise.progressionCatalog` into deeply immutable presentation-safe choices without transferring service ownership. Chord records retain every active catalog entry and declare whether their existing triad/seventh structure supports advanced targets; unsupported extended chords remain available to foundational workflows and never prevent startup. The same narrow trust boundary admits presentation markup only from the exact internal `core.rendering.svg` / `svg` identity after rejecting active, styled, or external SVG content. Submitted control revisions keep a result stale when advanced or foundational controls change during generation, while the completed result remains authoritative and later failures preserve its correct stale state. See [`exercise/README.md`](exercise/README.md) for request normalization, target availability, stale-operation handling, semantic-system layout, accessibility, and deferred scope.
 
+Exercise Worksheet consumes `exercise.set.application`, reuses the same catalog records and request normalization, and validates every nested authoritative ExerciseApplication presentation through that trust boundary. Stable draft IDs support section/item add, remove, duplicate, and reorder operations without array-index React keys. Completed results remain visible and stale after material edits; newer operations win and later failures do not destroy prior output. Responsive and print CSS produce a coherent worksheet without adding a PDF or export strategy. See [`exercise-set/README.md`](exercise-set/README.md).
+
 ## Exclusions and validation
 
 This milestone excludes pause/resume, seeking, scrubbing, looping, tempo changes during playback, score-following, cursor animation, Web MIDI, recording, samples, effects, mixer UI, server APIs, persistence, and networking. Core imports remain React-, DOM-, browser-, AudioContext-, and MIDI-free.
 
-The v8.5 repository suite contains **303 passing tests**: 268 plain-Node tests and 35 React DOM tests. `npm audit` reports **0 vulnerabilities**.
+The v8.6 repository suite contains **325 passing tests**: 284 plain-Node tests and 41 React DOM tests. `npm audit` reports **0 vulnerabilities**. The production Vite build transforms **313 modules**.

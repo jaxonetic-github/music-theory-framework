@@ -3,6 +3,7 @@ import { useApplicationRuntime, useApplicationWorkflow } from "./ApplicationProv
 import { downloadExport, exportFilenameBase } from "./download.js";
 import { usePlaybackTransport, useStopActivePlaybackOnCleanup } from "./usePlaybackTransport.js";
 import { ExercisePracticePanel } from "./exercise/index.js";
+import { ExerciseSetPanel } from "./exercise-set/index.js";
 import {
     buildWorkflowRequest,
     createInitialWorkflowState,
@@ -290,6 +291,7 @@ function ReadyApplication({ runtime }) {
                 </section>
             </div>
             <ExercisePracticePanel engine={runtime.exerciseApplication} catalogs={runtime.catalogs} />
+            <ExerciseSetPanel application={runtime.exerciseSetApplication} catalogs={runtime.catalogs} />
         </main>
     );
 }

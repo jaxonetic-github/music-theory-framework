@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
     ApplicationModule, APPROACH_PATTERNS, CANONICAL_EXERCISE_ROOTS, CHORD_TARGETS, ChordCatalog,
-    ENCLOSURE_PATTERNS, ExerciseApplicationModule, ExerciseModule, ExerciseNotationModule, ExportModule,
+    ENCLOSURE_PATTERNS, ExerciseApplicationModule, ExerciseModule, ExerciseNotationModule, ExerciseSetModule, ExportModule,
     NotationModule, PlaybackModule, RenderingModule, TheoryModule
 } from "../src/core/index.js";
 import { createWebApplication } from "../src/web/bootstrap.js";
@@ -107,7 +107,7 @@ test("extended chords survive Web adaptation and foundational generation but are
     const controllerFactory = () => new PlaybackTransportController({ adapter: audio.adapter });
     const modules = [
         new TheoryModule({ chordCatalog }), new NotationModule(), new RenderingModule(), new ExerciseModule(),
-        new ExerciseNotationModule(), new ExerciseApplicationModule(), new ExportModule(), new ApplicationModule(),
+        new ExerciseNotationModule(), new ExerciseApplicationModule(), new ExerciseSetModule(), new ExportModule(), new ApplicationModule(),
         new PlaybackModule(), audio, new PlaybackTransportModule({ controller: controllerFactory(), controllerFactory, ownsController: true })
     ];
     const runtime = await createWebApplication({ modules });
@@ -136,7 +136,7 @@ test("extended chords survive Web adaptation and foundational generation but are
 
 test("Web bootstrap fails clearly and disposes its attempted runtime when the progression service is unavailable", async () => {
     let disposed = 0;
-    const services = new Map([["application.engine", {}], ["exercise.application.engine", {}], ["playback.engine", {}], ["web.playback.transport", {}]]);
+    const services = new Map([["application.engine", {}], ["exercise.application.engine", {}], ["exercise.set.application", {}], ["playback.engine", {}], ["web.playback.transport", {}]]);
     const kernel = { use() {}, async start() {}, services: { resolve(id) { if (!services.has(id)) throw new Error(`Service not found: ${id}`); return services.get(id); } }, async dispose() { disposed += 1; } };
     await assert.rejects(() => createWebApplication({ kernel, modules: [] }), /exercise\.progressionCatalog/);
     assert.equal(disposed, 1);

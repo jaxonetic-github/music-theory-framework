@@ -4,6 +4,7 @@ import {
     ExerciseApplicationModule,
     ExerciseModule,
     ExerciseNotationModule,
+    ExerciseSetModule,
     ExportModule,
     Kernel,
     NotationModule,
@@ -27,6 +28,7 @@ const defaultModules = () => {
         new ExerciseModule(),
         new ExerciseNotationModule(),
         new ExerciseApplicationModule(),
+        new ExerciseSetModule(),
         new ExportModule(),
         new ApplicationModule(),
         new PlaybackModule(),
@@ -67,6 +69,7 @@ export async function createWebApplication({
         await kernel.start();
         const application = kernel.services.resolve("application.engine");
         const exerciseApplication = kernel.services.resolve("exercise.application.engine");
+        const exerciseSetApplication = kernel.services.resolve("exercise.set.application");
         const playback = kernel.services.resolve("playback.engine");
         const transport = kernel.services.resolve("web.playback.transport");
         const progressionCatalog = kernel.services.resolve("exercise.progressionCatalog");
@@ -78,6 +81,7 @@ export async function createWebApplication({
         return Object.freeze({
             application,
             exerciseApplication,
+            exerciseSetApplication,
             playback,
             transport,
             catalogs,
