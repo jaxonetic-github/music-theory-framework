@@ -159,7 +159,8 @@ function attributesXml(part, measure, divisions) {
     const sign = clefSigns[clef.type];
     if (!sign) throw new ValidationError(`Unsupported MusicXML clef: "${clef.type}".`);
     const octaveChange = clef.octaveShift === 0 ? "" : `<clef-octave-change>${clef.octaveShift}</clef-octave-change>`;
-    return `<attributes><divisions>${divisions}</divisions><key><fifths>${measure.keySignature.accidentals}</fifths><mode>${xmlText(measure.keySignature.mode)}</mode></key><time><beats>${measure.value.beats}</beats><beat-type>${measure.value.beatUnit}</beat-type></time><clef><sign>${sign}</sign><line>${clef.line}</line>${octaveChange}</clef></attributes>`;
+    const key = measure.keySignature ? `<key><fifths>${measure.keySignature.accidentals}</fifths><mode>${xmlText(measure.keySignature.mode)}</mode></key>` : "";
+    return `<attributes><divisions>${divisions}</divisions>${key}<time><beats>${measure.value.beats}</beats><beat-type>${measure.value.beatUnit}</beat-type></time><clef><sign>${sign}</sign><line>${clef.line}</line>${octaveChange}</clef></attributes>`;
 }
 
 function unique(values, message) {

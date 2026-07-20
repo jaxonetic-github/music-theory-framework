@@ -72,8 +72,8 @@ function renderVoice(score, voice, y) {
 function renderMeasure(score, measure, part, y) {
     const voices = children(score, measure, "voice").sort((a, b) => a.index - b.index || String(a.id).localeCompare(String(b.id)));
     const key = measure.keySignature;
-    const signature = `${part.clef.type} clef, ${key.tonic} ${key.mode}, ${measure.value.beats}/${measure.value.beatUnit}`;
-    return `<g class="measure" data-node-id="${xmlAttribute(measure.id)}" data-number="${measure.number}" data-beats="${measure.value.beats}" data-beat-unit="${measure.value.beatUnit}" data-key-tonic="${xmlAttribute(key.tonic)}" data-key-mode="${xmlAttribute(key.mode)}" data-key-accidentals="${key.accidentals}" transform="translate(0 ${y})"${metadataAttribute(measure)}><rect x="40" y="0" width="1120" height="110" fill="none" stroke="currentColor"/><text class="signature" x="55" y="25">${xmlText(signature)}</text>${voices.map((voice, index) => renderVoice(score, voice, 58 + index * 45)).join("")}</g>`;
+    const signature = `${part.clef.type} clef, ${key ? `${key.tonic} ${key.mode}` : "no key signature"}, ${measure.value.beats}/${measure.value.beatUnit}`;
+    return `<g class="measure" data-node-id="${xmlAttribute(measure.id)}" data-number="${measure.number}" data-beats="${measure.value.beats}" data-beat-unit="${measure.value.beatUnit}" data-key-tonic="${xmlAttribute(key?.tonic ?? "")}" data-key-mode="${xmlAttribute(key?.mode ?? "none")}" data-key-accidentals="${key?.accidentals ?? 0}" transform="translate(0 ${y})"${metadataAttribute(measure)}><rect x="40" y="0" width="1120" height="110" fill="none" stroke="currentColor"/><text class="signature" x="55" y="25">${xmlText(signature)}</text>${voices.map((voice, index) => renderVoice(score, voice, 58 + index * 45)).join("")}</g>`;
 }
 
 function renderPart(score, part, y) {

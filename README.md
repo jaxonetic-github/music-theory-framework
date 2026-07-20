@@ -13,10 +13,13 @@ An immutable, plugin-scoped music theory framework with generation, first-class 
 - v7.5 browser-scoped, UI-neutral Playback Transport Controller
 - v7.6 accessible React Playback Controls over generated ApplicationResult scores
 - v8.0 Exercise Model and Generation Core for deterministic semantic scales, thirds, arpeggios, and chords
+- v8.1 Exercise Notation and Layout for immutable row-oriented ScoreGraph documents
 
 Playback Planning produces immutable tick plans only. React passes generated scores to the planning engine, loads returned plans into Transport, and issues explicit user commands. Web Audio alone converts ticks and schedules sound. Core remains browser-free. Pause, seek, looping, score-following, and Web MIDI remain excluded.
 
 Exercise Core composes existing Theory catalogs and generators into immutable semantic material. It has first-class descriptor discovery at `kernel.registries.exercises` and a separate plugin-scoped strategy registry. Exercise does not produce notation, rendering, MusicXML, playback, audio, or React output.
+
+Exercise Notation consumes those semantic models without changing them. It converts each row through the shared Notation strategy infrastructure into one self-contained ScoreGraph and adds measure/system grouping as renderer-neutral semantic layout guidance.
 
 ## Development
 
@@ -37,4 +40,4 @@ git diff --check
 
 The production build is emitted to `dist/`. See [`src/web/README.md`](src/web/README.md) for the adapter architecture, trusted SVG boundary, and MusicXML download behavior.
 
-The current repository suite contains **222 passing tests**: 202 plain-Node tests and 20 React DOM tests.
+The current repository suite contains **234 passing tests**: 214 plain-Node tests and 20 React DOM tests.
