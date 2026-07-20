@@ -32,4 +32,4 @@ Trusted SVG remains sourced only from `ApplicationResult.rendering`. `downloadEx
 
 This milestone excludes pause/resume, seeking, scrubbing, looping, tempo changes during playback, score-following, cursor animation, Web MIDI, recording, samples, effects, mixer UI, server APIs, persistence, and networking. Core imports remain React-, DOM-, browser-, AudioContext-, and MIDI-free.
 
-The complete repository suite contains **201 passing tests**: 181 plain-Node tests and 20 React DOM tests.
+The complete repository suite contains **222 passing tests**: 202 plain-Node tests and 20 React DOM tests.

@@ -1,7 +1,7 @@
 import { ValidationError } from "../Foundation/index.js";
 import {
     PackageRegistry, ModuleRegistry, ServiceRegistry, PluginRegistry, ThemeRegistry,
-    GeneratorRegistry, RendererRegistry, ExporterRegistry, PlaybackRegistry, WorkspaceRegistry
+    GeneratorRegistry, RendererRegistry, ExporterRegistry, PlaybackRegistry, ExerciseRegistry, WorkspaceRegistry
 } from "../Infrastructure/index.js";
 import { CommandBus } from "./CommandBus.js";
 import { EventBus } from "./EventBus.js";
@@ -13,7 +13,7 @@ import { KernelError } from "./errors/index.js";
 const registryFactories = Object.freeze({
     packages: PackageRegistry, modules: ModuleRegistry, services: ServiceRegistry, plugins: PluginRegistry,
     themes: ThemeRegistry, generators: GeneratorRegistry, renderers: RendererRegistry,
-    exporters: ExporterRegistry, playbacks: PlaybackRegistry, workspaces: WorkspaceRegistry
+    exporters: ExporterRegistry, playbacks: PlaybackRegistry, exercises: ExerciseRegistry, workspaces: WorkspaceRegistry
 });
 
 export class Kernel {
