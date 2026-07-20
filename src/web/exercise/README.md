@@ -1,6 +1,16 @@
 # React Exercise Practice UI
 
-The v8.3 browser adapter exposes `exercise.application.engine` through `ExercisePracticePanel`. React owns only form, operation, focus, and display state. The deterministic request builder creates one immutable `ExerciseApplicationRequest`; React never calls Theory, Exercise generation, ExerciseNotation, or Rendering algorithms itself.
+The v8.5 browser adapter exposes `exercise.application.engine` through `ExercisePracticePanel`. React owns only form, operation, focus, and display state. The deterministic request builder creates one immutable `ExerciseApplicationRequest`; React never calls Theory, Exercise generation, ExerciseNotation, or Rendering algorithms itself.
+
+## Advanced choices and requests
+
+The family selector has a documented stable order: Scale, Scale in thirds, Triad arpeggio, Seventh arpeggio, Blocked chord, Broken chord, Approach note, Enclosure, and Chord progression. Stable IDs—not display labels—drive conditional controls.
+
+Approach-note and enclosure controls use the public immutable Core pattern and target constants. Their chord qualities come from the active Theory chord catalog; UI-safe chord-member roles determine whether root, third, fifth, seventh, and all-member targets are available. Selecting a triad normalizes an unavailable seventh target without duplicating interval arithmetic in React. Approach notes resolve one chromatic or diatonic neighbor to a chord tone. Enclosures place two selected chromatic/diatonic neighbors around a chord tone and resolve to it.
+
+Progression choices are immutable presentation records adapted from the active `exercise.progressionCatalog`, in catalog order, with ID, display name, mode, and an ordered harmonic-event summary. Components never receive or own the mutable service. The initial progression is the first active entry; an absent service or empty catalog produces a clear configuration failure.
+
+Family transitions delete incompatible hidden fields. Advanced requests include only their quality/target/pattern or progression, exact root or all-key selection, starting octave, Core-required fixed direction/octave values, shared notation options, and the approved SVG rendering format. Exact Db, F#, Cb, and B# spelling is preserved, inputs are not mutated, and equivalent normalized state yields equivalent immutable requests.
 
 ## Completed-result ownership
 
@@ -12,12 +22,12 @@ Each operation receives a monotonically increasing identity, and each material c
 
 `validateExercisePresentation()` accepts only an actual `ExerciseApplicationResult` whose document and every row identify the approved `core.rendering.svg` / `svg` renderer, use normalized `svg` format and `image/svg+xml`, and contain a nonempty standalone SVG. It rejects active or HTML-like elements, event handlers, style content, CSS URLs and imports, external/data/JavaScript URLs, unsafe `href` values, processing instructions, and doctypes. Same-document fragment references are the only accepted `href` form. Only content passing that narrow boundary reaches `dangerouslySetInnerHTML`; the adapter has no general HTML injection API or permissive plugin path.
 
-Rows stay in exact document order and retain independent ScoreGraphs. `ExercisePresentationRow.systems` and measure membership are shown as semantic grouping information without parsing SVG positions or merging graphs. Responsive CSS wraps controls, preserves focus indicators, and gives wide notation a horizontal scrolling container on narrow screens.
+Rows stay in exact document order and retain independent ScoreGraphs. Advanced summaries read family, root, quality, target, pattern, progression identity, mode, and harmonic-event count only from the completed result and its source row. `ExercisePresentationRow.systems` and measure membership are shown as semantic grouping information without parsing SVG positions or merging graphs. Responsive CSS wraps controls and advanced fieldsets, preserves focus indicators, and gives wide notation a horizontal scrolling container on narrow screens.
 
 ## Accessibility and errors
 
-The panel has semantic headings, labeled native controls, a family fieldset, keyboard-operable actions, `aria-busy`, a restrained live status, row-specific notation labels, alerts for separate input/workflow/presentation failures, and deterministic result-or-error focus. Rendering many all-key rows does not generate a separate live announcement for each row.
+The panel has semantic headings, labeled native controls, family/target/pattern/progression fieldsets, concise help text, keyboard-operable actions, `aria-busy`, a restrained live status, row-specific notation labels, alerts for separate input/workflow/presentation failures, and deterministic result-or-error focus. Rendering many all-key rows does not generate a separate live announcement for each row.
 
 ## Deferred work
 
-Exercise audio, MIDI, playback transport, Play/Stop/Pause/Replay/Loop controls, score following, downloads, PDF/MusicXML export, persistence, presets, history, grading, answer tracking, networking, accounts, and server storage are explicitly deferred. Existing non-exercise playback and MusicXML download behavior remains separate and unchanged.
+Advanced exercise audio, MIDI, playback transport, Play/Stop/Pause/Replay/Loop/tempo controls, score following, downloads, PDF/MusicXML export, persistence, presets, history, grading, answer tracking, networking, accounts, and server storage are explicitly deferred. Existing non-exercise playback and MusicXML download behavior remains separate and unchanged.

@@ -12,9 +12,13 @@ export { default as Transport } from "./transport/index.js";
 export * from "./exercise/index.js";
 import {
     ExercisePracticePanel, ExercisePracticeApp, useExercisePracticeWorkflow, validateExercisePresentation,
-    buildExerciseApplicationRequest, createInitialExercisePracticeState, transitionExercisePracticeState
+    buildExerciseApplicationRequest, createInitialExercisePracticeState, transitionExercisePracticeState,
+    exerciseFamilyOptions, advancedExerciseFamilyOptions, approachPatternOptions, enclosurePatternOptions,
+    chordTargetOptions, exerciseTargetChoices
 } from "./exercise/index.js";
 export const ExercisePractice = Object.freeze({
     ExercisePracticePanel, ExercisePracticeApp, useExercisePracticeWorkflow, validateExercisePresentation,
-    buildExerciseApplicationRequest, createInitialExercisePracticeState, transitionExercisePracticeState
+    buildExerciseApplicationRequest, createInitialExercisePracticeState, transitionExercisePracticeState,
+    exerciseFamilyOptions, advancedExerciseFamilyOptions, approachPatternOptions, enclosurePatternOptions,
+    chordTargetOptions, exerciseTargetChoices
 });

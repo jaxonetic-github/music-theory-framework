@@ -23,7 +23,7 @@ import { ExerciseModel } from "./ExerciseModel.js";
 import { ExerciseEngine } from "./ExerciseEngine.js";
 import { ExerciseStrategyRegistry } from "./ExerciseStrategyRegistry.js";
 import { ExerciseStrategy, FoundationalExerciseStrategy, AdvancedExerciseStrategy } from "./strategies/index.js";
-import { ApproachPattern, APPROACH_PATTERNS, EnclosurePattern, ENCLOSURE_PATTERNS, ChordTarget, CHORD_TARGETS, ProgressionDefinition, ProgressionCatalog, defaultProgressions } from "./advanced/index.js";
+import { ApproachPattern, APPROACH_PATTERNS, EnclosurePattern, ENCLOSURE_PATTERNS, ChordTarget, CHORD_TARGETS, chordMemberRoles, ProgressionDefinition, ProgressionCatalog, defaultProgressions } from "./advanced/index.js";
 import { ExerciseModule } from "./ExerciseModule.js";
 import { exerciseServiceDescriptors, defaultExercisePluginDescriptor, advancedExercisePluginDescriptor, exerciseStrategyDescriptors } from "./descriptors.js";
 import { exercisePackageDescriptor } from "./package.descriptor.js";
@@ -32,7 +32,7 @@ export const Exercise = Object.freeze({
     ExerciseType, EXERCISE_TYPES, ExerciseDirection, EXERCISE_DIRECTIONS, ExerciseRequest, CANONICAL_EXERCISE_ROOTS,
     ExerciseStep, ExerciseRow, ExerciseSection, ExerciseModel, ExerciseEngine, ExerciseStrategyRegistry,
     ExerciseStrategy, FoundationalExerciseStrategy, AdvancedExerciseStrategy, ApproachPattern, APPROACH_PATTERNS,
-    EnclosurePattern, ENCLOSURE_PATTERNS, ChordTarget, CHORD_TARGETS, ProgressionDefinition, ProgressionCatalog, defaultProgressions,
+    EnclosurePattern, ENCLOSURE_PATTERNS, ChordTarget, CHORD_TARGETS, chordMemberRoles, ProgressionDefinition, ProgressionCatalog, defaultProgressions,
     ExerciseModule, serviceDescriptors: exerciseServiceDescriptors, pluginDescriptor: defaultExercisePluginDescriptor,
     advancedPluginDescriptor: advancedExercisePluginDescriptor, strategyDescriptors: exerciseStrategyDescriptors, descriptor: exercisePackageDescriptor
 });
