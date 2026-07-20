@@ -17,16 +17,17 @@ An immutable, plugin-scoped music theory framework with generation, first-class 
 - v8.2 Exercise Presentation and Application Workflow for browser-free generation, notation, and deterministic row rendering
 - v8.3 accessible React Exercise Practice UI over authoritative immutable presentation results
 - v8.4 Advanced Exercise Generation Core for deterministic approach notes, enclosures, and semantic chord progressions
+- v8.5 React Advanced Exercise Practice UI with catalog-driven targets and chord progressions
 
 Playback Planning produces immutable tick plans only. React passes generated scores to the planning engine, loads returned plans into Transport, and issues explicit user commands. Web Audio alone converts ticks and schedules sound. Core remains browser-free. Pause, seek, looping, score-following, and Web MIDI remain excluded.
 
 Exercise Core composes existing Theory catalogs and generators into immutable semantic material. It has first-class descriptor discovery at `kernel.registries.exercises` and a separate plugin-scoped strategy registry. Exercise does not produce notation, rendering, MusicXML, playback, audio, or React output.
 
-The v8.4 advanced strategy adds sequential approach-note and enclosure phrases plus simultaneous root-position chord progressions. Written spelling—including Cb, B#, and supported double accidentals—remains authoritative while MIDI retains sounding pitch. Progressions use ordered harmonic functions and scale degrees, then pass through the existing ExerciseNotation and ExerciseApplication pipelines. React controls for these families are intentionally deferred.
+The v8.4 advanced strategy adds sequential approach-note and enclosure phrases plus simultaneous root-position chord progressions. Written spelling—including Cb, B#, and supported double accidentals—remains authoritative while MIDI retains sounding pitch. Progressions use ordered harmonic functions and scale degrees, then pass through the existing ExerciseNotation and ExerciseApplication pipelines. The v8.5 React adapter exposes those families without reproducing their musical algorithms.
 
 Exercise Notation consumes those semantic models without changing them. It converts each row through the shared Notation strategy infrastructure into one self-contained ScoreGraph and adds measure/system grouping as renderer-neutral semantic layout guidance.
 
-Exercise Application orchestrates the active Exercise, ExerciseNotation, and Rendering services into immutable row presentations. The v8.3 React adapter submits one validated request to that service, preserves completed-result ownership, validates trusted SVG metadata, and presents independent rows and semantic systems responsively. Exercise audio, MIDI, transport, downloads, persistence, networking, and grading remain deferred.
+Exercise Application orchestrates the active Exercise, ExerciseNotation, and Rendering services into immutable row presentations. The v8.5 React adapter submits one validated foundational or advanced request to that service, preserves completed-result ownership, validates trusted SVG metadata, and presents independent rows and semantic systems responsively. Exercise audio, MIDI, transport, downloads, persistence, networking, and grading remain deferred.
 
 ## Development
 
@@ -47,4 +48,4 @@ git diff --check
 
 The production build is emitted to `dist/`. See [`src/web/README.md`](src/web/README.md) for the adapter architecture, trusted SVG boundary, and MusicXML download behavior.
 
-The current repository suite contains **288 passing tests**: 262 plain-Node tests and 26 React DOM tests.
+The v8.5 repository suite contains **303 passing tests**: 268 plain-Node tests and 35 React DOM tests. `npm audit` reports **0 vulnerabilities**.

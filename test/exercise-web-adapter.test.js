@@ -1,11 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { CANONICAL_EXERCISE_ROOTS } from "../src/core/index.js";
+import {
+    ApplicationModule, APPROACH_PATTERNS, CANONICAL_EXERCISE_ROOTS, CHORD_TARGETS, ChordCatalog,
+    ENCLOSURE_PATTERNS, ExerciseApplicationModule, ExerciseModule, ExerciseNotationModule, ExportModule,
+    NotationModule, PlaybackModule, RenderingModule, TheoryModule
+} from "../src/core/index.js";
 import { createWebApplication } from "../src/web/bootstrap.js";
+import { WebAudioPlaybackModule } from "../src/web/audio/index.js";
+import { PlaybackTransportController, PlaybackTransportModule } from "../src/web/transport/index.js";
 import {
     buildExerciseApplicationRequest,
     createInitialExercisePracticeState,
+    exerciseChoicesForFamily,
     transitionExercisePracticeState
 } from "../src/web/exercise/workflow.js";
 import { validateExercisePresentation } from "../src/web/exercise/presentation.js";
@@ -13,9 +20,16 @@ import { validateExercisePresentation } from "../src/web/exercise/presentation.j
 const catalogs = Object.freeze({
     scales: Object.freeze([{ id: "major", name: "Major", memberCount: 7 }]),
     chords: Object.freeze([
-        { id: "major", name: "Major", memberCount: 3 },
-        { id: "major-7", name: "Major Seventh", memberCount: 4 }
-    ])
+        { id: "major", name: "Major", memberCount: 3, targetCompatible: true, memberRoles: Object.freeze([1, 3, 5]) },
+        { id: "major-7", name: "Major Seventh", memberCount: 4, targetCompatible: true, memberRoles: Object.freeze([1, 3, 5, 7]) }
+    ]),
+    progressions: Object.freeze([{ id: "ii-v-i-major", name: "ii–V–I in major", mode: "major", events: Object.freeze([{ position: 1, romanNumeral: "ii7", function: "predominant", quality: "minor-7" }]) }])
+});
+
+test("exercise practice exposes nine families in stable foundational-then-advanced order", async () => {
+    const { exerciseFamilyOptions } = await import("../src/web/exercise/workflow.js");
+    assert.deepEqual(exerciseFamilyOptions.map(value => value.id), ["scale", "scale-thirds", "arpeggio-triad", "arpeggio-seventh", "chord-blocked", "chord-broken", "approach-note", "enclosure", "chord-progression"]);
+    assert.equal(Object.isFrozen(exerciseFamilyOptions), true);
 });
 
 test("exercise practice defaults and family transitions remove contradictory selections", () => {
@@ -39,6 +53,93 @@ test("root, all-key, and explicit-key transitions remove stale contradictions", 
     const none = transitionExercisePracticeState(explicit, { keySignaturePolicy: "none" }, catalogs);
     assert.equal("keySignatureTonic" in none, false);
     assert.equal("keySignatureMode" in none, false);
+});
+
+test("advanced transitions install defaults, remove stale fields, and normalize unavailable targets", () => {
+    const initial = createInitialExercisePracticeState(catalogs);
+    const approach = transitionExercisePracticeState(initial, { type: "approach-note" }, catalogs);
+    assert.deepEqual({ quality: approach.quality, target: approach.target, pattern: approach.approachPattern, direction: approach.direction, octaves: approach.octaves }, { quality: "major", target: "root", pattern: "chromatic-below", direction: "ascending", octaves: 1 });
+    const seventh = transitionExercisePracticeState(approach, { quality: "major-7", target: "seventh" }, catalogs);
+    assert.equal(seventh.target, "seventh");
+    const triad = transitionExercisePracticeState(seventh, { quality: "major" }, catalogs);
+    assert.equal(triad.target, "root");
+    const enclosure = transitionExercisePracticeState(triad, { type: "enclosure" }, catalogs);
+    assert.equal(enclosure.enclosurePattern, "diatonic-above-chromatic-below");
+    assert.equal("approachPattern" in enclosure, false);
+    const progression = transitionExercisePracticeState(enclosure, { type: "chord-progression" }, catalogs);
+    assert.equal(progression.progression, "ii-v-i-major");
+    for (const key of ["quality", "target", "approachPattern", "enclosurePattern", "pattern"]) assert.equal(key in progression, false);
+    const scale = transitionExercisePracticeState(progression, { type: "scale" }, catalogs);
+    for (const key of ["quality", "target", "approachPattern", "enclosurePattern", "progression"]) assert.equal(key in scale, false);
+});
+
+test("advanced request construction covers public patterns, targets, progressions, roots, and irrelevant-field omission", () => {
+    const common = { root: "Cb", allKeys: false, quality: "major-7", target: "root", startingOctave: 3, duration: "1/8", clef: "bass", beats: 3, beatUnit: 4, measuresPerSystem: 2, keySignaturePolicy: "none" };
+    for (const approachPattern of APPROACH_PATTERNS) {
+        const request = buildExerciseApplicationRequest({ ...common, type: "approach-note", approachPattern, pattern: "leak", progression: "leak", enclosurePattern: "leak", direction: "descending", octaves: 9 }, catalogs);
+        assert.equal(String(request.exercise.approachPattern), approachPattern); assert.equal(String(request.exercise.direction), "ascending"); assert.equal(request.exercise.octaves, 1);
+        assert.equal(request.exercise.pattern, null); assert.equal(request.exercise.progression, null); assert.equal(String(request.exercise.roots[0]), "Cb");
+    }
+    for (const enclosurePattern of ENCLOSURE_PATTERNS) assert.equal(String(buildExerciseApplicationRequest({ ...common, root: "B#", type: "enclosure", enclosurePattern }, catalogs).exercise.enclosurePattern), enclosurePattern);
+    for (const target of CHORD_TARGETS) assert.equal(String(buildExerciseApplicationRequest({ ...common, type: "approach-note", target, approachPattern: "chromatic-below" }, catalogs).exercise.target), target);
+    const progression = buildExerciseApplicationRequest({ ...common, type: "chord-progression", progression: "ii-v-i-major", quality: "leak", target: "leak", pattern: "leak" }, catalogs);
+    assert.equal(String(progression.exercise.progression), "ii-v-i-major"); assert.equal(progression.exercise.quality, null); assert.equal(progression.exercise.target, null); assert.equal(progression.exercise.pattern, null);
+    assert.throws(() => buildExerciseApplicationRequest({ ...common, type: "approach-note", quality: "major", target: "seventh", approachPattern: "chromatic-below" }, catalogs), /unavailable/);
+    const allKeys = buildExerciseApplicationRequest({ ...common, type: "enclosure", allKeys: true, root: "B#", target: "all", enclosurePattern: "chromatic-below-above" }, catalogs);
+    assert.equal(allKeys.exercise.allKeys, true); assert.deepEqual(allKeys.exercise.roots.map(String), CANONICAL_EXERCISE_ROOTS);
+    assert.deepEqual(progression, buildExerciseApplicationRequest({ ...common, type: "chord-progression", progression: "ii-v-i-major" }, catalogs));
+});
+
+test("Web runtime exposes frozen presentation-safe progression choices in catalog order", async () => {
+    const runtime = await createWebApplication();
+    try {
+        assert.deepEqual(runtime.catalogs.progressions.map(value => value.id), ["ii-v-i-major", "ii-half-diminished-v-i-minor", "i-vi-ii-v", "twelve-bar-dominant-blues"]);
+        assert.equal(runtime.catalogs.progressions[0].name, "ii–V–I in major");
+        assert.equal(runtime.catalogs.progressions[0].events[0].romanNumeral, "ii7");
+        assert.equal(Object.isFrozen(runtime.catalogs.progressions), true); assert.equal(Object.isFrozen(runtime.catalogs.progressions[0].events), true);
+    } finally { await runtime.dispose(); }
+});
+
+test("extended chords survive Web adaptation and foundational generation but are excluded from advanced targets", async () => {
+    const chordCatalog = new ChordCatalog();
+    chordCatalog.add({ id: "major-9", name: "Major Ninth", symbol: "maj9", intervals: [0, 4, 7, 11, 14] });
+    const audio = new WebAudioPlaybackModule();
+    const controllerFactory = () => new PlaybackTransportController({ adapter: audio.adapter });
+    const modules = [
+        new TheoryModule({ chordCatalog }), new NotationModule(), new RenderingModule(), new ExerciseModule(),
+        new ExerciseNotationModule(), new ExerciseApplicationModule(), new ExportModule(), new ApplicationModule(),
+        new PlaybackModule(), audio, new PlaybackTransportModule({ controller: controllerFactory(), controllerFactory, ownsController: true })
+    ];
+    const runtime = await createWebApplication({ modules });
+    try {
+        const extended = runtime.catalogs.chords.find(value => value.id === "major-9");
+        assert.deepEqual(extended, { id: "major-9", name: "Major Ninth", memberCount: 5, targetCompatible: false });
+        assert.equal(Object.isFrozen(extended), true);
+        assert.equal(runtime.catalogs.chords.at(-1).id, "major-9");
+        const foundationalChoices = exerciseChoicesForFamily(runtime.catalogs, "chord-blocked");
+        const targetChoices = exerciseChoicesForFamily(runtime.catalogs, "approach-note");
+        assert.equal(foundationalChoices.some(value => value.id === "major-9"), true); assert.equal(Object.isFrozen(foundationalChoices), true);
+        assert.equal(targetChoices.some(value => value.id === "major-9"), false); assert.equal(Object.isFrozen(targetChoices), true);
+        assert.equal(exerciseChoicesForFamily(runtime.catalogs, "enclosure").some(value => value.id === "major-9"), false);
+        const major = runtime.catalogs.chords.find(value => value.id === "major");
+        assert.equal(major.targetCompatible, true); assert.equal(Object.isFrozen(major.memberRoles), true);
+        assert.throws(() => buildExerciseApplicationRequest({ ...createInitialExercisePracticeState(runtime.catalogs), type: "approach-note", quality: "major-9", target: "root", approachPattern: "chromatic-below" }, runtime.catalogs), /does not support approach-note or enclosure targets/);
+        const blocked = transitionExercisePracticeState(createInitialExercisePracticeState(runtime.catalogs), { type: "chord-blocked" }, runtime.catalogs);
+        const result = runtime.exerciseApplication.run(buildExerciseApplicationRequest({ ...blocked, quality: "major-9" }, runtime.catalogs));
+        assert.equal(String(result.model.rows[0].quality), "major-9"); assert.match(result.presentation.rows[0].content, /^<svg/);
+        const scale = runtime.exerciseApplication.run(buildExerciseApplicationRequest(createInitialExercisePracticeState(runtime.catalogs), runtime.catalogs));
+        assert.equal(String(scale.model.rows[0].type), "scale");
+        assert.equal(chordCatalog.get("major-9").intervals.length, 5);
+        assert.equal(Object.isFrozen(runtime.catalogs.chords), true);
+    } finally { await runtime.dispose(); }
+});
+
+test("Web bootstrap fails clearly and disposes its attempted runtime when the progression service is unavailable", async () => {
+    let disposed = 0;
+    const services = new Map([["application.engine", {}], ["exercise.application.engine", {}], ["playback.engine", {}], ["web.playback.transport", {}]]);
+    const kernel = { use() {}, async start() {}, services: { resolve(id) { if (!services.has(id)) throw new Error(`Service not found: ${id}`); return services.get(id); } }, async dispose() { disposed += 1; } };
+    await assert.rejects(() => createWebApplication({ kernel, modules: [] }), /exercise\.progressionCatalog/);
+    assert.equal(disposed, 1);
 });
 
 test("request builder covers every family and preserves normalized immutable inputs", () => {

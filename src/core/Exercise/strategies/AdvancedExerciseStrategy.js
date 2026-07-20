@@ -6,6 +6,7 @@ import { ExerciseSection } from "../ExerciseSection.js";
 import { ExerciseStep } from "../ExerciseStep.js";
 import { identityToken } from "../identity.js";
 import { ExerciseStrategy } from "./ExerciseStrategy.js";
+import { chordMemberRoles } from "../advanced/chordMemberRoles.js";
 
 const letters = Object.freeze(["C", "D", "E", "F", "G", "A", "B"]);
 const natural = Object.freeze({ C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 });
@@ -27,13 +28,8 @@ function roleSpelling(root, semitones, letterOffset) {
     const index = letters.indexOf(String(root)[0]);
     return spell(letters[(index + letterOffset) % 7], semitones);
 }
-function chordRoles(pattern) {
-    if (pattern.intervals.length === 4) return [1, 3, 5, 7];
-    const middle = pattern.intervals[1] === 2 ? 2 : pattern.intervals[1] === 5 ? 4 : 3;
-    return [1, middle, 5];
-}
 function chordTargets(request, chord) {
-    const roles = chordRoles(chord.pattern);
+    const roles = chordMemberRoles(chord.pattern);
     const requested = String(request.target);
     if (requested === "all") return roles.map((role, index) => ({ role, index }));
     const role = targetRoles[requested], index = roles.indexOf(role);
@@ -116,7 +112,7 @@ export class AdvancedExerciseStrategy extends ExerciseStrategy {
             const eventRoot = degreeIndex === 0 ? root : roleSpelling(root, root.semitones + scale.pattern.intervals[degreeIndex], degreeIndex);
             const rootMidi = tonic.midi + scale.pattern.intervals[degreeIndex];
             const chord = this.chordGenerator.generate(eventRoot, event.quality);
-            const roles = chordRoles(chord.pattern);
+            const roles = chordMemberRoles(chord.pattern);
             const notes = chord.pattern.intervals.map((interval, index) => noteAt(index === 0 ? eventRoot : roleSpelling(eventRoot, chord.pitchClasses[index].semitones, roles[index] - 1), rootMidi + interval));
             return new ExerciseStep({ id: `${rowId}:progression:${event.position}`, sequence: event.position, sourceId: `${definition.id}:${event.id}:${root}`, notes, simultaneous: true, role: "harmonic-event", scaleDegree: event.degree, chordMembers: roles, metadata: { progressionId: String(definition.id), harmonicEventId: event.id, position: event.position, romanNumeral: event.romanNumeral, harmonicFunction: event.function, chordQuality: event.quality, sourceKey: String(root), sourceMode: definition.mode, writtenRoot: String(eventRoot), writtenChordNotes: notes.map(String), voicing: "root-position-close" } });
         });

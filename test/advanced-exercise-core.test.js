@@ -277,10 +277,10 @@ test("ExerciseApplication generically renders every advanced family with authori
     }
 });
 
-test("public v8.4 API exposes frozen advanced contracts while React keeps its six-family boundary", async () => {
+test("public v8.4 Core API exposes frozen advanced contracts for the v8.5 Web adapter", async () => {
     assert.equal(String(Exercise.descriptor.version), "8.4.0"); assert.strictEqual(Exercise.AdvancedExerciseStrategy, AdvancedExerciseStrategy);
     assert.deepEqual(APPROACH_PATTERNS.map(String), ["chromatic-below", "chromatic-above", "diatonic-below", "diatonic-above"]);
     assert.deepEqual(CHORD_TARGETS.map(String), ["root", "third", "fifth", "seventh", "all"]); assert.equal(Object.isFrozen(Exercise), true);
-    const source = await import("node:fs/promises").then(fs => fs.readFile(new URL("../src/web/exercise/workflow.js", import.meta.url), "utf8"));
-    assert.doesNotMatch(source, /approach-note|enclosure|chord-progression/);
+    const web = await import("../src/web/exercise/workflow.js");
+    assert.deepEqual(web.advancedExerciseFamilyOptions.map(value => value.id), ["approach-note", "enclosure", "chord-progression"]);
 });

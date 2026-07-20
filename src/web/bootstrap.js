@@ -1,5 +1,6 @@
 import {
     ApplicationModule,
+    chordMemberRoles,
     ExerciseApplicationModule,
     ExerciseModule,
     ExerciseNotationModule,
@@ -34,11 +35,25 @@ const defaultModules = () => {
     ];
 };
 
-function catalogOptions(catalog) {
+function catalogOptions(catalog, { chordMembers = false } = {}) {
     return Object.freeze(catalog.values().map(pattern => Object.freeze({
         id: String(pattern.id),
         name: String(pattern.name),
-        memberCount: pattern.intervals?.length ?? null
+        memberCount: pattern.intervals?.length ?? null,
+        ...(chordMembers ? {
+            targetCompatible: [3, 4].includes(pattern.intervals?.length),
+            ...([3, 4].includes(pattern.intervals?.length) ? { memberRoles: chordMemberRoles(pattern) } : {})
+        } : {})
+    })));
+}
+
+function progressionOptions(catalog) {
+    if (!catalog || typeof catalog.values !== "function") throw new TypeError("The Web runtime requires exercise.progressionCatalog.");
+    return Object.freeze(catalog.values().map(progression => Object.freeze({
+        id: String(progression.id), name: String(progression.name), mode: String(progression.mode),
+        events: Object.freeze(progression.events.map(event => Object.freeze({
+            position: event.position, romanNumeral: String(event.romanNumeral), function: String(event.function), quality: String(event.quality)
+        })))
     })));
 }
 
@@ -54,9 +69,11 @@ export async function createWebApplication({
         const exerciseApplication = kernel.services.resolve("exercise.application.engine");
         const playback = kernel.services.resolve("playback.engine");
         const transport = kernel.services.resolve("web.playback.transport");
+        const progressionCatalog = kernel.services.resolve("exercise.progressionCatalog");
         const catalogs = Object.freeze({
             scales: catalogOptions(kernel.services.resolve("theory.scaleCatalog")),
-            chords: catalogOptions(kernel.services.resolve("theory.chordCatalog"))
+            chords: catalogOptions(kernel.services.resolve("theory.chordCatalog"), { chordMembers: true }),
+            progressions: progressionOptions(progressionCatalog)
         });
         return Object.freeze({
             application,
