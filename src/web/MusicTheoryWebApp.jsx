@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useApplicationRuntime, useApplicationWorkflow } from "./ApplicationProvider.jsx";
 import { downloadExport, exportFilenameBase } from "./download.js";
 import { usePlaybackTransport, useStopActivePlaybackOnCleanup } from "./usePlaybackTransport.js";
@@ -18,15 +18,15 @@ function StageError({ error }) {
     return <div className="status status-error" role="alert"><strong>{stage} failed.</strong> {message}</div>;
 }
 
-function WorkflowControls({ catalogs, state, onChange, onSubmit, loading }) {
+function WorkflowControls({ catalogs, state, onChange, onSubmit, loading, id }) {
     const patterns = state.type === "scale" ? catalogs.scales : catalogs.chords;
     const selection = state.type === "scale" ? state.pattern : state.quality;
     const selectionKey = state.type === "scale" ? "pattern" : "quality";
     return (
-        <form className="control-panel" aria-labelledby="controls-title" onSubmit={onSubmit}>
+        <form className="control-panel" aria-labelledby={`${id}-controls-title`} onSubmit={onSubmit}>
             <div className="section-heading">
                 <p className="eyebrow">Workflow input</p>
-                <h2 id="controls-title">Build a theory request</h2>
+                <h2 id={`${id}-controls-title`}>Build a theory request</h2>
             </div>
             <fieldset className="type-switch">
                 <legend>Workflow type</legend>
@@ -43,23 +43,23 @@ function WorkflowControls({ catalogs, state, onChange, onSubmit, loading }) {
             </fieldset>
 
             <div className="field-grid">
-                <label className="field" htmlFor="root-pitch">
+                <label className="field" htmlFor={`${id}-root-pitch`}>
                     <span>Root pitch</span>
-                    <input id="root-pitch" name="root" aria-label="Root pitch" value={state.root} required autoComplete="off"
+                    <input id={`${id}-root-pitch`} name="root" aria-label="Root pitch" value={state.root} required autoComplete="off"
                         onChange={event => onChange({ root: event.target.value })} />
                     <small>Try Eb, F#, Cb, or B#.</small>
                 </label>
-                <label className="field" htmlFor="pattern-selection">
+                <label className="field" htmlFor={`${id}-pattern-selection`}>
                     <span>{state.type === "scale" ? "Scale pattern" : "Chord quality"}</span>
-                    <select id="pattern-selection" name={selectionKey}
+                    <select id={`${id}-pattern-selection`} name={selectionKey}
                         aria-label={state.type === "scale" ? "Scale pattern" : "Chord quality"} value={selection}
                         onChange={event => onChange({ [selectionKey]: event.target.value })}>
                         {patterns.map(pattern => <option key={pattern.id} value={pattern.id}>{pattern.name}</option>)}
                     </select>
                 </label>
-                <label className="field" htmlFor="octave">
+                <label className="field" htmlFor={`${id}-octave`}>
                     <span>Octave</span>
-                    <select id="octave" name="octave" aria-label="Octave" value={state.octave}
+                    <select id={`${id}-octave`} name="octave" aria-label="Octave" value={state.octave}
                         onChange={event => onChange({ octave: Number(event.target.value) })}>
                         {[2, 3, 4, 5, 6].map(octave => <option key={octave} value={octave}>{octave}</option>)}
                     </select>
@@ -102,7 +102,7 @@ function playbackErrorMessage(error) {
     return message;
 }
 
-function PlaybackControls({ plan, snapshot, planningError, commandError, pendingAction, onPlay, onStop, onReplay }) {
+function PlaybackControls({ plan, snapshot, planningError, commandError, pendingAction, onPlay, onStop, onReplay, id }) {
     const available = Boolean(plan) && snapshot.plan === plan;
     const active = available && activePlaybackStates.has(snapshot.state);
     const terminal = available && replayPlaybackStates.has(snapshot.state);
@@ -111,8 +111,8 @@ function PlaybackControls({ plan, snapshot, planningError, commandError, pending
     const replayDisabled = !terminal || pendingAction !== null;
     const executionError = commandError ?? (snapshot.state === "failed" ? snapshot.error : null);
     return (
-        <section className="playback-section" aria-labelledby="playback-title">
-            <h3 id="playback-title">Playback</h3>
+        <section className="playback-section" aria-labelledby={`${id}-playback-title`}>
+            <h3 id={`${id}-playback-title`}>Playback</h3>
             <fieldset className="playback-controls">
                 <legend>Playback controls</legend>
                 <div className="playback-actions">
@@ -132,7 +132,7 @@ function PlaybackControls({ plan, snapshot, planningError, commandError, pending
     );
 }
 
-function WorkflowResult({ workflow, playback }) {
+function WorkflowResult({ workflow, playback, id }) {
     if (workflow.status === "empty") {
         return <div className="status empty-state"><p className="eyebrow">Ready</p><h2>Your score will appear here</h2><p>Choose a workflow and generate an immutable result.</p></div>;
     }
@@ -151,18 +151,18 @@ function WorkflowResult({ workflow, playback }) {
     const title = workflowTitle(result);
     const pitches = workflowPitches(result);
     return (
-        <article className="result-card" aria-labelledby="result-title">
+        <article className="result-card" aria-labelledby={`${id}-result-title`}>
             <header className="result-header">
-                <div><p className="eyebrow">Generated result</p><h2 id="result-title">{title}</h2></div>
+                <div><p className="eyebrow">Generated result</p><h2 id={`${id}-result-title`}>{title}</h2></div>
                 <span className="result-badge">{result.request.type}</span>
             </header>
-            <section aria-labelledby="pitches-title">
-                <h3 id="pitches-title">Written pitches</h3>
+            <section aria-labelledby={`${id}-pitches-title`}>
+                <h3 id={`${id}-pitches-title`}>Written pitches</h3>
                 <ul className="pitch-list">{pitches.map((pitch, index) => <li key={`${pitch}-${index}`}>{pitch}</li>)}</ul>
                 <p className="octave-note">Notation octave: {result.request.notationOptions.octave}</p>
             </section>
-            <section aria-labelledby="metadata-title">
-                <h3 id="metadata-title">Workflow metadata</h3>
+            <section aria-labelledby={`${id}-metadata-title`}>
+                <h3 id={`${id}-metadata-title`}>Workflow metadata</h3>
                 <dl className="metadata-list">
                     <div><dt>Generator</dt><dd>{result.metadata.generation.generatorId}</dd></div>
                     <div><dt>Notation</dt><dd>{result.metadata.notation.strategyId}</dd></div>
@@ -170,10 +170,10 @@ function WorkflowResult({ workflow, playback }) {
                     <div><dt>Exporter</dt><dd>{result.metadata.export?.strategyId ?? "Not requested"}</dd></div>
                 </dl>
             </section>
-            <PlaybackControls {...playback} />
+            <PlaybackControls {...playback} id={id} />
             {result.rendering && (
-                <section className="score-section" aria-labelledby="score-title">
-                    <h3 id="score-title">Rendered score</h3>
+                <section className="score-section" aria-labelledby={`${id}-score-title`}>
+                    <h3 id={`${id}-score-title`}>Rendered score</h3>
                     <div className="svg-frame" role="img" aria-label={`Rendered score for ${title}`}
                         dangerouslySetInnerHTML={{ __html: result.rendering.content }} />
                 </section>
@@ -187,6 +187,7 @@ function WorkflowResult({ workflow, playback }) {
 }
 
 function ReadyApplication({ runtime }) {
+    const id = useId();
     const { workflow, run } = useApplicationWorkflow();
     const snapshot = usePlaybackTransport(runtime.transport);
     const [state, setState] = useState(() => createInitialWorkflowState(runtime.catalogs));
@@ -275,10 +276,10 @@ function ReadyApplication({ runtime }) {
                 <p>Run the headless workflow through an accessible React adapter. Generate, notate, render SVG, and prepare MusicXML—all from the same immutable score.</p>
             </header>
             <div className="workspace">
-                <WorkflowControls catalogs={runtime.catalogs} state={state} onChange={update} onSubmit={submit}
+                <WorkflowControls id={id} catalogs={runtime.catalogs} state={state} onChange={update} onSubmit={submit}
                     loading={workflow.status === "loading"} />
                 <section className="results-panel" aria-label="Workflow results">
-                    <WorkflowResult workflow={workflow} playback={{
+                    <WorkflowResult id={id} workflow={workflow} playback={{
                         plan: currentPlan,
                         snapshot,
                         planningError: currentPlanningError,

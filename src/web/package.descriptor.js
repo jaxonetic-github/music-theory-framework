@@ -4,7 +4,7 @@ export const reactWebPackageDescriptor = new PackageDescriptor({
     id: "web.react-application",
     name: { value: "react-web-application", displayName: "React Web Application Adapter" },
     description: "Accessible React workflows for general generation, playback, and exercise practice presentation.",
-    version: "8.6.0",
+    version: "8.7.0",
     layer: "presentation",
     category: "application",
     role: "provider",
@@ -24,7 +24,7 @@ export const reactWebPackageDescriptor = new PackageDescriptor({
         { target: "web.audio-playback", kind: "required" },
         { target: "web.playback-transport", kind: "required" }
     ],
-    capabilities: ["react-adapter", "accessible-workflow", "accessible-exercise-practice", "advanced-exercise-practice", "exercise-worksheet", "accessible-playback-controls", "transport-subscription", "trusted-svg-view", "musicxml-download", "responsive-layout", "print-styles"],
+    capabilities: ["react-adapter", "embeddable-application", "nextjs-client-boundary", "scoped-styles", "accessible-workflow", "accessible-exercise-practice", "advanced-exercise-practice", "exercise-worksheet", "accessible-playback-controls", "transport-subscription", "trusted-svg-view", "musicxml-download", "responsive-layout", "print-styles"],
     consumes: [
         { id: "application.engine", kind: "service" },
         { id: "exercise.application.engine", kind: "service" },
@@ -36,8 +36,8 @@ export const reactWebPackageDescriptor = new PackageDescriptor({
         { id: "web.playback.transport", kind: "service" }
     ],
     provides: [{ id: "web.react-application", kind: "module" }],
-    publicApi: [{ id: "web/index.js", kind: "module" }],
-    metadata: { tags: ["web", "react", "accessibility", "playback", "transport", "adapter"] }
+    publicApi: [{ id: "web/index.js", kind: "module" }, { id: "web/next/index.js", kind: "module" }, { id: "web/styles.css", kind: "module" }],
+    metadata: { tags: ["web", "react", "nextjs", "embedding", "accessibility", "playback", "transport", "adapter"] }
 });
 
 export default reactWebPackageDescriptor;

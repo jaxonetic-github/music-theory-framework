@@ -4,15 +4,18 @@
   "type": "module",
   "exports": {
     "./core": "./src/core/index.js",
-    "./web": "./src/web/index.js"
+    "./web": "./src/web/index.js",
+    "./web/next": "./src/web/next/index.js",
+    "./web/styles.css": "./src/web/styles.css"
   },
   "scripts": {
     "dev": "vite",
     "test": "node --test test/*.test.js && vitest run",
+    "test:next": "next build test/fixtures/next-app",
     "build": "vite build",
     "preview": "vite preview"
   },
-  "dependencies": {
+  "peerDependencies": {
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
@@ -21,7 +24,13 @@
     "@testing-library/user-event": "^14.6.1",
     "@vitejs/plugin-react": "^4.7.0",
     "jsdom": "^26.1.0",
+    "next": "^15.5.20",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "vite": "^6.4.3",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "postcss": "^8.5.10"
   }
 }
