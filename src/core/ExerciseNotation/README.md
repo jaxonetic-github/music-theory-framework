@@ -4,7 +4,9 @@ Exercise Notation is the v8.1 headless adapter from semantic `ExerciseModel` mat
 
 ## Step conversion and traceability
 
-A non-simultaneous one-note step emits one `NoteNode`. A simultaneous multi-note step emits one `ChordNode` whose member order exactly matches `ExerciseStep.notes`. A non-simultaneous multi-note step, including a scale-in-thirds pair, emits ordered `NoteNode` values. Every event carries model, section, row, step, source, role, scale-degree, chord-member, and emitted-position attributes. IDs derive from those semantic identities and structural positions; clocks, random values, UUIDs, hashes, and counters are not used.
+A non-simultaneous one-note step emits one `NoteNode`. A simultaneous multi-note step emits one `ChordNode` whose member order exactly matches `ExerciseStep.notes`. A non-simultaneous multi-note step, including a scale-in-thirds pair, approach phrase, or enclosure, emits ordered `NoteNode` values. Every event carries model, section, row, step, source, role, scale-degree, chord-member, and emitted-position attributes. IDs derive from those semantic identities and structural positions; clocks, random values, UUIDs, hashes, and counters are not used.
+
+Every emitted event also receives a deeply cloned and frozen `metadata.attributes.stepMetadata` snapshot. Sequential advanced phrases map their ordered `ExerciseStep.metadata.eventRoles` entries to `metadata.attributes.eventRole` by emitted index, so approach/surrounding classification and direction and the final target remain explicit. Missing `eventRoles` remains valid for older families; malformed, reordered, or misaligned advanced role arrays are rejected before a graph is returned. Simultaneous progression chords preserve the complete progression and harmonic-event metadata plus ordered `memberOrder`, without inventing a sequential event role for the chord.
 
 Written flats, sharps, Cb, and B# remain exact `Note` values. Exercise Notation never recalculates scale or chord formulas and never interprets steps as renderer geometry.
 
@@ -28,6 +30,6 @@ Treble is the default clef. Treble and bass are supported explicitly; automatic 
 
 `ExerciseRowNotationStrategy` conforms to the existing `NotationStrategy` contract and supports `ExerciseRow` only. `ExerciseNotationModule` transactionally installs it in the active Kernel `notation.strategyRegistry`, registers its engine service, plugin, and `ExerciseDescriptor`, and places discovery only in `kernel.registries.exercises`. Reconfiguration resolves the currently active notation registry. Existing scale and chord notation strategies and all renderer, exporter, generator, and playback registries remain independent.
 
-This milestone excludes combined row SVG, React Exercise Explorer, combined exercise-book MusicXML, PDF and print pagination, playback execution, approach notes, enclosures, and progressions.
+Exercise Notation converts approach notes, enclosures, and progressions without owning their harmonic algorithms. Combined row SVG, React advanced-family controls, combined exercise-book MusicXML, PDF and print pagination, and playback execution remain excluded.
 
-Exercise Notation has 12 focused test clusters. The complete repository suite contains **234 passing tests**: 214 plain-Node tests and 20 React DOM tests.
+The complete repository suite contains **288 passing tests**: 262 plain-Node tests and 26 React DOM tests.

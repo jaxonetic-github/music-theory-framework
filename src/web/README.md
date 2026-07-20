@@ -34,4 +34,4 @@ Exercise Practice consumes only `exercise.application.engine` and admits present
 
 This milestone excludes pause/resume, seeking, scrubbing, looping, tempo changes during playback, score-following, cursor animation, Web MIDI, recording, samples, effects, mixer UI, server APIs, persistence, and networking. Core imports remain React-, DOM-, browser-, AudioContext-, and MIDI-free.
 
-The v8.4 repository suite contains **284 passing tests**: 258 plain-Node tests and 26 React DOM tests.
+The v8.4 repository suite contains **288 passing tests**: 262 plain-Node tests and 26 React DOM tests.

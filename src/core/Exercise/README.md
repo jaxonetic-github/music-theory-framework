@@ -50,7 +50,7 @@ Register expansion uses the Theory pattern interval and preserves semantic spell
 
 When `ExerciseModule` is installed in a Kernel, it constructs that foundational strategy from the currently registered `theory.scaleGenerator` and `theory.chordGenerator` services. Missing Theory services fail before any Exercise registration occurs. A dispose/configure cycle resolves the current services again, so stale or replaced Theory instances are never retained. Callers may instead inject a complete foundational strategy or explicit generators; those objects remain caller-owned. Direct standalone `FoundationalExerciseStrategy` construction continues to provide its own default Theory generators.
 
-The global typed `ExerciseRegistry` is descriptor/discovery infrastructure at `kernel.registries.exercises`; it is distinct from internal strategy selection. `ExerciseModule` transactionally registers its engine, strategy registry, progression catalog, both plugins, and both exercise descriptors. Collision rollback, listener failure, replacement preservation, caller-owned injection, reusable lifecycle, and active Theory-service rebinding follow existing ownership rules. Other discovery categories remain unchanged.
+The global typed `ExerciseRegistry` is descriptor/discovery infrastructure at `kernel.registries.exercises`; it is distinct from internal strategy selection. `ExerciseModule` transactionally registers its engine, strategy registry, progression catalog, both plugins, and both exercise descriptors. Injected strategies retain stable plugin-wrapper identity across configure/dispose cycles; dynamically resolved strategies receive new matching wrappers when active Theory services change. Exact-object collisions still fail and preserve the pre-existing object. Collision rollback, listener failure, replacement preservation, caller-owned injection, reusable lifecycle, and active Theory-service rebinding follow existing ownership rules. Other discovery categories remain unchanged.
 
 ## Existing pipeline compatibility
 
@@ -60,4 +60,4 @@ Advanced generation still returns only immutable `ExerciseModel` values. Exercis
 
 React controls for the advanced families are deferred; the v8.3 adapter remains limited to its six correctly configurable families. Exercise playback, Transport, Web Audio, AudioContext, MIDI, downloads, grading, persistence, networking, voice leading, substitutions, and server APIs are also deferred.
 
-The complete repository suite contains **284 passing tests**: 258 plain-Node tests and 26 React DOM tests.
+The complete repository suite contains **288 passing tests**: 262 plain-Node tests and 26 React DOM tests.

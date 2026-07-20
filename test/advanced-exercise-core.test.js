@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import {
     AdvancedExerciseStrategy, APPROACH_PATTERNS, CANONICAL_EXERCISE_ROOTS, CHORD_TARGETS,
     ChordGenerator, ChordNode, ENCLOSURE_PATTERNS, Exercise, ExerciseApplicationModule,
-    ExerciseModule, ExerciseNotationModule, ExerciseRequest, ExerciseStrategyRegistry, FoundationalExerciseStrategy, Kernel,
+    ExerciseModel, ExerciseModule, ExerciseNotationModule, ExerciseRequest, ExerciseRow, ExerciseSection, ExerciseStep,
+    ExerciseStrategyRegistry, FoundationalExerciseStrategy, Kernel,
     NotationModule, NoteNode, ProgressionCatalog, ProgressionDefinition, RenderingModule,
     ScaleGenerator, TheoryModule, ValidationError, defaultProgressions
 } from "../src/core/index.js";
@@ -169,6 +170,47 @@ test("a new configure lifecycle binds the current caller-owned progression catal
     module.dispose(); assert.strictEqual(kernel.services.resolve("exercise.progressionCatalog"), replacement);
 });
 
+test("same-object collisions preserve every exact configure-time ExerciseModule value", () => {
+    const points = [
+        ["container-engine", (k, m, value) => k.services.register("exercise.engine", value), k => k.services.resolve("exercise.engine", { optional: true }), m => m.engine],
+        ["container-strategies", (k, m, value) => k.services.register("exercise.strategyRegistry", value), k => k.services.resolve("exercise.strategyRegistry", { optional: true }), m => m.strategyRegistry],
+        ["container-progressions", (k, m, value) => k.services.register("exercise.progressionCatalog", value), k => k.services.resolve("exercise.progressionCatalog", { optional: true }), m => m.progressionCatalog],
+        ["descriptor-engine", (k, m, value) => k.registries.services.register(Exercise.serviceDescriptors.engine, { value }), k => k.registries.services.resolve("exercise.engine"), m => m.engine],
+        ["descriptor-strategies", (k, m, value) => k.registries.services.register(Exercise.serviceDescriptors.strategies, { value }), k => k.registries.services.resolve("exercise.strategy-registry"), m => m.strategyRegistry],
+        ["descriptor-progressions", (k, m, value) => k.registries.services.register(Exercise.serviceDescriptors.progressions, { value }), k => k.registries.services.resolve("exercise.progressionCatalog"), m => m.progressionCatalog],
+        ["plugin-foundational", (k, m, value) => k.registries.plugins.register(Exercise.pluginDescriptor, { value }), k => k.registries.plugins.resolve("core.exercise.foundational"), m => m.plugin],
+        ["plugin-advanced", (k, m, value) => k.registries.plugins.register(Exercise.advancedPluginDescriptor, { value }), k => k.registries.plugins.resolve("core.exercise.advanced"), m => m.advancedPlugin],
+        ["exercise-foundational", (k, m, value) => k.registries.exercises.register(Exercise.strategyDescriptors.foundational, { value }), k => k.registries.exercises.resolve("exercise.foundational"), m => m.foundationalStrategy],
+        ["exercise-advanced", (k, m, value) => k.registries.exercises.register(Exercise.strategyDescriptors.advanced, { value }), k => k.registries.exercises.resolve("exercise.advanced"), m => m.advancedStrategy]
+    ];
+    for (const [name, seed, read, intended] of points) {
+        const kernel = new Kernel(), module = injectedModule(), unrelated = Object.freeze({ name: "unrelated" }); kernel.services.register("unrelated", unrelated);
+        const exact = intended(module); seed(kernel, module, exact); assert.throws(() => module.configure(kernel.context), /already registered|Duplicate registration/);
+        assert.strictEqual(read(kernel), exact, name); assert.strictEqual(kernel.services.resolve("unrelated"), unrelated);
+        assert.equal(module.strategyRegistry.strategies("core.exercise.foundational").length, 0); assert.equal(module.strategyRegistry.strategies("core.exercise.advanced").length, 0);
+        for (const id of ["exercise.engine", "exercise.strategyRegistry", "exercise.progressionCatalog"]) if (!name.startsWith(`container-${id === "exercise.engine" ? "engine" : id === "exercise.strategyRegistry" ? "strategies" : "progressions"}`)) assert.equal(kernel.services.has(id), false, `${name} leaked ${id}`);
+        assert.equal(kernel.registries.services.size, name.startsWith("descriptor-") ? 1 : 0, `${name} leaked service descriptors`);
+        assert.equal(kernel.registries.plugins.size, name.startsWith("plugin-") ? 1 : 0, `${name} leaked plugins`);
+        assert.equal(kernel.registries.exercises.size, name.startsWith("exercise-") ? 1 : 0, `${name} leaked exercise descriptors`);
+    }
+});
+
+test("injected plugins are stable while dynamic plugins follow active Theory lifecycles", async () => {
+    const injected = injectedModule(), injectedKernel = new Kernel(), foundationalPlugin = injected.plugin, advancedPlugin = injected.advancedPlugin;
+    assert.strictEqual(foundationalPlugin.strategies[0], injected.foundationalStrategy); assert.strictEqual(advancedPlugin.strategies[0], injected.advancedStrategy);
+    injected.configure(injectedKernel.context); assert.strictEqual(injected.plugin, foundationalPlugin); assert.strictEqual(injected.advancedPlugin, advancedPlugin); injected.dispose(); injected.dispose();
+    injected.configure(injectedKernel.context); assert.strictEqual(injected.plugin, foundationalPlugin); assert.strictEqual(injected.advancedPlugin, advancedPlugin); injected.dispose();
+
+    const kernel = new Kernel().use(new TheoryModule()); await kernel.start(); const dynamic = new ExerciseModule(); dynamic.configure(kernel.context);
+    const firstFoundational = dynamic.foundationalStrategy, firstAdvanced = dynamic.advancedStrategy, firstPlugin = dynamic.plugin, firstAdvancedPlugin = dynamic.advancedPlugin; dynamic.dispose();
+    kernel.services.register("theory.scaleGenerator", new ScaleGenerator(), { replace: true }); kernel.services.register("theory.chordGenerator", new ChordGenerator(), { replace: true });
+    dynamic.configure(kernel.context); assert.notStrictEqual(dynamic.foundationalStrategy, firstFoundational); assert.notStrictEqual(dynamic.advancedStrategy, firstAdvanced);
+    assert.notStrictEqual(dynamic.plugin, firstPlugin); assert.notStrictEqual(dynamic.advancedPlugin, firstAdvancedPlugin);
+    assert.strictEqual(dynamic.plugin.strategies[0], dynamic.foundationalStrategy); assert.strictEqual(dynamic.advancedPlugin.strategies[0], dynamic.advancedStrategy);
+    const replacement = Object.freeze({ replacement: "advanced-plugin" }); kernel.registries.plugins.register(Exercise.advancedPluginDescriptor, { value: replacement, replace: true }); dynamic.dispose();
+    assert.strictEqual(kernel.registries.plugins.resolve("core.exercise.advanced"), replacement); assert.equal(dynamic.plugin, null); assert.equal(dynamic.advancedPlugin, null);
+});
+
 test("notation maps target phrases to ordered notes and progression events to independent chords", async () => {
     const { kernel, engine } = await fixture(); const notation = kernel.services.resolve("exercise.notation.engine");
     for (const request of [{ type: "approach-note", target: "all", quality: "major-7" }, { type: "enclosure", target: "all", quality: "major-7" }]) {
@@ -180,6 +222,50 @@ test("notation maps target phrases to ordered notes and progression events to in
     assert.equal(row.graph.nodesOfType("chord").length, 12); assert.ok(row.graph.nodesOfType("chord").every(node => node instanceof ChordNode));
     assert.equal(row.graph.edges.filter(edge => String(edge.type) === "next").length, 11); assert.ok(row.systems.length > 1);
     assert.equal(String(notation.notate(model, { keySignaturePolicy: "exercise-root" }).rows[0].graph.nodesOfType("measure")[0].keySignature), "C major");
+});
+
+test("advanced semantic metadata remains deeply immutable through notation and presentation", async () => {
+    const { kernel, application } = await fixture();
+    const approach = application.run({ exercise: { type: "approach-note", root: "Cb", quality: "major-7", target: "third", approachPattern: "diatonic-below" } });
+    const approachRow = approach.presentation.rows[0]; assert.strictEqual(approachRow.graph, approachRow.notationRow.graph); assert.strictEqual(approachRow.sourceRow, approach.model.rows[0]);
+    assert.equal(String(approach.request.exercise.type), "approach-note");
+    const approachNodes = approachRow.graph.nodesOfType("note"), sourceStep = approach.model.rows[0].steps[0];
+    assert.deepEqual(approachNodes[0].metadata.attributes.stepMetadata, sourceStep.metadata); assert.equal(approachNodes[0].metadata.attributes.stepMetadata.pattern, "diatonic-below");
+    assert.deepEqual(approachNodes[0].metadata.attributes.eventRole, { role: "approach", direction: "below", classification: "diatonic" });
+    assert.equal(approachNodes[0].metadata.attributes.stepMetadata.targetChordMember, 3); assert.equal(approachNodes[1].metadata.attributes.eventRole.role, "target");
+    assert.equal(approachNodes[1].metadata.attributes.eventRole.chordMember, 3); assert.equal(approachNodes[1].metadata.attributes.stepMetadata.resolutionTarget, String(approachNodes[1].pitch));
+    assert.ok(Object.isFrozen(approachNodes[0].metadata.attributes.stepMetadata) && Object.isFrozen(approachNodes[0].metadata.attributes.stepMetadata.eventRoles));
+    assert.ok(Object.isFrozen(approachNodes[0].metadata.attributes.eventRole)); assert.notStrictEqual(approachNodes[0].metadata.attributes.stepMetadata, sourceStep.metadata);
+
+    const enclosure = application.run({ exercise: { type: "enclosure", root: "B#", target: "root", enclosurePattern: "diatonic-above-chromatic-below" } });
+    assert.deepEqual(enclosure.presentation.rows[0].graph.nodesOfType("note").map(node => node.metadata.attributes.eventRole), [
+        { role: "surrounding", direction: "above", classification: "diatonic" },
+        { role: "surrounding", direction: "below", classification: "chromatic" },
+        { role: "target", chordMember: 1, resolvesFrom: 2 }
+    ]);
+
+    const progression = application.run({ exercise: { type: "chord-progression", root: "Db", progression: "ii-v-i-major" } });
+    const chord = progression.presentation.rows[0].graph.nodesOfType("chord")[0], metadata = chord.metadata.attributes.stepMetadata;
+    assert.strictEqual(progression.presentation.rows[0].graph, progression.presentation.rows[0].notationRow.graph); assert.equal(chord.metadata.attributes.eventRole, undefined);
+    assert.deepEqual({ progressionId: metadata.progressionId, harmonicEventId: metadata.harmonicEventId, romanNumeral: metadata.romanNumeral, harmonicFunction: metadata.harmonicFunction, chordQuality: metadata.chordQuality, writtenRoot: metadata.writtenRoot, sourceKey: metadata.sourceKey, sourceMode: metadata.sourceMode, voicing: metadata.voicing },
+        { progressionId: "ii-v-i-major", harmonicEventId: "ii-v-i-major:event:1", romanNumeral: "ii7", harmonicFunction: "predominant", chordQuality: "minor-7", writtenRoot: "Eb", sourceKey: "Db", sourceMode: "major", voicing: "root-position-close" });
+    assert.deepEqual(metadata.writtenChordNotes, chord.notes.map(String)); assert.deepEqual(chord.metadata.attributes.memberOrder, [1, 3, 5, 7]);
+    assert.ok(Object.isFrozen(metadata) && Object.isFrozen(metadata.writtenChordNotes) && Object.isFrozen(chord.metadata.attributes.memberOrder));
+    assert.strictEqual(kernel.services.resolve("exercise.application.engine"), application);
+});
+
+test("notation rejects malformed event-role alignment without mutating semantic rows", async () => {
+    const { kernel, engine } = await fixture(); const notation = kernel.services.resolve("exercise.notation.engine"), source = engine.generate({ type: "approach-note", target: "root" });
+    const originalRow = source.rows[0], originalStep = originalRow.steps[0], before = JSON.stringify(originalRow);
+    const malformedMetadata = [
+        { ...originalStep.metadata, eventRoles: [originalStep.metadata.eventRoles[0]] },
+        { ...originalStep.metadata, eventRoles: [...originalStep.metadata.eventRoles].reverse() }
+    ];
+    for (const metadata of malformedMetadata) {
+        const step = new ExerciseStep({ ...originalStep, metadata }); const row = new ExerciseRow({ ...originalRow, steps: [step] });
+        const section = new ExerciseSection({ ...source.sections[0], rows: [row] }); const model = new ExerciseModel({ ...source, sections: [section] });
+        assert.throws(() => notation.notate(model), /eventRoles|event roles/); assert.equal(JSON.stringify(originalRow), before);
+    }
 });
 
 test("ExerciseApplication generically renders every advanced family with authoritative identities", async () => {

@@ -53,8 +53,8 @@ export class ExerciseModule {
         const activeProgressionCatalog = services.resolve("exercise.progressionCatalog", { optional: true });
         const progressionCatalog = this.#injectedProgressionCatalog ?? activeProgressionCatalog ?? new ProgressionCatalog();
         const advancedStrategy = this.#resolveAdvancedStrategy(services, progressionCatalog, strategy);
-        const plugin = this.#pluginFor(strategy);
-        const advancedPlugin = this.#advancedPluginFor(advancedStrategy);
+        const plugin = this.#injectedStrategy ? this.plugin : this.#pluginFor(strategy);
+        const advancedPlugin = this.#injectedAdvancedStrategy ? this.advancedPlugin : this.#advancedPluginFor(advancedStrategy);
         const undo = [];
         const registerService = (id, value) => {
             services.register(id, value);

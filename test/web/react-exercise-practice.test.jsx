@@ -1,5 +1,5 @@
 import React, { StrictMode, useEffect } from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import { ExercisePracticePanel } from "../../src/web/exercise/ExercisePracticePanel.jsx";
@@ -93,12 +93,11 @@ it("keeps a pending result stale after intervening edits, refreshes it on regene
     }) };
     const view = render(<ExercisePracticePanel engine={engine} catalogs={runtime.catalogs} />);
     try {
-        await user.click(screen.getByRole("button", { name: "Generate Exercise" }));
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Generate Exercise" })); await Promise.resolve(); });
         expect(screen.getByRole("button", { name: /generating exercise/i }).disabled).toBe(true);
         const root = screen.getByLabelText("Exercise root");
-        await user.clear(root);
-        await user.type(root, "D");
-        await act(async () => { resolveFirst(cResult); await Promise.resolve(); });
+        await act(async () => { fireEvent.change(root, { target: { value: "D" } }); });
+        await act(async () => { resolveFirst(cResult); await first; });
         expect(await screen.findByRole("heading", { name: "C major" })).toBeTruthy();
         expect(screen.getByText(/controls changed/i)).toBeTruthy();
 
