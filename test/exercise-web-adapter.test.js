@@ -86,8 +86,56 @@ test("trusted presentation validation accepts only internally consistent SVG res
             Object.create(result, { presentation: { value: { ...result.presentation, metadata: { rendering: { ...result.presentation.metadata.rendering, format: "html" } } } } })
         ];
         assert.throws(() => validateExercisePresentation(impostors[0]), /ExerciseApplicationResult/);
-        assert.throws(() => validateExercisePresentation(impostors[1]), /supported SVG renderer/);
+        assert.throws(() => validateExercisePresentation(impostors[1]), /approved internal SVG renderer/);
         assert.equal(row.mediaType, "image/svg+xml");
+    } finally { await runtime.dispose(); }
+});
+
+test("trusted presentation rejects unapproved renderers and every active or external SVG construct", async () => {
+    const runtime = await createWebApplication();
+    try {
+        const result = runtime.exerciseApplication.run(buildExerciseApplicationRequest(createInitialExercisePracticeState(runtime.catalogs)));
+        const sourceRow = result.presentation.rows[0];
+        const sourceSection = result.presentation.sections[0];
+        const forge = ({ content = sourceRow.content, documentRenderer = {}, rowRenderer = {} } = {}) => {
+            const renderer = { ...result.presentation.metadata.rendering, ...documentRenderer };
+            const row = Object.create(sourceRow, {
+                content: { value: content },
+                rendererPluginId: { value: rowRenderer.pluginId ?? sourceRow.rendererPluginId },
+                rendererStrategyId: { value: rowRenderer.strategyId ?? sourceRow.rendererStrategyId },
+                metadata: { value: { ...sourceRow.metadata, renderer: { ...sourceRow.metadata.renderer, ...rowRenderer } } }
+            });
+            const section = Object.create(sourceSection, { rows: { value: [row] } });
+            const presentation = Object.create(result.presentation, {
+                metadata: { value: { ...result.presentation.metadata, rendering: renderer } },
+                sections: { value: [section] }
+            });
+            return Object.create(result, { presentation: { value: presentation } });
+        };
+        for (const renderer of [{ pluginId: "third.party.svg" }, { strategyId: "custom" }]) {
+            assert.throws(() => validateExercisePresentation(forge({ documentRenderer: renderer })), /approved internal SVG renderer/);
+            assert.throws(() => validateExercisePresentation(forge({ rowRenderer: renderer })), /renderer metadata/);
+        }
+        const payloads = [
+            '<svg xmlns="http://www.w3.org/2000/svg"><a href="https://example.test/x">x</a></svg>',
+            '<svg xmlns="http://www.w3.org/2000/svg"><use xlink:href="http://example.test/x"/></svg>',
+            '<svg xmlns="http://www.w3.org/2000/svg"><a href="javascript:alert(1)">x</a></svg>',
+            '<svg xmlns="http://www.w3.org/2000/svg"><image href="data:image/png;base64,x"/></svg>',
+            '<svg xmlns="http://www.w3.org/2000/svg"><use href="//example.test/x"/></svg>',
+            '<svg xmlns="http://www.w3.org/2000/svg"><style>.x{fill:url(#x)}</style></svg>',
+            '<svg xmlns="http://www.w3.org/2000/svg"><style>@import "theme.css"</style></svg>',
+            '<svg xmlns="http://www.w3.org/2000/svg"><g onclick="alert(1)"/></svg>',
+            '<svg xmlns="http://www.w3.org/2000/svg"><script/></svg>',
+            '<svg xmlns="http://www.w3.org/2000/svg"><foreignObject/></svg>',
+            '<svg xmlns="http://www.w3.org/2000/svg"><iframe/></svg>',
+            '<svg xmlns="http://www.w3.org/2000/svg"><object/></svg>',
+            '<svg xmlns="http://www.w3.org/2000/svg"><embed/></svg>',
+            '<!DOCTYPE svg><svg xmlns="http://www.w3.org/2000/svg"></svg>',
+            '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg"></svg>'
+        ];
+        for (const content of payloads) assert.throws(() => validateExercisePresentation(forge({ content })), /trusted internal SVG/);
+        const safeFragment = sourceRow.content.replace("<svg ", '<svg xmlns:xlink="http://www.w3.org/1999/xlink" ').replace("</svg>", '<use href="#score-title" xlink:href="#score-title"/></svg>');
+        assert.strictEqual(validateExercisePresentation(forge({ content: safeFragment })).id, result.presentation.id);
     } finally { await runtime.dispose(); }
 });
 

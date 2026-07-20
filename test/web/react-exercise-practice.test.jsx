@@ -76,6 +76,46 @@ it("announces workflow failures while preserving the previous completed result",
     } finally { view.unmount(); await runtime.dispose(); }
 });
 
+it("keeps a pending result stale after intervening edits, refreshes it on regeneration, and preserves staleness on failure", async () => {
+    const runtime = await createWebApplication();
+    const user = userEvent.setup();
+    const base = createInitialExercisePracticeState(runtime.catalogs);
+    const cResult = runtime.exerciseApplication.run(buildExerciseApplicationRequest(base));
+    const dResult = runtime.exerciseApplication.run(buildExerciseApplicationRequest({ ...base, root: "D" }));
+    let resolveFirst;
+    const first = new Promise(resolve => { resolveFirst = resolve; });
+    let call = 0;
+    const engine = { run: vi.fn(() => {
+        call += 1;
+        if (call === 1) return first;
+        if (call === 2) return dResult;
+        throw Object.assign(new Error("later request failed"), { stage: "generation" });
+    }) };
+    const view = render(<ExercisePracticePanel engine={engine} catalogs={runtime.catalogs} />);
+    try {
+        await user.click(screen.getByRole("button", { name: "Generate Exercise" }));
+        expect(screen.getByRole("button", { name: /generating exercise/i }).disabled).toBe(true);
+        const root = screen.getByLabelText("Exercise root");
+        await user.clear(root);
+        await user.type(root, "D");
+        await act(async () => { resolveFirst(cResult); await Promise.resolve(); });
+        expect(await screen.findByRole("heading", { name: "C major" })).toBeTruthy();
+        expect(screen.getByText(/controls changed/i)).toBeTruthy();
+
+        await user.click(screen.getByRole("button", { name: "Generate Exercise" }));
+        expect(await screen.findByRole("heading", { name: "D major" })).toBeTruthy();
+        expect(screen.queryByText(/controls changed/i)).toBeNull();
+
+        await user.clear(screen.getByLabelText("Exercise root"));
+        await user.type(screen.getByLabelText("Exercise root"), "E");
+        expect(screen.getByText(/controls changed/i)).toBeTruthy();
+        await user.click(screen.getByRole("button", { name: "Generate Exercise" }));
+        expect((await screen.findByRole("alert")).textContent).toContain("later request failed");
+        expect(screen.getByRole("heading", { name: "D major" })).toBeTruthy();
+        expect(screen.getByText(/controls changed/i)).toBeTruthy();
+    } finally { view.unmount(); await runtime.dispose(); }
+});
+
 function HookProbe({ engine, requests, onWorkflow }) {
     const value = useExercisePracticeWorkflow(engine);
     useEffect(() => { onWorkflow(value); });

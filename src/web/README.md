@@ -28,7 +28,7 @@ Browser autoplay policy may reject audio even after a visible action; the origin
 
 Trusted SVG remains sourced only from `ApplicationResult.rendering`. `downloadExport()` still creates and revokes a browser Blob URL from immutable `ExportResult` data, with its filename derived from the completed request. Playback controls are visually and behaviorally separate from MusicXML download.
 
-Exercise Practice consumes only `exercise.application.engine` and applies a separate, stricter trusted-SVG check before displaying presentation rows. The completed result remains authoritative when controls change or a later request fails. See [`exercise/README.md`](exercise/README.md) for request normalization, stale-operation handling, semantic-system layout, accessibility, and deferred scope.
+Exercise Practice consumes only `exercise.application.engine` and admits presentation markup only from the exact internal `core.rendering.svg` / `svg` identity after rejecting active, styled, or external SVG content. Submitted control revisions keep a result stale when controls change during generation, while the completed result remains authoritative and later failures preserve its correct stale state. See [`exercise/README.md`](exercise/README.md) for request normalization, stale-operation handling, semantic-system layout, accessibility, and deferred scope.
 
 ## Exclusions and validation
 

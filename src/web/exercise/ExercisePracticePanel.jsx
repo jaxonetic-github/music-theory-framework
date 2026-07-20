@@ -73,22 +73,25 @@ function ExercisePresentation({ result, stale, resultRef }) {
 
 export function ExercisePracticePanel({ engine, catalogs }) {
     const [state, setState] = useState(() => createInitialExercisePracticeState(catalogs));
-    const [stale, setStale] = useState(false);
     const { workflow, submit, setInputError } = useExercisePracticeWorkflow(engine);
+    const controlRevision = useRef(0);
     const resultRef = useRef(null);
     const errorRef = useRef(null);
     const previousResult = useRef(null);
     useEffect(() => {
-        if (workflow.result && workflow.result !== previousResult.current) { previousResult.current = workflow.result; setStale(false); resultRef.current?.focus(); }
+        if (workflow.result && workflow.result !== previousResult.current) { previousResult.current = workflow.result; resultRef.current?.focus(); }
     }, [workflow.result]);
     useEffect(() => { if (workflow.inputError || workflow.workflowError || workflow.presentationError) errorRef.current?.focus(); }, [workflow.inputError, workflow.workflowError, workflow.presentationError]);
-    const change = value => { setState(current => transitionExercisePracticeState(current, value, catalogs)); if (workflow.result) setStale(true); };
+    const change = value => {
+        controlRevision.current += 1;
+        setState(current => transitionExercisePracticeState(current, value, catalogs));
+    };
     const generate = event => {
         event.preventDefault();
         let request;
         try { request = buildExerciseApplicationRequest(state); }
         catch (error) { setInputError(error); return; }
-        void submit(request).catch(() => {});
+        void submit(request, controlRevision.current).catch(() => {});
     };
     return <section className="exercise-practice" aria-labelledby="exercise-practice-title">
         <div className="exercise-practice-heading"><p className="eyebrow">v8.3 · React adapter</p><h2 id="exercise-practice-title">Exercise Practice</h2><p>Configure and render a semantic exercise through the active ExerciseApplication workflow. Audio and downloads are intentionally unavailable here.</p></div>
@@ -97,7 +100,7 @@ export function ExercisePracticePanel({ engine, catalogs }) {
             <section className="exercise-results" aria-label="Exercise results" aria-busy={workflow.busy}>
                 <div className="exercise-live" role={workflow.busy ? "status" : undefined} aria-live="polite" aria-atomic="true">{workflow.busy ? "Generating exercise…" : workflow.result ? "Exercise presentation ready." : "Ready to generate an exercise."}</div>
                 <div ref={errorRef} tabIndex="-1"><ExerciseError title="Input validation failed" error={workflow.inputError} /><ExerciseError title="Exercise workflow failed" error={workflow.workflowError} /><ExerciseError title="Presentation validation failed" error={workflow.presentationError} /></div>
-                <ExercisePresentation result={workflow.result} stale={stale} resultRef={resultRef} />
+                <ExercisePresentation result={workflow.result} stale={Boolean(workflow.result) && workflow.resultRevision !== controlRevision.current} resultRef={resultRef} />
             </section>
         </div>
     </section>;

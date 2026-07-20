@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { validateExercisePresentation } from "./presentation.js";
 
-const initial = Object.freeze({ busy: false, result: null, inputError: null, workflowError: null, presentationError: null });
+const initial = Object.freeze({ busy: false, result: null, resultRevision: null, inputError: null, workflowError: null, presentationError: null });
 
 export function useExercisePracticeWorkflow(engine) {
     const [workflow, setWorkflow] = useState(initial);
@@ -17,7 +17,7 @@ export function useExercisePracticeWorkflow(engine) {
         if (mounted.current) setWorkflow(value => Object.freeze({ ...value, inputError: error, workflowError: null, presentationError: null }));
     }, []);
 
-    const run = useCallback(request => {
+    const run = useCallback((request, submissionRevision = null) => {
         if (!engine || typeof engine.run !== "function") return Promise.reject(new TypeError("ExerciseApplicationEngine is unavailable."));
         const operation = ++sequence.current;
         busy.current = true;
@@ -32,7 +32,7 @@ export function useExercisePracticeWorkflow(engine) {
             invalidPresentation = presentationError;
             if (mounted.current && sequence.current === operation) {
                 busy.current = false;
-                setWorkflow(value => Object.freeze({ ...value, busy: false, ...(presentationError ? { presentationError } : { result }), workflowError: null }));
+                setWorkflow(value => Object.freeze({ ...value, busy: false, ...(presentationError ? { presentationError } : { result, resultRevision: submissionRevision }), workflowError: null }));
             }
             if (presentationError) throw presentationError;
             return result;
@@ -45,9 +45,9 @@ export function useExercisePracticeWorkflow(engine) {
         });
     }, [engine]);
 
-    const submit = useCallback(request => {
+    const submit = useCallback((request, submissionRevision = null) => {
         if (busy.current) return Promise.resolve(null);
-        return run(request);
+        return run(request, submissionRevision);
     }, [run]);
 
     return Object.freeze({ workflow, run, submit, setInputError });
