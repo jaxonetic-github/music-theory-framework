@@ -1,0 +1,14 @@
+export { ExerciseApplicationRequest } from "./ExerciseApplicationRequest.js";
+export { ExerciseApplicationResult } from "./ExerciseApplicationResult.js";
+export { ExerciseApplicationWorkflowError } from "./ExerciseApplicationWorkflowError.js";
+export { ExercisePresentationDocument } from "./ExercisePresentationDocument.js";
+export { ExercisePresentationSection } from "./ExercisePresentationSection.js";
+export { ExercisePresentationRow } from "./ExercisePresentationRow.js";
+export { ExercisePresentationSystem } from "./ExercisePresentationSystem.js";
+export { ExerciseApplicationEngine } from "./ExerciseApplicationEngine.js";
+export { ExerciseApplicationModule } from "./ExerciseApplicationModule.js";
+export { exerciseApplicationServiceDescriptor, exerciseApplicationPluginDescriptor, exerciseApplicationWorkflowDescriptor } from "./descriptors.js";
+export { exerciseApplicationPackageDescriptor } from "./package.descriptor.js";
+import { ExerciseApplicationRequest } from "./ExerciseApplicationRequest.js"; import { ExerciseApplicationResult } from "./ExerciseApplicationResult.js"; import { ExerciseApplicationWorkflowError } from "./ExerciseApplicationWorkflowError.js"; import { ExercisePresentationDocument } from "./ExercisePresentationDocument.js"; import { ExercisePresentationSection } from "./ExercisePresentationSection.js"; import { ExercisePresentationRow } from "./ExercisePresentationRow.js"; import { ExercisePresentationSystem } from "./ExercisePresentationSystem.js"; import { ExerciseApplicationEngine } from "./ExerciseApplicationEngine.js"; import { ExerciseApplicationModule } from "./ExerciseApplicationModule.js"; import { exerciseApplicationServiceDescriptor, exerciseApplicationPluginDescriptor, exerciseApplicationWorkflowDescriptor } from "./descriptors.js"; import { exerciseApplicationPackageDescriptor } from "./package.descriptor.js";
+export const ExerciseApplication = Object.freeze({ ExerciseApplicationRequest, ExerciseApplicationResult, ExerciseApplicationWorkflowError, ExercisePresentationDocument, ExercisePresentationSection, ExercisePresentationRow, ExercisePresentationSystem, ExerciseApplicationEngine, ExerciseApplicationModule, serviceDescriptor: exerciseApplicationServiceDescriptor, pluginDescriptor: exerciseApplicationPluginDescriptor, workflowDescriptor: exerciseApplicationWorkflowDescriptor, descriptor: exerciseApplicationPackageDescriptor });
+export default ExerciseApplication;
