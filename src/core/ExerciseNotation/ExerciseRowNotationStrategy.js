@@ -49,13 +49,12 @@ export class ExerciseRowNotationStrategy extends NotationStrategy {
         const hierarchyMetadata = { attributes: { modelId: request.model.id, sectionId, rowId: row.id } };
         const nodes = [new ScoreRootNode({ id: `${prefix}:score`, title: row.title, metadata: hierarchyMetadata }), new PartNode({ id: `${prefix}:part:1`, name: row.title, instrument: "exercise", clef: request.clef, metadata: hierarchyMetadata })];
         const edges = [new ScoreEdge({ from: `${prefix}:score`, to: `${prefix}:part:1`, type: "contains" })];
-        const signature = keyFor(row, request); let sequence = 0;
+        const signature = keyFor(row, request); let sequence = 0, previous = null;
         measures.forEach((events, measureIndex) => {
             const measureId = `${prefix}:measure:${measureIndex + 1}`, voiceId = `${measureId}:voice:1`;
             nodes.push(new MeasureNode({ id: measureId, number: measureIndex + 1, beats: request.timeSignature.beats, beatUnit: request.timeSignature.beatUnit, keySignature: signature, metadata: hierarchyMetadata }));
             nodes.push(new VoiceNode({ id: voiceId, index: 1, metadata: hierarchyMetadata }));
             edges.push(new ScoreEdge({ from: `${prefix}:part:1`, to: measureId, type: "contains" }), new ScoreEdge({ from: measureId, to: voiceId, type: "contains" }));
-            let previous = null;
             events.forEach(event => {
                 sequence += 1;
                 if (!Number.isSafeInteger(sequence)) throw new ValidationError("Exercise notation event sequence is unsafe.");

@@ -4,7 +4,7 @@ import {
     ChordNode, Duration, Exercise, ExerciseModel, ExerciseModule, ExerciseNotation, ExerciseNotationDocument,
     ExerciseNotationEngine, ExerciseNotationModule, ExerciseNotationRequest, ExerciseRowNotationStrategy,
     FoundationalExerciseStrategy, Kernel, KeySignature, MusicXmlExporter, NotationModule, NotationStrategy, NotationStrategyRegistry,
-    NoteNode, ScoreGraph, SvgScoreRenderer, TheoryModule, ValidationError
+    NoteNode, ScoreGraph, ScorePlaybackPlanner, SvgScoreRenderer, TheoryModule, ValidationError
 } from "../src/core/index.js";
 
 async function fixture(exercise = {}) {
@@ -49,7 +49,23 @@ test("exact rational durations group measures without splitting and mark incompl
 test("measure numbering, next precedence, and semantic system grouping are stable", async () => {
     const { model, module } = await fixture({ type: "scale", octaves: 2 }); const doc = module.engine.notate(model, { measuresPerSystem: 3 }); const row = doc.rows[0];
     assert.deepEqual(row.graph.nodesOfType("measure").map(value => value.number), [1, 2, 3, 4]); assert.deepEqual(row.systems.map(value => value.measureIds.length), [3, 1]);
-    assert.equal(new Set(row.systems.flatMap(value => value.measureIds)).size, row.measureCount); assert.equal(row.graph.edges.filter(edge => String(edge.type) === "next").length, row.eventCount - row.measureCount);
+    assert.equal(new Set(row.systems.flatMap(value => value.measureIds)).size, row.measureCount);
+    const events = row.graph.nodes.filter(node => ["note", "rest", "chord"].includes(String(node.type))).sort((left, right) => left.offset - right.offset);
+    const next = row.graph.edges.filter(edge => String(edge.type) === "next");
+    assert.equal(next.length, row.eventCount - 1);
+    assert.deepEqual(next.map(edge => [String(edge.from), String(edge.to)]), events.slice(1).map((event, index) => [String(events[index].id), String(event.id)]));
+    const successors = new Map(next.map(edge => [String(edge.from), String(edge.to)])); const visited = [];
+    for (let id = String(events[0].id); id; id = successors.get(id)) { assert.equal(visited.includes(id), false); visited.push(id); }
+    assert.deepEqual(visited, events.map(event => String(event.id)));
+    const voices = row.graph.nodesOfType("voice"); assert.equal(voices.length, row.measureCount); assert.equal(new Set(voices.map(voice => String(voice.id))).size, row.measureCount);
+
+    const reversed = new ScoreGraph({ nodes: [...row.graph.nodes].reverse(), edges: [...row.graph.edges].reverse() });
+    const eventIds = events.map(event => String(event.id));
+    const renderedOrder = graph => { const output = new SvgScoreRenderer().render(graph); return eventIds.slice().sort((left, right) => output.indexOf(`data-node-id="${left}"`) - output.indexOf(`data-node-id="${right}"`)); };
+    assert.deepEqual(renderedOrder(reversed), renderedOrder(row.graph));
+    assert.equal(new MusicXmlExporter().export(reversed).content, new MusicXmlExporter().export(row.graph).content);
+    const playbackOrder = graph => new ScorePlaybackPlanner().plan(graph).events.map(event => event.sourceEventId);
+    assert.deepEqual(playbackOrder(reversed), playbackOrder(row.graph));
 });
 
 test("all-key rows retain canonical root order and exact altered spelling", async () => {

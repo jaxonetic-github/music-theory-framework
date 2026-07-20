@@ -47,7 +47,21 @@ export class ScoreGraph extends TheoryGraph {
         for (const edge of sequential) {
             const from = String(edge.from);
             const to = String(edge.to);
-            if (parents.get(from) !== parents.get(to)) throw new ValidationError("Sequential score edges must connect events in the same voice.");
+            const fromVoiceId = parents.get(from);
+            const toVoiceId = parents.get(to);
+            const fromVoice = nodeById.get(fromVoiceId);
+            const toVoice = nodeById.get(toVoiceId);
+            const fromMeasureId = parents.get(fromVoiceId);
+            const toMeasureId = parents.get(toVoiceId);
+            const fromMeasure = nodeById.get(fromMeasureId);
+            const toMeasure = nodeById.get(toMeasureId);
+            const continuesAcrossMeasures = fromMeasureId !== toMeasureId
+                && parents.get(fromMeasureId) === parents.get(toMeasureId)
+                && toMeasure.number === fromMeasure.number + 1
+                && fromVoice.index === toVoice.index;
+            if (fromVoiceId !== toVoiceId && !continuesAcrossMeasures) {
+                throw new ValidationError("Sequential score edges must connect events in the same voice or corresponding voices in consecutive measures of the same part.");
+            }
             if (successors.has(from)) throw new ValidationError(`Score event "${from}" has multiple successors.`);
             if (predecessors.has(to)) throw new ValidationError(`Score event "${to}" has multiple predecessors.`);
             successors.set(from, to);
