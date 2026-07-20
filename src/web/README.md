@@ -1,10 +1,10 @@
-# React Web Application and Playback Adapter
+# React Web Application, Playback, and Exercise Practice Adapters
 
-The v7.6 Web package connects the headless Application workflow to Playback Planning, browser-scoped Transport, and Web Audio through accessible React controls. React does not generate theory, traverse `ScoreGraph`, calculate musical timing, serialize SVG or MusicXML, schedule audio nodes, or manage AudioContext directly.
+The v8.3 Web package preserves the general workflow and playback UI and adds an accessible Exercise Practice adapter over ExerciseApplication. React does not generate theory or exercises, traverse `ScoreGraph`, calculate musical timing, serialize SVG or MusicXML, schedule audio nodes, or manage AudioContext directly.
 
 ## Bootstrap and ownership
 
-`createWebApplication()` installs Theory, Notation, Rendering, Export, Application, Playback, Web Audio, and Transport modules in dependency order. The Web Audio module intentionally owns the shared adapter; Transport borrows it. Reverse Kernel disposal stops and disposes Transport before the audio module closes its owned context. React borrows the runtime transport and never disposes shared services.
+`createWebApplication()` installs Theory, Notation, Rendering, Exercise, ExerciseNotation, ExerciseApplication, Export, Application, Playback, Web Audio, and Transport modules in dependency order. The Web Audio module intentionally owns the shared adapter; Transport borrows it. Reverse Kernel disposal stops and disposes Transport before the audio module closes its owned context. React borrows runtime services and never disposes them.
 
 Bootstrap, registration, rendering, and effects do not create or resume an AudioContext. Browser audio begins only when a user activates Play or Replay. Component unmount may stop its active transport session, while runtime disposal retains responsibility for service disposal.
 
@@ -28,8 +28,10 @@ Browser autoplay policy may reject audio even after a visible action; the origin
 
 Trusted SVG remains sourced only from `ApplicationResult.rendering`. `downloadExport()` still creates and revokes a browser Blob URL from immutable `ExportResult` data, with its filename derived from the completed request. Playback controls are visually and behaviorally separate from MusicXML download.
 
+Exercise Practice consumes only `exercise.application.engine` and admits presentation markup only from the exact internal `core.rendering.svg` / `svg` identity after rejecting active, styled, or external SVG content. Submitted control revisions keep a result stale when controls change during generation, while the completed result remains authoritative and later failures preserve its correct stale state. See [`exercise/README.md`](exercise/README.md) for request normalization, stale-operation handling, semantic-system layout, accessibility, and deferred scope.
+
 ## Exclusions and validation
 
 This milestone excludes pause/resume, seeking, scrubbing, looping, tempo changes during playback, score-following, cursor animation, Web MIDI, recording, samples, effects, mixer UI, server APIs, persistence, and networking. Core imports remain React-, DOM-, browser-, AudioContext-, and MIDI-free.
 
-The complete repository suite contains **234 passing tests**: 214 plain-Node tests and 20 React DOM tests.
+The exact final test count is recorded in the root README after milestone validation.

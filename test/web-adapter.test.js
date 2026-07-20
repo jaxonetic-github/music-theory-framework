@@ -12,10 +12,12 @@ test("web bootstrap installs and resolves the complete application workflow", as
     const kernel = new Kernel({ name: "web-test" });
     const runtime = await createWebApplication({ kernel });
     assert.strictEqual(runtime.application, kernel.services.resolve("application.engine"));
+    assert.strictEqual(runtime.exerciseApplication, kernel.services.resolve("exercise.application.engine"));
     assert.strictEqual(runtime.playback, kernel.services.resolve("playback.engine"));
     assert.strictEqual(runtime.transport, kernel.services.resolve("web.playback.transport"));
     assert.deepEqual(kernel.modules.map(module => module.id), [
-        "core.theory", "core.notation", "core.rendering", "core.export", "core.application",
+        "core.theory", "core.notation", "core.rendering", "core.exercise", "core.exercise-notation",
+        "core.exercise-application", "core.export", "core.application",
         "core.playback", "web.audio-playback", "web.playback-transport"
     ]);
     assert.strictEqual(runtime.transport.plan, null);
@@ -184,6 +186,7 @@ test("core public entry remains free of React and DOM imports", async () => {
     assert.equal(typeof core.Kernel, "function");
     assert.equal("MusicTheoryWebApp" in core, false);
     assert.equal(String(reactWebPackageDescriptor.id), "web.react-application");
-    assert.equal(String(reactWebPackageDescriptor.version), "7.6.0");
+    assert.equal(String(reactWebPackageDescriptor.version), "8.3.0");
+    assert.ok(reactWebPackageDescriptor.capabilities.values.some(capability => String(capability.id) === "accessible-exercise-practice"));
     assert.ok(reactWebPackageDescriptor.capabilities.values.some(capability => String(capability.id) === "accessible-playback-controls"));
 });

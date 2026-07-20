@@ -9,3 +9,12 @@ export * from "./audio/index.js";
 export { default as WebAudio } from "./audio/index.js";
 export * from "./transport/index.js";
 export { default as Transport } from "./transport/index.js";
+export * from "./exercise/index.js";
+import {
+    ExercisePracticePanel, ExercisePracticeApp, useExercisePracticeWorkflow, validateExercisePresentation,
+    buildExerciseApplicationRequest, createInitialExercisePracticeState, transitionExercisePracticeState
+} from "./exercise/index.js";
+export const ExercisePractice = Object.freeze({
+    ExercisePracticePanel, ExercisePracticeApp, useExercisePracticeWorkflow, validateExercisePresentation,
+    buildExerciseApplicationRequest, createInitialExercisePracticeState, transitionExercisePracticeState
+});

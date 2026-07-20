@@ -76,6 +76,38 @@ legend, .field > span { margin-bottom: .55rem; font-size: .82rem; font-weight: 7
 .download-action:disabled { cursor: not-allowed; opacity: .45; }
 .bootstrap-state { min-height: 100vh; display: grid; place-items: center; padding: 2rem; }
 
+.exercise-practice { margin-top: clamp(3rem, 8vw, 7rem); padding-top: 2rem; border-top: 1px solid #bbb9ae; }
+.exercise-practice-heading { max-width: 760px; margin-bottom: 1.5rem; }
+.exercise-practice-heading h2 { margin: .3rem 0 .7rem; font-family: Georgia, serif; font-size: clamp(2.2rem, 5vw, 4rem); font-weight: 500; }
+.exercise-practice-heading > p:last-child { color: #536158; line-height: 1.6; }
+.exercise-workspace { display: grid; grid-template-columns: minmax(300px, 410px) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+.exercise-controls, .exercise-document, .exercise-empty { padding: 1.5rem; border: 1px solid #c8c4b8; border-radius: 20px; background: rgba(255,255,252,.82); box-shadow: 0 18px 55px rgba(41,53,45,.07); }
+.exercise-controls h3, .exercise-document h3 { margin: 0 0 1.2rem; font-family: Georgia, serif; font-size: 1.5rem; font-weight: 500; }
+.exercise-family { margin-bottom: 1.25rem; }
+.exercise-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+.exercise-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; margin-bottom: 1.25rem; }
+.check-field { display: flex; min-height: 45px; gap: .55rem; align-items: center; padding: .65rem; border: 1px solid #aaa99f; border-radius: 9px; background: white; font-weight: 500; }
+.check-field input { width: 1.1rem; height: 1.1rem; accent-color: #b44b22; }
+.exercise-results { min-width: 0; }
+.exercise-live { min-height: 1.5em; margin: 0 0 .6rem; color: #536158; font-size: .9rem; }
+.exercise-error { margin-bottom: .75rem; padding: .9rem; color: #7c291d; border: 1px solid #d99a8d; border-radius: 10px; background: #fff2ef; overflow-wrap: anywhere; }
+.exercise-empty { min-height: 180px; display: grid; place-items: center; color: #68736b; }
+.exercise-result-header { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
+.stale-notice { max-width: 18rem; margin: 0; padding: .65rem; border: 1px solid #9b7836; border-radius: 8px; color: #61450d; background: #fff7df; font-weight: 650; }
+.exercise-document:focus { outline: 3px solid #db6b35; outline-offset: 3px; }
+.exercise-document > section + section { margin-top: 2rem; }
+.exercise-row { min-width: 0; padding: 1rem 0 1.5rem; border-top: 1px solid #d2d0c7; }
+.exercise-row > header { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
+.exercise-row h4 { margin: .25rem 0 .7rem; font-family: Georgia, serif; font-size: 1.35rem; }
+.exercise-row-meta { display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin: 0 0 .7rem; }
+.exercise-row-meta div { display: flex; gap: .35rem; }
+.exercise-row-meta dt { color: #68736b; }
+.exercise-row-meta dd { margin: 0; }
+.exercise-systems { display: flex; flex-wrap: wrap; gap: .4rem; margin: .6rem 0; padding: 0; list-style: none; }
+.exercise-systems li { padding: .35rem .55rem; border-radius: 999px; background: #edf0e8; font-size: .78rem; }
+.exercise-svg-frame { overflow-x: auto; max-width: 100%; padding: .5rem; border: 1px solid #d0cec5; border-radius: 10px; background: white; }
+.exercise-svg-frame svg { display: block; max-width: none; }
+
 @media (max-width: 760px) {
     .app-shell { width: min(100% - 1rem, 620px); padding-top: 2rem; }
     .workspace { grid-template-columns: 1fr; }
@@ -83,6 +115,12 @@ legend, .field > span { margin-bottom: .55rem; font-size: .82rem; font-weight: 7
     .metadata-list { grid-template-columns: 1fr; }
     .type-switch { flex-wrap: wrap; }
     .playback-actions { grid-template-columns: 1fr; }
+    .exercise-workspace { grid-template-columns: 1fr; }
+    .exercise-field-grid { grid-template-columns: 1fr; }
+    .exercise-result-header { display: block; }
+    .stale-notice { max-width: none; margin-bottom: 1rem; }
 }
+
+@media (max-width: 420px) { .exercise-choice-grid { grid-template-columns: 1fr; } }
 
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
