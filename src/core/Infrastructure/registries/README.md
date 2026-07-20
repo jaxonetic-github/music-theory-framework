@@ -2,7 +2,7 @@
 
 Typed runtime registries built on the Foundation milestone.
 
-Specialized registries include first-class generator, renderer, exporter, and playback-planner discovery. `PlaybackRegistry` accepts only `PlaybackDescriptor` values and is exposed as `kernel.registries.playbacks`; it is not renderer discovery and does not perform strategy selection or audio output.
+Specialized registries include first-class generator, renderer, exporter, playback-planner, and exercise discovery. `PlaybackRegistry` accepts only `PlaybackDescriptor` values. `ExerciseRegistry` accepts only `ExerciseDescriptor` values and is exposed as `kernel.registries.exercises`; it remains distinct from plugin-scoped exercise strategy selection.
 
 ## Core behavior
 

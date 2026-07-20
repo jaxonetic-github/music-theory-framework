@@ -47,4 +47,4 @@ This milestone intentionally excludes React playback controls, transport UI, Web
 
 ## Validation
 
-The adapter has 17 focused fake-audio tests. The complete repository suite contains **201 passing tests**.
+The adapter has 17 focused fake-audio tests. The complete repository suite contains **217 passing tests**.
