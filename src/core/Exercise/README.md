@@ -34,10 +34,12 @@ Register expansion uses the Theory pattern interval and preserves semantic spell
 
 `ExerciseEngine` normalizes requests, selects an `ExerciseStrategy` from the plugin-scoped `ExerciseStrategyRegistry`, and validates the immutable model, exact request identity, and plugin/strategy metadata. The default `core.exercise.foundational` strategy covers all initial families by composing Theory generators.
 
+When `ExerciseModule` is installed in a Kernel, it constructs that foundational strategy from the currently registered `theory.scaleGenerator` and `theory.chordGenerator` services. Missing Theory services fail before any Exercise registration occurs. A dispose/configure cycle resolves the current services again, so stale or replaced Theory instances are never retained. Callers may instead inject a complete foundational strategy or explicit generators; those objects remain caller-owned. Direct standalone `FoundationalExerciseStrategy` construction continues to provide its own default Theory generators.
+
 The global typed `ExerciseRegistry` is descriptor/discovery infrastructure at `kernel.registries.exercises`; it is distinct from internal strategy selection. `ExerciseModule` transactionally registers two services, one plugin, and `exercise.foundational` only in the exercise registry. Generator, renderer, exporter, playback, and other discovery categories remain unchanged.
 
 ## Exclusions and validation
 
 This milestone excludes notation conversion and layout, rendering, MusicXML, React display, playback planning/execution, Web Audio, Web MIDI, approach notes, enclosures, progressions, voice leading, pattern sequencing, persistence, downloads, networking, and server APIs.
 
-Exercise Core has 16 focused test clusters. The complete repository suite contains **217 passing tests**: 197 plain-Node tests and 20 React DOM tests.
+Exercise Core has 21 focused test clusters. The complete repository suite contains **222 passing tests**: 202 plain-Node tests and 20 React DOM tests.

@@ -64,6 +64,8 @@ function chordNote(model, root, tonicMidi, member, cycle = 0) {
 export class FoundationalExerciseStrategy extends ExerciseStrategy {
     constructor({ scaleGenerator = new ScaleGenerator(), chordGenerator = new ChordGenerator() } = {}) {
         super({ id: "foundational", pluginId: "core.exercise.foundational" });
+        if (!scaleGenerator || typeof scaleGenerator.generate !== "function") throw new ValidationError("Foundational exercise strategy requires a scale generator.");
+        if (!chordGenerator || typeof chordGenerator.generate !== "function") throw new ValidationError("Foundational exercise strategy requires a chord generator.");
         Object.defineProperties(this, { scaleGenerator: { value: scaleGenerator }, chordGenerator: { value: chordGenerator } });
         Object.freeze(this);
     }

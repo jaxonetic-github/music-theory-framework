@@ -6,7 +6,7 @@ import {
     ExerciseModel, ExerciseModule, ExerciseRegistry, ExerciseRequest, ExerciseRow, ExerciseSection, ExerciseStep,
     ExerciseStrategy, ExerciseStrategyRegistry, ExerciseType, Foundation, FoundationalExerciseStrategy,
     GeneratorDescriptor, Kernel, Note, PlaybackPlan, ReferenceKind, Registries, ScaleCatalog, ScaleGenerator,
-    ValidationError, defaultScalePatterns
+    ScalePattern, TheoryModule, ValidationError, defaultScalePatterns
 } from "../src/core/index.js";
 
 function engine(options = {}) {
@@ -199,51 +199,132 @@ test("ExerciseDescriptor and ExerciseRegistry route first-class discovery only",
     for (const name of ["generators", "renderers", "exporters", "playbacks"]) assert.equal(kernel.registries[name].has("exercise.test"), false);
 });
 
-test("ExerciseModule registers transactionally, remains isolated, reusable, and preserves replacements", () => {
+test("ExerciseModule binds the exact active Theory generators and supports custom catalog material", async () => {
+    const customPattern = new ScalePattern({ id: "custom-exercise-scale", name: "Custom Exercise Scale", intervals: [0, 1, 4, 5, 7, 8, 11] });
+    const scaleCatalog = new ScaleCatalog([...defaultScalePatterns, customPattern]);
+    const theory = new TheoryModule({ scaleCatalog });
     const kernel = new Kernel();
     const module = new ExerciseModule();
-    module.configure(kernel.context);
+    kernel.use(theory); kernel.use(module); await kernel.start();
     assert.strictEqual(kernel.services.resolve("exercise.engine"), module.engine);
+    assert.strictEqual(module.foundationalStrategy.scaleGenerator, kernel.services.resolve("theory.scaleGenerator"));
+    assert.strictEqual(module.foundationalStrategy.chordGenerator, kernel.services.resolve("theory.chordGenerator"));
     assert.strictEqual(kernel.registries.exercises.resolve("exercise.foundational"), module.foundationalStrategy);
-    for (const name of ["generators", "renderers", "exporters", "playbacks"]) assert.equal(kernel.registries[name].size, 0);
-    assert.ok(module.engine.generate({ type: "scale" }) instanceof ExerciseModel);
-    const replacement = new FoundationalExerciseStrategy();
-    const replacementRecord = kernel.registries.exercises.register(Exercise.strategyDescriptors.foundational, { value: replacement, replace: true });
-    module.dispose(); module.dispose();
-    assert.strictEqual(kernel.registries.exercises.getRecord("exercise.foundational"), replacementRecord);
-    const reusableKernel = new Kernel(); const reusable = new ExerciseModule();
-    reusable.configure(reusableKernel.context); reusable.dispose(); reusable.configure(reusableKernel.context);
-    assert.ok(reusable.engine.generate({ type: "scale" }) instanceof ExerciseModel);
+    const generated = module.engine.generate({ type: "scale", root: "C", pattern: "custom-exercise-scale" });
+    assert.equal(generated.rows[0].pattern, "custom-exercise-scale");
+    await kernel.dispose();
 });
 
-test("ExerciseModule preserves collisions, same objects, and rolls back listener failures", () => {
-    for (const collision of ["service", "service-descriptor", "plugin", "exercise"]) {
-        const kernel = new Kernel(); const module = new ExerciseModule(); const existing = { collision };
-        if (collision === "service") kernel.services.register("exercise.engine", existing);
-        if (collision === "service-descriptor") kernel.registries.services.register(Exercise.serviceDescriptors.engine, { value: existing });
-        if (collision === "plugin") kernel.registries.plugins.register(Exercise.pluginDescriptor, { value: existing });
-        if (collision === "exercise") kernel.registries.exercises.register(Exercise.strategyDescriptors.foundational, { value: existing });
-        assert.throws(() => module.configure(kernel.context));
-        const retained = collision === "service" ? kernel.services.resolve("exercise.engine")
-            : collision === "service-descriptor" ? kernel.registries.services.resolve("exercise.engine")
-            : collision === "plugin" ? kernel.registries.plugins.resolve("core.exercise.foundational")
-            : kernel.registries.exercises.resolve("exercise.foundational");
-        assert.strictEqual(retained, existing);
-    }
-    const sameKernel = new Kernel(); const same = new ExerciseModule();
-    sameKernel.services.register("exercise.engine", same.engine);
-    assert.throws(() => same.configure(sameKernel.context));
-    assert.strictEqual(sameKernel.services.resolve("exercise.engine"), same.engine);
+test("ExerciseModule observes replaced Theory generators and rebinds current services after reconfiguration", () => {
+    const kernel = new Kernel();
+    const initialScale = new ScaleGenerator(); const initialChord = new ChordGenerator();
+    const replacementScale = new ScaleGenerator(); const replacementChord = new ChordGenerator();
+    kernel.services.register("theory.scaleGenerator", initialScale);
+    kernel.services.register("theory.chordGenerator", initialChord);
+    kernel.services.register("theory.scaleGenerator", replacementScale, { replace: true });
+    kernel.services.register("theory.chordGenerator", replacementChord, { replace: true });
+    const module = new ExerciseModule(); module.configure(kernel.context);
+    assert.strictEqual(module.foundationalStrategy.scaleGenerator, replacementScale);
+    assert.strictEqual(module.foundationalStrategy.chordGenerator, replacementChord);
+    const firstStrategy = module.foundationalStrategy;
+    module.dispose();
+    const nextScale = new ScaleGenerator(); const nextChord = new ChordGenerator();
+    kernel.services.register("theory.scaleGenerator", nextScale, { replace: true });
+    kernel.services.register("theory.chordGenerator", nextChord, { replace: true });
+    module.configure(kernel.context);
+    assert.notStrictEqual(module.foundationalStrategy, firstStrategy);
+    assert.strictEqual(module.foundationalStrategy.scaleGenerator, nextScale);
+    assert.strictEqual(module.foundationalStrategy.chordGenerator, nextChord);
+    assert.ok(module.engine.generate({ type: "scale" }) instanceof ExerciseModel);
+});
 
-    const listenerKernel = new Kernel(); const listenerModule = new ExerciseModule();
-    listenerKernel.registries.exercises.subscribe(() => { throw new Error("listener failed"); });
-    assert.throws(() => listenerModule.configure(listenerKernel.context), /listener failed/);
-    assert.equal(listenerKernel.services.has("exercise.engine"), false);
-    assert.equal(listenerKernel.registries.exercises.has("exercise.foundational"), false);
+test("explicit strategies and generators retain caller ownership and standalone strategy construction", () => {
+    const strategy = new FoundationalExerciseStrategy();
+    const strategyKernel = new Kernel(); const strategyModule = new ExerciseModule({ foundationalStrategy: strategy });
+    strategyModule.configure(strategyKernel.context);
+    assert.strictEqual(strategyModule.foundationalStrategy, strategy);
+    strategyModule.dispose();
+    assert.strictEqual(strategyModule.foundationalStrategy, strategy);
+    const scaleGenerator = new ScaleGenerator(); const chordGenerator = new ChordGenerator();
+    const generatorKernel = new Kernel(); const generatorModule = new ExerciseModule({ scaleGenerator, chordGenerator });
+    generatorModule.configure(generatorKernel.context);
+    assert.strictEqual(generatorModule.foundationalStrategy.scaleGenerator, scaleGenerator);
+    assert.strictEqual(generatorModule.foundationalStrategy.chordGenerator, chordGenerator);
+    generatorModule.dispose();
+    assert.ok(strategy.generate(new ExerciseRequest({ type: "scale" })) instanceof ExerciseModel);
+});
+
+function transactionModule() { return new ExerciseModule({ foundationalStrategy: new FoundationalExerciseStrategy() }); }
+const registrationPoints = [
+    { name: "engine container service", seed: (k, m, value) => k.services.register("exercise.engine", value), read: k => k.services.resolve("exercise.engine", { optional: true }), owned: m => m.engine },
+    { name: "strategy container service", seed: (k, m, value) => k.services.register("exercise.strategyRegistry", value), read: k => k.services.resolve("exercise.strategyRegistry", { optional: true }), owned: m => m.strategyRegistry },
+    { name: "engine service descriptor", registry: "services", id: "exercise.engine", descriptor: () => Exercise.serviceDescriptors.engine, seed: (k, m, value) => k.registries.services.register(Exercise.serviceDescriptors.engine, { value }), read: k => k.registries.services.resolve("exercise.engine"), owned: m => m.engine },
+    { name: "strategy service descriptor", registry: "services", id: "exercise.strategy-registry", descriptor: () => Exercise.serviceDescriptors.strategies, seed: (k, m, value) => k.registries.services.register(Exercise.serviceDescriptors.strategies, { value }), read: k => k.registries.services.resolve("exercise.strategy-registry"), owned: m => m.strategyRegistry },
+    { name: "default plugin", registry: "plugins", id: "core.exercise.foundational", descriptor: () => Exercise.pluginDescriptor, seed: (k, m, value) => k.registries.plugins.register(Exercise.pluginDescriptor, { value }), read: k => k.registries.plugins.resolve("core.exercise.foundational"), owned: m => m.plugin },
+    { name: "foundational exercise descriptor", registry: "exercises", id: "exercise.foundational", descriptor: () => Exercise.strategyDescriptors.foundational, seed: (k, m, value) => k.registries.exercises.register(Exercise.strategyDescriptors.foundational, { value }), read: k => k.registries.exercises.resolve("exercise.foundational"), owned: m => m.foundationalStrategy }
+];
+
+function assertNoExerciseLeaks(kernel, retainedPoint = null) {
+    for (const id of ["exercise.engine", "exercise.strategyRegistry"]) {
+        if (retainedPoint?.id !== id || retainedPoint.registry) assert.equal(kernel.services.has(id), false);
+    }
+    for (const [registry, ids] of [["services", ["exercise.engine", "exercise.strategy-registry"]], ["plugins", ["core.exercise.foundational"]], ["exercises", ["exercise.foundational"]]]) {
+        for (const id of ids) if (!(retainedPoint?.registry === registry && retainedPoint.id === id)) assert.equal(kernel.registries[registry].has(id), false);
+    }
+}
+
+test("ExerciseModule preserves different- and same-object collisions with rollback at all six points", () => {
+    for (const point of registrationPoints) for (const same of [false, true]) {
+        const kernel = new Kernel(); const module = transactionModule();
+        const existing = same ? point.owned(module) : Object.freeze({ point: point.name });
+        point.seed(kernel, module, existing);
+        assert.throws(() => module.configure(kernel.context), /already registered|Duplicate registration/);
+        assert.strictEqual(point.read(kernel), existing, `${point.name} ${same ? "same" : "different"} collision`);
+        assertNoExerciseLeaks(kernel, { registry: point.registry ?? null, id: point.id ?? (point.name.startsWith("engine") ? "exercise.engine" : "exercise.strategyRegistry") });
+        assert.equal(module.strategyRegistry.strategies("core.exercise.foundational").length, 0);
+    }
+});
+
+test("ExerciseModule cleans listener failures and rolls back all earlier registrations", () => {
+    for (const point of registrationPoints.filter(value => value.registry)) {
+        const kernel = new Kernel(); const module = transactionModule();
+        kernel.registries[point.registry].subscribe(event => {
+            if (String(event.record?.id) === point.id && event.type === "registered") throw new Error(`listener failed at ${point.name}`);
+        });
+        assert.throws(() => module.configure(kernel.context), /listener failed/);
+        assertNoExerciseLeaks(kernel);
+        assert.equal(module.strategyRegistry.strategies("core.exercise.foundational").length, 0);
+    }
+});
+
+test("ExerciseModule disposal preserves replacements at all six external registration points", () => {
+    for (const point of registrationPoints) {
+        const kernel = new Kernel(); const module = transactionModule(); module.configure(kernel.context);
+        const replacement = Object.freeze({ replacement: point.name });
+        if (!point.registry) {
+            const id = point.name.startsWith("engine") ? "exercise.engine" : "exercise.strategyRegistry";
+            kernel.services.register(id, replacement, { replace: true });
+        } else kernel.registries[point.registry].register(point.descriptor(), { value: replacement, replace: true });
+        module.dispose();
+        assert.strictEqual(point.read(kernel), replacement, point.name);
+    }
+});
+
+test("missing Theory services fail transactionally without any Exercise registration leak", () => {
+    for (const missing of ["both", "scale", "chord"]) {
+        const kernel = new Kernel();
+        if (missing !== "scale" && missing !== "both") kernel.services.register("theory.scaleGenerator", new ScaleGenerator());
+        if (missing !== "chord" && missing !== "both") kernel.services.register("theory.chordGenerator", new ChordGenerator());
+        const module = new ExerciseModule();
+        assert.throws(() => module.configure(kernel.context), /requires active theory/);
+        assertNoExerciseLeaks(kernel);
+        assert.equal(module.strategyRegistry.strategies("core.exercise.foundational").length, 0);
+        assert.strictEqual(module.foundationalStrategy, null);
+    }
 });
 
 test("Kernel disposal clears exercise discovery and public namespaces expose frozen v8 contracts", async () => {
-    const kernel = new Kernel(); const module = new ExerciseModule(); kernel.use(module); await kernel.start();
+    const kernel = new Kernel(); const module = transactionModule(); kernel.use(module); await kernel.start();
     assert.equal(kernel.registries.exercises.size, 1);
     await kernel.dispose();
     assert.equal(kernel.registries.exercises.size, 0);
