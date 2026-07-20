@@ -3,13 +3,17 @@ import { createWebApplication } from "./bootstrap.js";
 
 const ApplicationContext = createContext(null);
 
-export function ApplicationProvider({ children, bootstrap = createWebApplication, bootstrapOptions }) {
-    const [state, setState] = useState({ status: "loading", value: null, error: null });
+export function ApplicationProvider({ children, runtime: borrowedRuntime = null, bootstrap = createWebApplication, bootstrapOptions }) {
+    const [state, setState] = useState(() => borrowedRuntime ? { status: "ready", value: borrowedRuntime, error: null } : { status: "loading", value: null, error: null });
     const generation = useRef(0);
 
     useEffect(() => {
         const current = ++generation.current;
         let runtime = null;
+        if (borrowedRuntime) {
+            setState({ status: "ready", value: borrowedRuntime, error: null });
+            return () => { generation.current += 1; };
+        }
         setState({ status: "loading", value: null, error: null });
         Promise.resolve().then(() => bootstrap(bootstrapOptions)).then(value => {
             runtime = value;
@@ -22,7 +26,7 @@ export function ApplicationProvider({ children, bootstrap = createWebApplication
             generation.current += 1;
             if (runtime) void runtime.dispose();
         };
-    }, [bootstrap, bootstrapOptions]);
+    }, [borrowedRuntime, bootstrap, bootstrapOptions]);
 
     return <ApplicationContext.Provider value={state}>{children}</ApplicationContext.Provider>;
 }

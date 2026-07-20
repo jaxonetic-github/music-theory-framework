@@ -187,7 +187,7 @@ test("core public entry remains free of React and DOM imports", async () => {
     assert.equal(typeof core.Kernel, "function");
     assert.equal("MusicTheoryWebApp" in core, false);
     assert.equal(String(reactWebPackageDescriptor.id), "web.react-application");
-    assert.equal(String(reactWebPackageDescriptor.version), "8.6.0");
+    assert.equal(String(reactWebPackageDescriptor.version), "8.7.0");
     assert.ok(reactWebPackageDescriptor.capabilities.values.some(capability => String(capability.id) === "accessible-exercise-practice"));
     assert.ok(reactWebPackageDescriptor.capabilities.values.some(capability => String(capability.id) === "advanced-exercise-practice"));
     assert.ok(reactWebPackageDescriptor.capabilities.values.some(capability => String(capability.id) === "exercise-worksheet"));

@@ -10,6 +10,10 @@ export * from "./Rendering/index.js";
 export { default as Rendering } from "./Rendering/index.js";
 export * from "./Export/index.js";
 export { default as Export } from "./Export/index.js";
+// Rendering and Export intentionally expose equivalent XML escaping helpers.
+// Bind the aggregate names explicitly so strict ESM consumers do not see
+// ambiguous star exports; package-specific namespaces remain available above.
+export { metadataText, xmlAttribute, xmlText } from "./Rendering/index.js";
 export * from "./Application/index.js";
 export { default as Application } from "./Application/index.js";
 export * from "./Playback/index.js";

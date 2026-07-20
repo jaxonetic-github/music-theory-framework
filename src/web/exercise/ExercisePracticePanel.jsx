@@ -70,28 +70,29 @@ function ExerciseControls({ state, catalogs, busy, onChange, onSubmit }) {
     </form>;
 }
 
-function PresentationRow({ row }) {
+function PresentationRow({ row, id }) {
     const source = row.sourceRow;
     const advancedTarget = isTargetExerciseFamily(String(row.type));
     const progression = isProgressionExerciseFamily(String(row.type));
-    return <article className="exercise-row" aria-labelledby={`${row.id}-title`}>
-        <header><div><p className="eyebrow">{label(row.type)}</p><h4 id={`${row.id}-title`}>{row.title}</h4></div><span className="result-badge">{String(row.root)}</span></header>
+    return <article className="exercise-row" aria-labelledby={`${id}-${row.id}-title`}>
+        <header><div><p className="eyebrow">{label(row.type)}</p><h4 id={`${id}-${row.id}-title`}>{row.title}</h4></div><span className="result-badge">{String(row.root)}</span></header>
         <dl className="exercise-row-meta"><div><dt>Family</dt><dd>{label(row.type)}</dd></div>{row.quality && <div><dt>Quality</dt><dd>{row.quality}</dd></div>}{!progression && row.pattern && <div><dt>Pattern</dt><dd>{row.pattern}</dd></div>}{advancedTarget && <><div><dt>Target</dt><dd>{label(source.metadata.target)}</dd></div><div><dt>Resolution</dt><dd>{advancedPatternLabel(source.metadata.pattern)}</dd></div></>}{progression && <><div><dt>Progression</dt><dd>{source.metadata.progressionId}</dd></div><div><dt>Mode</dt><dd>{source.metadata.progressionMode}</dd></div><div><dt>Harmonic events</dt><dd>{source.steps.length}</dd></div></>}</dl>
         <ol className="exercise-systems" aria-label={`Semantic systems for ${row.title}`}>{row.systems.map(system => <li key={system.id}>System {system.sequence}: {system.measureIds.length} {system.measureIds.length === 1 ? "measure" : "measures"}</li>)}</ol>
         <div className="exercise-svg-frame" role="img" aria-label={`Notation for ${row.title}`} dangerouslySetInnerHTML={{ __html: row.content }} />
     </article>;
 }
 
-function ExercisePresentation({ result, stale, resultRef }) {
+function ExercisePresentation({ result, stale, resultRef, id }) {
     if (!result) return <div className="exercise-empty"><p>No exercise has been generated yet.</p></div>;
     const document = result.presentation;
     return <div className="exercise-document" ref={resultRef} tabIndex="-1" aria-label="Generated exercise presentation">
         <header className="exercise-result-header"><div><p className="eyebrow">Completed exercise result</p><h3>{document.model.sections[0]?.title ?? "Exercise presentation"}</h3></div>{stale && <p className="stale-notice" role="status">Controls changed — generate again to update this result.</p>}</header>
-        {document.sections.map(section => <section key={section.id} aria-labelledby={`${section.id}-title`}><h3 id={`${section.id}-title`}>{section.title}</h3>{section.rows.map(row => <PresentationRow key={row.id} row={row} />)}</section>)}
+        {document.sections.map(section => <section key={section.id} aria-labelledby={`${id}-${section.id}-title`}><h3 id={`${id}-${section.id}-title`}>{section.title}</h3>{section.rows.map(row => <PresentationRow key={row.id} row={row} id={id} />)}</section>)}
     </div>;
 }
 
 export function ExercisePracticePanel({ engine, catalogs }) {
+    const id = useId();
     const [state, setState] = useState(() => createInitialExercisePracticeState(catalogs));
     const stateRef = useRef(state);
     const { workflow, submit, setInputError } = useExercisePracticeWorkflow(engine);
@@ -121,14 +122,14 @@ export function ExercisePracticePanel({ engine, catalogs }) {
         catch (error) { setInputError(error); return; }
         void submit(request, controlRevision.current).catch(() => {});
     };
-    return <section className="exercise-practice" aria-labelledby="exercise-practice-title">
-        <div className="exercise-practice-heading"><p className="eyebrow">v8.5 · React adapter</p><h2 id="exercise-practice-title">Exercise Practice</h2><p>Configure foundational, approach-note, enclosure, and progression exercises through the active ExerciseApplication workflow. Audio and downloads are intentionally unavailable here.</p></div>
+    return <section className="exercise-practice" aria-labelledby={`${id}-exercise-practice-title`}>
+        <div className="exercise-practice-heading"><p className="eyebrow">v8.5 · React adapter</p><h2 id={`${id}-exercise-practice-title`}>Exercise Practice</h2><p>Configure foundational, approach-note, enclosure, and progression exercises through the active ExerciseApplication workflow. Audio and downloads are intentionally unavailable here.</p></div>
         <div className="exercise-workspace">
             <ExerciseControls state={state} catalogs={catalogs} busy={workflow.busy} onChange={change} onSubmit={generate} />
             <section className="exercise-results" aria-label="Exercise results" aria-busy={workflow.busy}>
                 <div className="exercise-live" role={workflow.busy ? "status" : undefined} aria-live="polite" aria-atomic="true">{workflow.busy ? "Generating exercise…" : workflow.result ? "Exercise presentation ready." : "Ready to generate an exercise."}</div>
                 <div ref={errorRef} tabIndex="-1"><ExerciseError title="Input validation failed" error={workflow.inputError} /><ExerciseError title="Exercise workflow failed" error={workflow.workflowError} /><ExerciseError title="Presentation validation failed" error={workflow.presentationError} /></div>
-                <ExercisePresentation result={workflow.result} stale={Boolean(workflow.result) && workflow.resultRevision !== controlRevision.current} resultRef={resultRef} />
+                <ExercisePresentation id={id} result={workflow.result} stale={Boolean(workflow.result) && workflow.resultRevision !== controlRevision.current} resultRef={resultRef} />
             </section>
         </div>
     </section>;

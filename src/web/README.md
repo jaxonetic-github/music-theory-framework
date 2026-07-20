@@ -1,6 +1,12 @@
-# React Web Application, Playback, and Exercise Practice Adapters
+# Embeddable React Web Application, Playback, and Exercise Practice Adapters
 
-The v8.6 Web package preserves the general workflow, playback UI, and Exercise Practice adapter while adding an accessible heterogeneous Exercise Set worksheet. React does not generate theory or exercises, traverse `ScoreGraph`, calculate musical timing, serialize SVG or MusicXML, schedule audio nodes, or manage AudioContext directly.
+The v8.7 Web package preserves the general workflow, playback UI, Exercise Practice adapter, and heterogeneous Exercise Set worksheet while adding supported Vite and Next.js embedding entry points. React does not generate theory or exercises, traverse `ScoreGraph`, calculate musical timing, serialize SVG or MusicXML, schedule audio nodes, or manage AudioContext directly.
+
+## Embedding
+
+Import `MusicTheoryApp` from `music-theory-framework/web` for an ordinary React host, default or named `MusicTheoryPage` from `music-theory-framework/web/next` for an App Router client boundary, and global package CSS from `music-theory-framework/web/styles.css`. The stylesheet is globally imported by a Next root layout but scopes its rules beneath `.music-theory-app`. `src/web/main.jsx` is only the standalone Vite mount and must never be imported by a host. React and ReactDOM are peer dependencies to prevent duplicate host React instances. Since published entry points contain source JSX, Next hosts configure `transpilePackages: ["music-theory-framework"]`. Complete local `file:`/workspace installation and route examples are in [`next/README.md`](next/README.md).
+
+`MusicTheoryApp` owns its runtime by default and disposes it at unmount. A `runtime` prop is borrowed and never disposed; `runtimeFactory` and `runtimeOptions` customize an owned lifecycle. Strict Mode cleanup, failed bootstrap rollback, stale-operation guards, isolated multiple mounts, and React-generated DOM IDs preserve lifecycle and accessibility guarantees. It renders one `main` landmark, so hosts place it outside another `main`. Caller `className` values are deterministically merged with `music-theory-app`.
 
 ## Bootstrap and ownership
 
@@ -36,4 +42,4 @@ Exercise Worksheet consumes `exercise.set.application`, reuses the same catalog 
 
 This milestone excludes pause/resume, seeking, scrubbing, looping, tempo changes during playback, score-following, cursor animation, Web MIDI, recording, samples, effects, mixer UI, server APIs, persistence, and networking. Core imports remain React-, DOM-, browser-, AudioContext-, and MIDI-free.
 
-The v8.6 repository suite contains **325 passing tests**: 284 plain-Node tests and 41 React DOM tests. `npm audit` reports **0 vulnerabilities**. The production Vite build transforms **313 modules**.
+The v8.7 repository suite contains **334 passing tests**: 288 plain-Node tests and 46 React DOM tests. `npm audit` reports **0 vulnerabilities**. Vite transforms **314 modules**, and the Next.js 15.5.20 fixture compiles and statically prerenders successfully.

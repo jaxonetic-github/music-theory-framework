@@ -3,6 +3,7 @@ export { ApplicationProvider, useApplicationRuntime, useApplicationWorkflow } fr
 export { createInitialWorkflowState, transitionWorkflow, buildWorkflowRequest, workflowTitle, workflowPitches } from "./workflow.js";
 export { safeFilename, exportFilenameBase, downloadExport } from "./download.js";
 export { MusicTheoryWebApp } from "./MusicTheoryWebApp.jsx";
+export { MusicTheoryApp } from "./MusicTheoryApp.jsx";
 export { reactWebPackageDescriptor } from "./package.descriptor.js";
 export { usePlaybackTransport, useStopActivePlaybackOnCleanup } from "./usePlaybackTransport.js";
 export * from "./audio/index.js";

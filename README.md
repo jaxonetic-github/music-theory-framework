@@ -19,6 +19,7 @@ An immutable, plugin-scoped music theory framework with generation, first-class 
 - v8.4 Advanced Exercise Generation Core for deterministic approach notes, enclosures, and semantic chord progressions
 - v8.5 React Advanced Exercise Practice UI with catalog-driven targets and chord progressions
 - v8.6 Exercise Set and Worksheet Workflow for immutable heterogeneous practice documents
+- v8.7 Embeddable Web Package and Next.js App Router integration
 
 Playback Planning produces immutable tick plans only. React passes generated scores to the planning engine, loads returned plans into Transport, and issues explicit user commands. Web Audio alone converts ticks and schedules sound. Core remains browser-free. Pause, seek, looping, score-following, and Web MIDI remain excluded.
 
@@ -31,6 +32,8 @@ Exercise Notation consumes those semantic models without changing them. It conve
 Exercise Application orchestrates the active Exercise, ExerciseNotation, and Rendering services into immutable row presentations. The v8.5 React adapter submits one validated foundational or advanced request to that service, preserves completed-result ownership, validates trusted SVG metadata, and presents independent rows and semantic systems responsively. Exercise audio, MIDI, transport, downloads, persistence, networking, and grading remain deferred.
 
 Exercise Set v8.6 sequentially composes ordered `ExerciseApplicationRequest` values into an atomic immutable worksheet. Each set item retains its exact authoritative application result, independent ScoreGraphs, renderer identity, spelling, and advanced semantic metadata. The React worksheet editor keeps mutable draft intent separate from completed output, uses stable identities for reordering and duplication, validates every SVG row through the existing trust boundary, and adds responsive and print-oriented presentation without PDF or download generation.
+
+The v8.7 package exposes a self-providing `MusicTheoryApp`, a `"use client"` `MusicTheoryPage` for Next.js App Router, and the supported `music-theory-framework/web/styles.css` entry. Reusable imports never execute the standalone `main.jsx` mount. React and ReactDOM are host-owned peers, runtime ownership is explicit, embedded instances receive unique IDs and isolated default runtimes, and CSS is scoped beneath `.music-theory-app`. See [`src/web/next/README.md`](src/web/next/README.md) for local installation and App Router configuration.
 
 ## Development
 
@@ -51,4 +54,4 @@ git diff --check
 
 The production build is emitted to `dist/`. See [`src/web/README.md`](src/web/README.md) for the adapter architecture, trusted SVG boundary, and MusicXML download behavior.
 
-The v8.6 repository suite contains **325 passing tests**: 284 plain-Node tests and 41 React DOM tests. `npm audit` reports **0 vulnerabilities**. The production Vite build transforms **313 modules**.
+The v8.7 repository suite contains **334 passing tests**: 288 plain-Node tests and 46 React DOM tests. `npm audit` reports **0 vulnerabilities**. The production Vite build transforms **314 modules**. The Next.js 15.5.20 fixture compiles and statically prerenders successfully.
