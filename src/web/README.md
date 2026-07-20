@@ -1,6 +1,6 @@
 # React Web Application, Playback, and Exercise Practice Adapters
 
-The v8.3 Web package preserves the general workflow and playback UI and adds an accessible Exercise Practice adapter over ExerciseApplication. React does not generate theory or exercises, traverse `ScoreGraph`, calculate musical timing, serialize SVG or MusicXML, schedule audio nodes, or manage AudioContext directly.
+The v8.3 Web package preserves the general workflow and playback UI and adds an accessible Exercise Practice adapter over ExerciseApplication. Milestone v8.4 extends only the headless Exercise Core: the React family catalog deliberately remains limited to the six v8.3 families until dedicated advanced controls are designed. React does not generate theory or exercises, traverse `ScoreGraph`, calculate musical timing, serialize SVG or MusicXML, schedule audio nodes, or manage AudioContext directly.
 
 ## Bootstrap and ownership
 
@@ -34,4 +34,4 @@ Exercise Practice consumes only `exercise.application.engine` and admits present
 
 This milestone excludes pause/resume, seeking, scrubbing, looping, tempo changes during playback, score-following, cursor animation, Web MIDI, recording, samples, effects, mixer UI, server APIs, persistence, and networking. Core imports remain React-, DOM-, browser-, AudioContext-, and MIDI-free.
 
-The exact final test count is recorded in the root README after milestone validation.
+The v8.4 repository suite contains **288 passing tests**: 262 plain-Node tests and 26 React DOM tests.

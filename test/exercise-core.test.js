@@ -325,12 +325,12 @@ test("missing Theory services fail transactionally without any Exercise registra
 
 test("Kernel disposal clears exercise discovery and public namespaces expose frozen v8 contracts", async () => {
     const kernel = new Kernel(); const module = transactionModule(); kernel.use(module); await kernel.start();
-    assert.equal(kernel.registries.exercises.size, 1);
+    assert.equal(kernel.registries.exercises.size, 2);
     await kernel.dispose();
     assert.equal(kernel.registries.exercises.size, 0);
     assert.strictEqual(Foundation.ExerciseDescriptor, ExerciseDescriptor);
     assert.strictEqual(Registries.ExerciseRegistry, ExerciseRegistry);
     assert.strictEqual(Exercise.ExerciseModel, ExerciseModel);
     assert.equal(Object.isFrozen(Exercise), true);
-    assert.equal(String(Exercise.descriptor.version), "8.0.0");
+    assert.equal(String(Exercise.descriptor.version), "8.4.0");
 });

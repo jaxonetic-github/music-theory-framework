@@ -1,14 +1,40 @@
-import { ValidationError } from "../Foundation/index.js";
+import { cloneDeep, ValidationError } from "../Foundation/index.js";
 import { ExerciseRow } from "../Exercise/index.js";
 import { ChordNode, KeySignature, MeasureNode, NoteNode, NotationStrategy, PartNode, ScoreEdge, ScoreGraph, ScoreRootNode, VoiceNode } from "../Notation/index.js";
 
-function sourceMetadata(modelId, sectionId, row, step, emittedIndex, member = null) {
-    return { attributes: { modelId, sectionId, rowId: row.id, stepId: step.id, sourceId: step.sourceId, emittedIndex, role: step.role, scaleDegree: step.scaleDegree, chordMembers: [...step.chordMembers], chordMember: member } };
+function eventRolesFor(step) {
+    const roles = step.metadata.eventRoles;
+    if (roles === undefined) return null;
+    if (!Array.isArray(roles)) throw new ValidationError(`Exercise step "${step.id}" eventRoles must be an ordered array.`);
+    if (step.simultaneous) return null;
+    if (roles.length !== step.notes.length) throw new ValidationError(`Exercise step "${step.id}" eventRoles must align with every emitted note.`);
+    const expectedLeadRole = step.role === "approach-resolution" ? "approach" : step.role === "enclosure-resolution" ? "surrounding" : null;
+    roles.forEach((eventRole, index) => {
+        if (!eventRole || typeof eventRole !== "object" || Array.isArray(eventRole) || !String(eventRole.role ?? "").trim()) {
+            throw new ValidationError(`Exercise step "${step.id}" has a malformed event role at position ${index + 1}.`);
+        }
+        const final = index === roles.length - 1;
+        if (expectedLeadRole && String(eventRole.role) !== (final ? "target" : expectedLeadRole)) {
+            throw new ValidationError(`Exercise step "${step.id}" eventRoles do not match its ordered resolution phrase.`);
+        }
+        if (!final && expectedLeadRole && (!["chromatic", "diatonic"].includes(String(eventRole.classification)) || !["above", "below"].includes(String(eventRole.direction)))) {
+            throw new ValidationError(`Exercise step "${step.id}" has incomplete approach or enclosure semantics at position ${index + 1}.`);
+        }
+        if (final && expectedLeadRole && Number(eventRole.chordMember) !== Number(step.metadata.targetChordMember)) {
+            throw new ValidationError(`Exercise step "${step.id}" target event role does not match its target chord member.`);
+        }
+    });
+    return roles;
+}
+function sourceMetadata(modelId, sectionId, row, step, emittedIndex, member = null, eventRole = null) {
+    const attributes = { modelId, sectionId, rowId: row.id, stepId: step.id, sourceId: step.sourceId, emittedIndex, role: step.role, scaleDegree: step.scaleDegree, chordMembers: [...step.chordMembers], chordMember: member, stepMetadata: cloneDeep(step.metadata) };
+    if (eventRole !== null) attributes.eventRole = cloneDeep(eventRole);
+    return { attributes };
 }
 function keyFor(row, request) {
     if (request.keySignaturePolicy === "none") return null;
     if (request.keySignaturePolicy === "explicit") return request.keySignature;
-    const mode = row.pattern === "major" ? "major" : row.pattern === "melodic-minor" ? "minor" : null;
+    const mode = row.metadata.progressionMode ?? (row.pattern === "major" ? "major" : row.pattern === "melodic-minor" ? "minor" : null);
     if (!mode) throw new ValidationError(`Cannot safely derive a key signature for exercise row "${row.id}".`);
     return new KeySignature({ tonic: row.root, mode });
 }
@@ -28,12 +54,13 @@ export class ExerciseRowNotationStrategy extends NotationStrategy {
         if (compare(duration, capacity) > 0) throw new ValidationError("An exercise notation event cannot be longer than one measure.");
         const emitted = [];
         for (const step of row.steps) {
+            const eventRoles = eventRolesFor(step);
             if (step.simultaneous) {
                 if (step.notes.length < 2) throw new ValidationError(`Malformed simultaneous step "${step.id}".`);
-                emitted.push({ step, notes: step.notes, member: null, chord: true, emittedIndex: 1 });
+                emitted.push({ step, notes: step.notes, member: null, chord: true, emittedIndex: 1, eventRole: null });
             } else {
                 if (step.notes.length < 1) throw new ValidationError(`Malformed sequential step "${step.id}".`);
-                step.notes.forEach((note, index) => emitted.push({ step, notes: [note], member: step.chordMembers[index] ?? null, chord: false, emittedIndex: index + 1 }));
+                step.notes.forEach((note, index) => emitted.push({ step, notes: [note], member: step.chordMembers[index] ?? null, chord: false, emittedIndex: index + 1, eventRole: eventRoles?.[index] ?? null }));
             }
         }
         if (!Number.isSafeInteger(emitted.length) || emitted.length < 1) throw new ValidationError("Exercise row event range is unsafe.");
@@ -59,7 +86,7 @@ export class ExerciseRowNotationStrategy extends NotationStrategy {
                 sequence += 1;
                 if (!Number.isSafeInteger(sequence)) throw new ValidationError("Exercise notation event sequence is unsafe.");
                 const id = `${prefix}:step:${event.step.id}:event:${event.emittedIndex}`;
-                const metadata = sourceMetadata(request.model.id, sectionId, row, event.step, event.emittedIndex, event.member);
+                const metadata = sourceMetadata(request.model.id, sectionId, row, event.step, event.emittedIndex, event.member, event.eventRole);
                 if (event.chord) metadata.attributes.memberOrder = [...event.step.chordMembers];
                 const node = event.chord ? new ChordNode({ id, notes: event.notes, duration: request.duration, offset: sequence, metadata }) : new NoteNode({ id, pitch: event.notes[0], duration: request.duration, offset: sequence, metadata });
                 nodes.push(node); edges.push(new ScoreEdge({ from: voiceId, to: id, type: "contains" }));

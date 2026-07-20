@@ -91,7 +91,7 @@ it("stale workflow completions are ignored after provider reconfiguration", asyn
     const view = render(<ApplicationProvider bootstrap={bootstrap} bootstrapOptions={{ id: 1 }}><WorkflowProbe /></ApplicationProvider>);
     await screen.findByRole("button", { name: "Run" });
     fireEvent.click(screen.getByRole("button", { name: "Run" }));
-    expect(screen.getByTestId("workflow-state").textContent).toBe("loading");
+    await waitFor(() => expect(screen.getByTestId("workflow-state").textContent).toBe("loading"));
     view.rerender(<ApplicationProvider bootstrap={bootstrap} bootstrapOptions={{ id: 2 }}><WorkflowProbe /></ApplicationProvider>);
     await waitFor(() => expect(screen.getByTestId("workflow-state").textContent).toBe("empty"));
     resolveFirst({ stale: true });

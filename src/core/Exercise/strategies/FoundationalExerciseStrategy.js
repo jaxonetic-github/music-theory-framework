@@ -69,7 +69,7 @@ export class FoundationalExerciseStrategy extends ExerciseStrategy {
         Object.defineProperties(this, { scaleGenerator: { value: scaleGenerator }, chordGenerator: { value: chordGenerator } });
         Object.freeze(this);
     }
-    supports() { return true; }
+    supports(request) { return !["approach-note", "enclosure", "chord-progression"].includes(String(request.type)); }
 
     generate(request) {
         const rows = request.roots.map((root, index) => this.#row(request, root, index + 1));
