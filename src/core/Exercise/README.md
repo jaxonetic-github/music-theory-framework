@@ -42,4 +42,4 @@ The global typed `ExerciseRegistry` is descriptor/discovery infrastructure at `k
 
 This milestone excludes notation conversion and layout, rendering, MusicXML, React display, playback planning/execution, Web Audio, Web MIDI, approach notes, enclosures, progressions, voice leading, pattern sequencing, persistence, downloads, networking, and server APIs.
 
-Exercise Core has 21 focused test clusters. The complete repository suite contains **222 passing tests**: 202 plain-Node tests and 20 React DOM tests.
+Exercise Core has 21 focused test clusters. The complete repository suite contains **234 passing tests**: 214 plain-Node tests and 20 React DOM tests.

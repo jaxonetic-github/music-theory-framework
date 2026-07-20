@@ -3,7 +3,6 @@ import { NotationStrategy } from "./strategies/index.js";
 
 export class NotationStrategyRegistry {
     #plugins = new Map();
-    #sequence = 0;
 
     register(pluginId, strategy, options = {}) {
         if (!(strategy instanceof NotationStrategy)) throw new ValidationError("A notation strategy must extend NotationStrategy.");
@@ -14,14 +13,13 @@ export class NotationStrategyRegistry {
         if (strategies.has(strategyKey) && !options.replace) {
             throw new ValidationError(`Notation strategy "${strategyKey}" is already registered for plugin "${pluginKey}".`);
         }
-        const previous = strategies.get(strategyKey);
-        strategies.set(strategyKey, Object.freeze({ strategy, sequence: previous?.sequence ?? ++this.#sequence }));
+        strategies.set(strategyKey, strategy);
         this.#plugins.set(pluginKey, strategies);
         return strategy;
     }
 
     get(pluginId, strategyId, options = {}) {
-        const strategy = this.#plugins.get(String(pluginId))?.get(String(strategyId))?.strategy ?? null;
+        const strategy = this.#plugins.get(String(pluginId))?.get(String(strategyId)) ?? null;
         if (!strategy && options.required) throw new ValidationError(`Notation strategy "${String(strategyId)}" was not found for plugin "${String(pluginId)}".`);
         return strategy;
     }
@@ -35,12 +33,11 @@ export class NotationStrategyRegistry {
             return strategy;
         }
         const records = [];
-        for (const [owner, strategies] of this.#plugins) {
+        for (const [owner, strategies] of [...this.#plugins].sort(([a], [b]) => a.localeCompare(b))) {
             if (pluginId && owner !== pluginId) continue;
-            records.push(...strategies.values());
+            records.push(...[...strategies].sort(([a], [b]) => a.localeCompare(b)).map(([, strategy]) => strategy));
         }
-        records.sort((a, b) => a.sequence - b.sequence);
-        return records.find(record => record.strategy.supports(result))?.strategy ?? null;
+        return records.find(strategy => strategy.supports(result)) ?? null;
     }
 
     unregister(pluginId, strategyId) {
@@ -61,8 +58,8 @@ export class NotationStrategyRegistry {
     }
 
     strategies(pluginId) {
-        return Object.freeze([...(this.#plugins.get(String(pluginId))?.values() ?? [])]
-            .sort((a, b) => a.sequence - b.sequence).map(record => record.strategy));
+        return Object.freeze([...(this.#plugins.get(String(pluginId))?.entries() ?? [])]
+            .sort(([a], [b]) => a.localeCompare(b)).map(([, strategy]) => strategy));
     }
 }
 

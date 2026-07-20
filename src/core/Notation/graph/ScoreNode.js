@@ -62,7 +62,7 @@ export class MeasureNode extends ScoreNode {
         super({
             id: data.id,
             type: "measure",
-            value: { number, beats, beatUnit, keySignature: KeySignature.from(data.keySignature) },
+            value: { number, beats, beatUnit, keySignature: data.keySignature === null ? null : KeySignature.from(data.keySignature) },
             metadata: source.metadata
         });
     }

@@ -16,3 +16,5 @@ export * from "./Playback/index.js";
 export { default as Playback } from "./Playback/index.js";
 export * from "./Exercise/index.js";
 export { default as Exercise } from "./Exercise/index.js";
+export * from "./ExerciseNotation/index.js";
+export { default as ExerciseNotation } from "./ExerciseNotation/index.js";
