@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useApplicationRuntime, useApplicationWorkflow } from "./ApplicationProvider.jsx";
 import { downloadExport, exportFilenameBase } from "./download.js";
 import { usePlaybackTransport, useStopActivePlaybackOnCleanup } from "./usePlaybackTransport.js";
+import { ExercisePracticePanel } from "./exercise/index.js";
 import {
     buildWorkflowRequest,
     createInitialWorkflowState,
@@ -268,7 +269,7 @@ function ReadyApplication({ runtime }) {
     return (
         <main className="app-shell">
             <header className="hero">
-                <p className="eyebrow">Music Theory Framework · v7.6</p>
+                <p className="eyebrow">Music Theory Framework · v8.3</p>
                 <h1>From theory to score,<br /><em>without losing the spelling.</em></h1>
                 <p>Run the headless workflow through an accessible React adapter. Generate, notate, render SVG, and prepare MusicXML—all from the same immutable score.</p>
             </header>
@@ -288,6 +289,7 @@ function ReadyApplication({ runtime }) {
                     }} />
                 </section>
             </div>
+            <ExercisePracticePanel engine={runtime.exerciseApplication} catalogs={runtime.catalogs} />
         </main>
     );
 }

@@ -1,5 +1,8 @@
 import {
     ApplicationModule,
+    ExerciseApplicationModule,
+    ExerciseModule,
+    ExerciseNotationModule,
     ExportModule,
     Kernel,
     NotationModule,
@@ -20,6 +23,9 @@ const defaultModules = () => {
         new TheoryModule(),
         new NotationModule(),
         new RenderingModule(),
+        new ExerciseModule(),
+        new ExerciseNotationModule(),
+        new ExerciseApplicationModule(),
         new ExportModule(),
         new ApplicationModule(),
         new PlaybackModule(),
@@ -31,7 +37,8 @@ const defaultModules = () => {
 function catalogOptions(catalog) {
     return Object.freeze(catalog.values().map(pattern => Object.freeze({
         id: String(pattern.id),
-        name: String(pattern.name)
+        name: String(pattern.name),
+        memberCount: pattern.intervals?.length ?? null
     })));
 }
 
@@ -44,6 +51,7 @@ export async function createWebApplication({
         for (const module of modules) kernel.use(module);
         await kernel.start();
         const application = kernel.services.resolve("application.engine");
+        const exerciseApplication = kernel.services.resolve("exercise.application.engine");
         const playback = kernel.services.resolve("playback.engine");
         const transport = kernel.services.resolve("web.playback.transport");
         const catalogs = Object.freeze({
@@ -52,6 +60,7 @@ export async function createWebApplication({
         });
         return Object.freeze({
             application,
+            exerciseApplication,
             playback,
             transport,
             catalogs,

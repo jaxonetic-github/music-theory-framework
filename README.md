@@ -1,6 +1,6 @@
 # Music Theory Framework
 
-An immutable, plugin-scoped music theory framework with generation, first-class semantic exercises, notation, row-oriented exercise presentation, rendering, export, deterministic playback planning, browser-scoped Web Audio execution and transport, headless application workflows, and accessible React playback controls.
+An immutable, plugin-scoped music theory framework with generation, first-class semantic exercises, notation, row-oriented exercise presentation, rendering, export, deterministic playback planning, browser-scoped Web Audio execution and transport, headless application workflows, accessible React playback controls, and a responsive React Exercise Practice UI.
 
 ## Architecture
 
@@ -15,6 +15,7 @@ An immutable, plugin-scoped music theory framework with generation, first-class 
 - v8.0 Exercise Model and Generation Core for deterministic semantic scales, thirds, arpeggios, and chords
 - v8.1 Exercise Notation and Layout for immutable row-oriented ScoreGraph documents
 - v8.2 Exercise Presentation and Application Workflow for browser-free generation, notation, and deterministic row rendering
+- v8.3 accessible React Exercise Practice UI over authoritative immutable presentation results
 
 Playback Planning produces immutable tick plans only. React passes generated scores to the planning engine, loads returned plans into Transport, and issues explicit user commands. Web Audio alone converts ticks and schedules sound. Core remains browser-free. Pause, seek, looping, score-following, and Web MIDI remain excluded.
 
@@ -22,7 +23,7 @@ Exercise Core composes existing Theory catalogs and generators into immutable se
 
 Exercise Notation consumes those semantic models without changing them. It converts each row through the shared Notation strategy infrastructure into one self-contained ScoreGraph and adds measure/system grouping as renderer-neutral semantic layout guidance.
 
-Exercise Application orchestrates the active Exercise, ExerciseNotation, and Rendering services into immutable row presentations. It preserves each independent ScoreGraph and semantic system, supports an exact supplied-model bypass, records the renderer actually selected, and fails atomically without inferring semantics from rendered output. React exercise UI remains a future milestone.
+Exercise Application orchestrates the active Exercise, ExerciseNotation, and Rendering services into immutable row presentations. The v8.3 React adapter submits one validated request to that service, preserves completed-result ownership, validates trusted SVG metadata, and presents independent rows and semantic systems responsively. Exercise audio, MIDI, transport, downloads, persistence, networking, and grading remain deferred.
 
 ## Development
 
@@ -31,7 +32,7 @@ npm install
 npm run dev
 ```
 
-Vite serves the React adapter, which bootstraps Theory, Notation, Rendering, Export, Application, Playback Planning, owned Web Audio, and borrowed-adapter Transport services without eagerly creating an AudioContext.
+Vite serves the React adapter, which additionally bootstraps Exercise, ExerciseNotation, and ExerciseApplication in dependency order while preserving the existing Application, Playback Planning, owned Web Audio, and borrowed-adapter Transport services without eagerly creating an AudioContext.
 
 ## Validation
 
@@ -43,4 +44,4 @@ git diff --check
 
 The production build is emitted to `dist/`. See [`src/web/README.md`](src/web/README.md) for the adapter architecture, trusted SVG boundary, and MusicXML download behavior.
 
-The current repository suite contains **253 passing tests**: 233 plain-Node tests and 20 React DOM tests.
+The current repository suite contains **265 passing tests**: 240 plain-Node tests and 25 React DOM tests.
