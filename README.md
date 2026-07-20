@@ -48,4 +48,4 @@ git diff --check
 
 The production build is emitted to `dist/`. See [`src/web/README.md`](src/web/README.md) for the adapter architecture, trusted SVG boundary, and MusicXML download behavior.
 
-The v8.5 repository suite contains **301 passing tests**: 267 plain-Node tests and 34 React DOM tests. `npm audit` reports **0 vulnerabilities**.
+The v8.5 repository suite contains **303 passing tests**: 268 plain-Node tests and 35 React DOM tests. `npm audit` reports **0 vulnerabilities**.

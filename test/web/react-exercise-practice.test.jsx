@@ -76,6 +76,23 @@ it("renders nine deterministic families with only the applicable advanced contro
     } finally { view.unmount(); await runtime.dispose(); }
 });
 
+it("keeps extended chords in foundational controls and excludes them from advanced target qualities", async () => {
+    const runtime = await createWebApplication(); const user = userEvent.setup();
+    const extended = Object.freeze({ id: "major-9", name: "Major Ninth", memberCount: 5, targetCompatible: false });
+    const catalogs = Object.freeze({ ...runtime.catalogs, chords: Object.freeze([...runtime.catalogs.chords, extended]) });
+    const view = render(<ExercisePracticePanel engine={runtime.exerciseApplication} catalogs={catalogs} />);
+    try {
+        await user.click(screen.getByLabelText("Blocked chord"));
+        expect([...screen.getByLabelText("Exercise chord quality").options].some(option => option.value === "major-9")).toBe(true);
+        await user.click(screen.getByLabelText("Approach note"));
+        expect([...screen.getByLabelText("Exercise chord quality").options].some(option => option.value === "major-9")).toBe(false);
+        expect(screen.getByText(/extended chords remain available to foundational exercises/i)).toBeTruthy();
+        expect([...screen.getByLabelText("Exercise chord target").options].map(option => option.value)).toEqual(["root", "third", "fifth", "all"]);
+        await user.selectOptions(screen.getByLabelText("Exercise chord quality"), "major-7");
+        expect([...screen.getByLabelText("Exercise chord target").options].map(option => option.value)).toEqual(["root", "third", "fifth", "seventh", "all"]);
+    } finally { view.unmount(); await runtime.dispose(); }
+});
+
 it("generates authoritative advanced presentations with exact roots and semantic summaries", async () => {
     const runtime = await createWebApplication(); const user = userEvent.setup();
     const run = vi.fn(request => runtime.exerciseApplication.run(request));

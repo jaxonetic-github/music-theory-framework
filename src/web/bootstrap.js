@@ -40,7 +40,10 @@ function catalogOptions(catalog, { chordMembers = false } = {}) {
         id: String(pattern.id),
         name: String(pattern.name),
         memberCount: pattern.intervals?.length ?? null,
-        ...(chordMembers ? { memberRoles: chordMemberRoles(pattern) } : {})
+        ...(chordMembers ? {
+            targetCompatible: [3, 4].includes(pattern.intervals?.length),
+            ...([3, 4].includes(pattern.intervals?.length) ? { memberRoles: chordMemberRoles(pattern) } : {})
+        } : {})
     })));
 }
 

@@ -52,13 +52,17 @@ const hasChoice = (values, id) => values?.some(value => value.id === id) ?? fals
 export function exerciseChoicesForFamily(catalogs, type) {
     if (scaleFamily(type)) return catalogs.scales;
     if (progressionFamily(type)) return catalogs.progressions;
+    if (targetFamily(type)) return Object.freeze(catalogs.chords.filter(value => value.targetCompatible === true));
     const count = chordCount(type);
-    return count ? catalogs.chords.filter(value => value.memberCount === count) : catalogs.chords;
+    return count ? Object.freeze(catalogs.chords.filter(value => value.memberCount === count)) : catalogs.chords;
 }
 
 export function exerciseTargetChoices(catalogs, quality) {
     const chord = catalogs?.chords?.find(value => value.id === quality);
-    if (!chord || !Array.isArray(chord.memberRoles)) throw new Error(`Chord quality "${String(quality)}" is unavailable for advanced targets.`);
+    if (!chord) throw new Error(`Chord quality "${String(quality)}" is unavailable.`);
+    if (chord.targetCompatible !== true || !Array.isArray(chord.memberRoles)) {
+        throw new Error(`Chord quality "${String(quality)}" does not support approach-note or enclosure targets.`);
+    }
     const roles = new Set(chord.memberRoles);
     return Object.freeze(chordTargetOptions.filter(option => option.id === "all" || roles.has({ root: 1, third: 3, fifth: 5, seventh: 7 }[option.id])));
 }
@@ -87,7 +91,8 @@ export function transitionExercisePracticeState(state, change, catalogs) {
             if (!hasChoice(catalogs.scales, next.pattern)) next.pattern = first(catalogs.scales, "scale");
         } else if (targetFamily(type)) {
             delete next.pattern; delete next.progression;
-            if (!hasChoice(catalogs.chords, next.quality)) next.quality = hasChoice(catalogs.chords, "major") ? "major" : first(catalogs.chords, "chord");
+            const choices = exerciseChoicesForFamily(catalogs, type);
+            if (!hasChoice(choices, next.quality)) next.quality = hasChoice(choices, "major") ? "major" : first(choices, "target-compatible chord");
             const targets = exerciseTargetChoices(catalogs, next.quality);
             next.target = hasChoice(targets, next.target) ? next.target : (hasChoice(targets, "root") ? "root" : first(targets, "target"));
             if (type === "approach-note") {
@@ -107,7 +112,7 @@ export function transitionExercisePracticeState(state, change, catalogs) {
         }
     }
     if (targetFamily(next.type) && change.quality !== undefined) {
-        if (!hasChoice(catalogs.chords, next.quality)) throw new Error(`Chord quality "${String(next.quality)}" is unavailable.`);
+        if (!hasChoice(exerciseChoicesForFamily(catalogs, next.type), next.quality)) exerciseTargetChoices(catalogs, next.quality);
         const targets = exerciseTargetChoices(catalogs, next.quality);
         if (!hasChoice(targets, next.target)) next.target = hasChoice(targets, "root") ? "root" : first(targets, "target");
     }
