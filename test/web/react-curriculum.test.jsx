@@ -79,7 +79,7 @@ it("scopes duplicate lesson IDs to the selected unit and normalizes lesson state
         expect(first.value).toBe(JSON.stringify(["unit-a", "lesson-1"]));
         await user.selectOptions(screen.getByLabelText(/^Unit scope/), "unit-b");
         const second = await screen.findByLabelText("Lesson scope for Unit 2");
-        expect(second.value).toBe("");
+        expect(second.value).toBe(JSON.stringify(["unit-b", "lesson-1"]));
         expect(screen.getByRole("option", { name: "Shared lesson (Unit 2)" }).value).toBe(JSON.stringify(["unit-b", "lesson-1"]));
     } finally { view.unmount(); await runtime.dispose(); }
 });
@@ -188,5 +188,108 @@ it("preserves the prior stale success when generation fails in the new mode", as
         expect((await screen.findByRole("alert")).textContent).toContain("curriculum generation failed");
         expect(screen.getAllByRole("heading", { name: "Melodic minor scales" }).length).toBeGreaterThan(0);
         expect(screen.getByText(/Draft changed/)).toBeTruthy();
+    } finally { view.unmount(); await runtime.dispose(); }
+});
+
+it("normalizes curriculum scope when filters exclude the selection or produce no matches", async () => {
+    const runtime = await createWebApplication(), user = userEvent.setup();
+    const run = vi.fn(request => runtime.exerciseSetApplication.run(request));
+    const view = render(<CurriculumBrowser engine={runtime.curriculumEngine} application={{run}} catalogs={runtime.catalogs}/>);
+    try {
+        await user.click(screen.getByRole("tab", { name: "Curricula" }));
+        await user.selectOptions(screen.getByLabelText("Curriculum"), "core.curriculum.builtins:beginner-fundamentals");
+        await user.selectOptions(screen.getByLabelText("Lesson scope for Foundations"), JSON.stringify(["foundations","triads"]));
+        await user.click(screen.getByRole("button", { name: "Expand Curriculum" }));
+        expect(await screen.findByText("Curriculum worksheet ready.")).toBeTruthy();
+
+        await user.selectOptions(screen.getByLabelText("Difficulty"), "intermediate");
+        expect(screen.getByLabelText("Curriculum").value).toBe("core.curriculum.builtins:intermediate-harmony");
+        expect(screen.getByLabelText(/^Unit scope/).value).toBe("seventh-harmony");
+        expect(screen.getByLabelText("Lesson scope for Seventh harmony").value).toBe(JSON.stringify(["seventh-harmony","thirds-and-sevenths"]));
+        expect(screen.getByText(/Draft changed/)).toBeTruthy();
+        await user.click(screen.getByRole("button", { name: "Expand Curriculum" }));
+        expect(await screen.findByText("Curriculum worksheet ready.")).toBeTruthy();
+        expect(run).toHaveBeenCalledTimes(2);
+
+        await user.selectOptions(screen.getByLabelText("Skill or tag"), "harmony");
+        expect(screen.queryByText(/Draft changed/)).toBeNull();
+        await user.selectOptions(screen.getByLabelText("Difficulty"), "beginner");
+        expect(screen.getByText("No curricula match these filters.")).toBeTruthy();
+        expect(screen.getByRole("button", { name: "Expand Curriculum" }).disabled).toBe(true);
+        expect(screen.getByText(/Draft changed/)).toBeTruthy();
+
+        await user.selectOptions(screen.getByLabelText("Skill or tag"), "all");
+        expect(screen.getByLabelText("Curriculum").value).toBe("core.curriculum.builtins:beginner-fundamentals");
+        expect(screen.getByLabelText(/^Unit scope/).value).toBe("foundations");
+        expect(screen.getByLabelText("Lesson scope for Foundations").value).toBe(JSON.stringify(["foundations","major-scales"]));
+    } finally { view.unmount(); await runtime.dispose(); }
+});
+
+it("invalidates pending curriculum completion when filtering changes effective selection", async () => {
+    const runtime = await createWebApplication(), user = userEvent.setup();
+    let resolvePending;
+    const pending = new Promise(resolve => { resolvePending = resolve; });
+    const completed = runtime.exerciseSetApplication.run(runtime.curriculumEngine.expandCurriculum({curriculumId:"advanced-language",unitId:"chromatic-language",lessonId:"targets"}).exerciseSetRequest);
+    const application = { run:vi.fn(() => pending) };
+    const view = render(<CurriculumBrowser engine={runtime.curriculumEngine} application={application} catalogs={runtime.catalogs}/>);
+    try {
+        await user.click(screen.getByRole("tab", { name: "Curricula" }));
+        await user.click(screen.getByRole("button", { name: "Expand Curriculum" }));
+        await waitFor(() => expect(application.run).toHaveBeenCalledTimes(1));
+        await user.selectOptions(screen.getByLabelText("Difficulty"), "beginner");
+        await act(async () => { resolvePending(completed); await pending; });
+        expect(screen.queryByRole("heading", { name: "Approaches and enclosures" })).toBeNull();
+        expect(screen.getByLabelText("Curriculum").value).toBe("core.curriculum.builtins:beginner-fundamentals");
+        expect(screen.getByText("Create and generate a worksheet to see it here.")).toBeTruthy();
+    } finally { view.unmount(); await runtime.dispose(); }
+});
+
+it("normalizes template parameters when filters change the effective template", async () => {
+    const runtime = await createWebApplication(), user = userEvent.setup();
+    const view = render(<CurriculumBrowser engine={runtime.curriculumEngine} application={runtime.exerciseSetApplication} catalogs={runtime.catalogs}/>);
+    try {
+        await user.selectOptions(screen.getByLabelText("Template"), "core.curriculum.builtins:melodic-minor-scales");
+        await user.selectOptions(screen.getByLabelText("Direction"), "descending");
+        await user.selectOptions(screen.getByLabelText("Difficulty"), "beginner");
+        expect(screen.getByLabelText("Template").value).toBe("core.curriculum.builtins:major-scales-canonical");
+        expect(screen.getByLabelText("Direction").value).toBe("ascending");
+        await user.selectOptions(screen.getByLabelText("Family"), "approach-note");
+        expect(screen.getByText("No templates match these filters.")).toBeTruthy();
+        expect(screen.getByRole("button", { name: "Expand Template" }).disabled).toBe(true);
+    } finally { view.unmount(); await runtime.dispose(); }
+});
+
+it("invalidates pending completion when curriculum filters enter a no-match state", async () => {
+    const runtime = await createWebApplication(), user = userEvent.setup();
+    let resolvePending;
+    const pending = new Promise(resolve => { resolvePending = resolve; });
+    const completed = runtime.exerciseSetApplication.run(runtime.curriculumEngine.expandCurriculum({curriculumId:"advanced-language",unitId:"chromatic-language",lessonId:"targets"}).exerciseSetRequest);
+    const application = { run:vi.fn(() => pending) };
+    const view = render(<CurriculumBrowser engine={runtime.curriculumEngine} application={application} catalogs={runtime.catalogs}/>);
+    try {
+        await user.click(screen.getByRole("tab", { name: "Curricula" }));
+        await user.click(screen.getByRole("button", { name: "Expand Curriculum" }));
+        await waitFor(() => expect(application.run).toHaveBeenCalledTimes(1));
+        await user.selectOptions(screen.getByLabelText("Difficulty"), "advanced");
+        await user.selectOptions(screen.getByLabelText("Skill or tag"), "fundamentals");
+        expect(screen.getByText("No curricula match these filters.")).toBeTruthy();
+        await act(async () => { resolvePending(completed); await pending; });
+        expect(screen.queryByRole("heading", { name: "Approaches and enclosures" })).toBeNull();
+        expect(screen.getByRole("button", { name: "Expand Curriculum" }).disabled).toBe(true);
+    } finally { view.unmount(); await runtime.dispose(); }
+});
+
+it("normalizes safely when an active catalog replacement removes the selection", async () => {
+    const runtime = await createWebApplication(), user = userEvent.setup();
+    const view = render(<CurriculumBrowser engine={runtime.curriculumEngine} application={runtime.exerciseSetApplication} catalogs={runtime.catalogs}/>);
+    try {
+        await user.click(screen.getByRole("tab", { name: "Curricula" }));
+        expect(screen.getByLabelText("Curriculum").value).toBe("core.curriculum.builtins:advanced-language");
+        const beginner = runtime.catalogs.curricula.find(value => value.id === "beginner-fundamentals");
+        const replacement = Object.freeze({...runtime.catalogs,curricula:Object.freeze([beginner])});
+        view.rerender(<CurriculumBrowser engine={runtime.curriculumEngine} application={runtime.exerciseSetApplication} catalogs={replacement}/>);
+        await waitFor(() => expect(screen.getByLabelText("Curriculum").value).toBe("core.curriculum.builtins:beginner-fundamentals"));
+        expect(screen.getByLabelText(/^Unit scope/).value).toBe("foundations");
+        expect(screen.getByLabelText("Lesson scope for Foundations").value).toBe(JSON.stringify(["foundations","major-scales"]));
     } finally { view.unmount(); await runtime.dispose(); }
 });
