@@ -5,7 +5,7 @@ import { ValidationError } from "../../Foundation/index.js";
 import { RendererStrategy } from "./RendererStrategy.js";
 import { metadataText, xmlAttribute, xmlText } from "./svg.js";
 import {
-    ENGRAVING, accidentalGlyph, clefGlyph, durationStyle, expectedKeyAccidentals,
+    ENGRAVING, accidentalGlyph, clefGlyph, durationRatioGlyph, durationStyle, expectedKeyAccidentals,
     keySignatureGlyph, ledgerLines, notehead, parseWrittenPitch, pitchY, restGlyph,
     stemAndFlags, timeSignatureGlyph
 } from "./engraving.js";
@@ -71,7 +71,7 @@ function renderPitchedEvent(event, placement, clef, staffTop, voiceIndex, polyph
     const dotX = placement.x + ENGRAVING.noteRx + 7 + Math.max(0, ...offsets.values());
     const pitchData = pitches.map(String).join(" ");
     const pitchAttribute = String(event.type) === "note" ? ` data-pitch="${xmlAttribute(event.pitch)}"` : "";
-    return `<g class="event ${event.type}" data-node-id="${xmlAttribute(event.id)}" data-order="${placement.order}" role="img" aria-label="${xmlAttribute(semanticEvent(event))}" data-x="${placement.x}" data-offset="${event.offset}" data-duration="${xmlAttribute(event.duration)}"${pitchAttribute} data-pitches="${xmlAttribute(pitchData)}" data-visible-pitch-labels="false"${metadataAttribute(event)}>${accidentals}${heads}${stemAndFlags(stemX, stemY, direction, style)}${augmentationDot(dotX, ys[0], style)}</g>`;
+    return `<g class="event ${event.type}" data-node-id="${xmlAttribute(event.id)}" data-order="${placement.order}" role="img" aria-label="${xmlAttribute(semanticEvent(event))}" data-x="${placement.x}" data-offset="${event.offset}" data-duration="${xmlAttribute(event.duration)}"${pitchAttribute} data-pitches="${xmlAttribute(pitchData)}" data-visible-pitch-labels="false"${metadataAttribute(event)}>${accidentals}${heads}${stemAndFlags(stemX, stemY, direction, style)}${augmentationDot(dotX, ys[0], style)}${durationRatioGlyph(placement.x, Math.min(...ys)-52, style)}</g>`;
 }
 function renderRest(event, placement, staffTop) {
     return `<g class="event rest" data-node-id="${xmlAttribute(event.id)}" data-order="${placement.order}" role="img" aria-label="${xmlAttribute(semanticEvent(event))}" data-x="${placement.x}" data-width="${placement.width}" data-offset="${event.offset}" data-duration="${xmlAttribute(event.duration)}"${metadataAttribute(event)}>${restGlyph(placement.x, staffTop, event.duration)}</g>`;

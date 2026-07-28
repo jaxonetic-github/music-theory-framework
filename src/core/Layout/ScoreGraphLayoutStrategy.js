@@ -35,7 +35,8 @@ function eventWidth(event, profile) {
     const style = engravingDurationStyle(event.duration);
     const rhythmicWidth = style.flags ? profile.flagWidth : 0;
     const dotWidth = style.dotCount * profile.augmentationDotWidth;
-    if (String(event.type) === "rest") return profile.restWidth + rhythmicWidth + dotWidth;
+    const ratioWidth = style.ratio ? 10 + String(style.ratio.denominator).length * 7 : 0;
+    if (String(event.type) === "rest") return profile.restWidth + rhythmicWidth + dotWidth + ratioWidth;
     const pitches = [...(String(event.type) === "chord" ? event.notes : [event.pitch])].sort((a, b) => {
         const letters = "CDEFGAB", parse = value => {
             const match = /^([A-G])(?:#{1,2}|b{1,2}|x)?(-?\d+)$/.exec(String(value));
@@ -48,7 +49,7 @@ function eventWidth(event, profile) {
         const letters = "CDEFGAB", previous = String(pitches[index]), current = String(pitch);
         return Math.abs(letters.indexOf(current[0]) - letters.indexOf(previous[0])) === 1;
     }).length;
-    return profile.noteheadWidth + profile.stemWidth + rhythmicWidth + dotWidth + accidentals * profile.accidentalWidth + seconds * profile.noteheadWidth * .55;
+    return profile.noteheadWidth + profile.stemWidth + rhythmicWidth + dotWidth + ratioWidth + accidentals * profile.accidentalWidth + seconds * profile.noteheadWidth * .55;
 }
 function eventExtents(event, profile) {
     const width = eventWidth(event, profile);

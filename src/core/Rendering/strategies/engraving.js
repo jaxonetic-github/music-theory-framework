@@ -118,6 +118,22 @@ export function stemAndFlags(x, y, direction, style) {
     return result;
 }
 
+export function durationRatioGlyph(x, y, style) {
+    if (!style.ratio) return "";
+    const segments = Object.freeze({
+        0: "ab cdef".replace(" ", ""), 1: "bc", 2: "abdeg", 3: "abcdg", 4: "bcfg",
+        5: "acdfg", 6: "acdefg", 7: "abc", 8: "abcdefg", 9: "abcdfg"
+    });
+    const paths = Object.freeze({
+        a: "M1 0h6", b: "M8 1v5", c: "M8 8v5", d: "M1 14h6",
+        e: "M0 8v5", f: "M0 1v5", g: "M1 7h6"
+    });
+    const digits = String(style.ratio.denominator), start = x - digits.length * 5;
+    const number = [...digits].map((digit, index) =>
+        [...segments[digit]].map(segment => `<path d="${paths[segment]}" transform="translate(${start + index * 11} ${y})"/>`).join("")).join("");
+    return `<g class="duration-ratio" role="img" aria-label="${style.ratio.numerator} to ${style.ratio.denominator} exact duration ratio" data-duration-ratio="${style.ratio.numerator}:${style.ratio.denominator}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path class="duration-ratio-bracket" d="M${x-12} ${y+18}v3h24v-3"/>${number}</g>`;
+}
+
 export function restGlyph(x, staffTop, duration) {
     const style = durationStyle(duration), middle = staffTop + 24;
     let glyph;
@@ -135,7 +151,7 @@ export function restGlyph(x, staffTop, duration) {
     const dotX = x + 13;
     const dots = Array.from({ length: style.dotCount }, (_, index) =>
         `<circle class="rest-augmentation-dot" data-dot="${index+1}" cx="${dotX + index * 7}" cy="${middle-3}" r="2.1" fill="currentColor"/>`).join("");
-    return `<g class="rest rest-${style.kind}" data-rest-kind="${style.kind}" data-rest-flags="${style.flags}" data-rest-dots="${style.dotCount}">${glyph}${dots}</g>`;
+    return `<g class="rest rest-${style.kind}" data-rest-kind="${style.kind}" data-rest-flags="${style.flags}" data-rest-dots="${style.dotCount}">${glyph}${dots}${durationRatioGlyph(x, staffTop-24, style)}</g>`;
 }
 
 export function expectedKeyAccidentals(key) {

@@ -201,7 +201,7 @@ test("rests render exact base values, hooks, dots, bounds, and accessible durati
     assert.doesNotMatch(svg, />rest</);
 });
 
-test("duration classification is exact, normalized, immutable, and rejects unsupported rationals", () => {
+test("duration classification is exact, normalized, immutable, and supports arbitrary valid rationals", () => {
     const normalized = graph({ measures: [[new RestNode({ id: "normalized", duration: duration(2, 8), offset: 0 })]] });
     const canonical = graph({ measures: [[new RestNode({ id: "normalized", duration: duration(1, 4), offset: 0 })]] });
     assert.equal(render(normalized), render(canonical));
@@ -218,9 +218,18 @@ test("duration classification is exact, normalized, immutable, and rejects unsup
     ]], reverse: true });
     assert.equal(render(responsive, { width: 260 }), render(reversed, { width: 260 }));
     assert.equal(render(responsive, { width: 260 }), render(responsive, { width: 260 }));
-    const sourceDuration = duration(1, 3);
-    const unsupported = graph({ measures: [[new RestNode({ id: "unsupported", duration: sourceDuration, offset: 0 })]] });
-    assert.throws(() => render(unsupported), /Unsupported engraving duration "1\/3"/);
+    const sourceDuration = duration(1, 3), nonBinary = graph({ measures: [[
+        new RestNode({ id: "triplet-half-rest", duration: sourceDuration, offset: 0 }),
+        new NoteNode({ id: "triplet-eighth", pitch: "D4", duration: duration(1, 12), offset: 1 }),
+        new RestNode({ id: "rest-128th", duration: duration(1, 128), offset: 2 })
+    ]] });
+    const nonBinaryPlan = layout(nonBinary), nonBinarySvg = render(nonBinary, { layoutPlan: nonBinaryPlan });
+    assert.match(group(nonBinarySvg, "triplet-half-rest"), /rest-half/);
+    assert.match(group(nonBinarySvg, "triplet-half-rest"), /data-duration-ratio="2:3"/);
+    assert.match(group(nonBinarySvg, "triplet-eighth"), /class="flag/);
+    assert.match(group(nonBinarySvg, "triplet-eighth"), /data-duration-ratio="2:3"/);
+    assert.equal((group(nonBinarySvg, "rest-128th").match(/class="rest-hook"/g) ?? []).length, 5);
+    assert.ok(nonBinaryPlan.systems[0].measures[0].eventPlacements.every(value => value.width > 0));
     assert.deepEqual(sourceDuration, { numerator: 1, denominator: 3 });
 });
 
