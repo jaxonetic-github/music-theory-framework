@@ -1,6 +1,7 @@
 import { ScoreGraph } from "../../Notation/index.js";
 import { LayoutPlan, LayoutEngine, LayoutStrategyRegistry, ScoreGraphLayoutStrategy } from "../../Layout/index.js";
 import { engravingHeader, keySignatureTransition } from "../../Layout/engravingHeaders.js";
+import { chordHeadGeometry } from "../../Layout/chordGeometry.js";
 import { ValidationError } from "../../Foundation/index.js";
 import { RendererStrategy } from "./RendererStrategy.js";
 import { metadataText, xmlAttribute, xmlText } from "./svg.js";
@@ -51,27 +52,25 @@ function renderPitchedEvent(event, placement, clef, staffTop, voiceIndex, polyph
     const parsed = pitches.map(parseWrittenPitch);
     const ys = pitches.map(pitch => pitchY(pitch, clef, staffTop));
     const style = durationStyle(event.duration), direction = directionFor(ys, staffTop, voiceIndex, polyphonic);
-    const sorted = parsed.map((pitch, index) => ({ pitch, y: ys[index], index })).sort((a, b) => a.y - b.y);
-    const offsets = new Map();
-    for (let index = 1; index < sorted.length; index += 1) {
-        if (Math.abs(sorted[index].y - sorted[index - 1].y) <= ENGRAVING.halfGap + .1) {
-            offsets.set(sorted[index].index, direction === "up" ? -9 : 9);
-        }
-    }
-    let accidentalColumn = 0;
+    const geometry = chordHeadGeometry(pitches, direction), offsets = geometry.offsets;
+    const accidentalEntries = geometry.sorted.filter(({ index }) => needed[index]);
+    const accidentalColumns = new Map(accidentalEntries.map(({ index }, column) => [index, column]));
     const accidentals = needed.map((kind, index) => {
         if (!kind) return "";
-        const value = accidentalGlyph(kind, placement.x - 15 - accidentalColumn * ENGRAVING.accidentalGap, ys[index]);
-        accidentalColumn += 1;
-        return value;
+        return accidentalGlyph(kind, placement.x + offsets[index] - 15
+            - accidentalColumns.get(index) * ENGRAVING.accidentalGap, ys[index]);
     }).join("");
-    const heads = ys.map((y, index) => `${ledgerLines(placement.x + (offsets.get(index) ?? 0), y, staffTop)}${notehead(placement.x, y, style.open, offsets.get(index) ?? 0)}`).join("");
+    const heads = ys.map((y, index) => {
+        const center = placement.x + offsets[index];
+        return `<g class="chord-member" data-written-position="${parsed[index].diatonic}" data-head-offset="${offsets[index]}">${ledgerLines(center, y, staffTop)}${notehead(placement.x, y, style.open, offsets[index])}</g>`;
+    }).join("");
     const stemY = direction === "up" ? Math.max(...ys) : Math.min(...ys);
-    const stemX = placement.x + (direction === "up" ? Math.max(0, ...offsets.values()) : Math.min(0, ...offsets.values()));
-    const dotX = placement.x + ENGRAVING.noteRx + 7 + Math.max(0, ...offsets.values());
+    const stemX = placement.x + (direction === "up" ? Math.max(...offsets) : Math.min(...offsets));
+    const dots = ys.map((y, index) =>
+        augmentationDot(placement.x + offsets[index] + ENGRAVING.noteRx + 7, y, style)).join("");
     const pitchData = pitches.map(String).join(" ");
     const pitchAttribute = String(event.type) === "note" ? ` data-pitch="${xmlAttribute(event.pitch)}"` : "";
-    return `<g class="event ${event.type}" data-node-id="${xmlAttribute(event.id)}" data-order="${placement.order}" role="img" aria-label="${xmlAttribute(semanticEvent(event))}" data-x="${placement.x}" data-offset="${event.offset}" data-duration="${xmlAttribute(event.duration)}"${pitchAttribute} data-pitches="${xmlAttribute(pitchData)}" data-visible-pitch-labels="false"${metadataAttribute(event)}>${accidentals}${heads}${stemAndFlags(stemX, stemY, direction, style)}${augmentationDot(dotX, ys[0], style)}${durationRatioGlyph(placement.x, Math.min(...ys)-52, style)}</g>`;
+    return `<g class="event ${event.type}" data-node-id="${xmlAttribute(event.id)}" data-order="${placement.order}" role="img" aria-label="${xmlAttribute(semanticEvent(event))}" data-x="${placement.x}" data-offset="${event.offset}" data-duration="${xmlAttribute(event.duration)}"${pitchAttribute} data-pitches="${xmlAttribute(pitchData)}" data-visible-pitch-labels="false"${metadataAttribute(event)}>${accidentals}${heads}${stemAndFlags(stemX, stemY, direction, style)}${dots}${durationRatioGlyph(placement.x, Math.min(...ys)-52, style)}</g>`;
 }
 function renderRest(event, placement, staffTop) {
     return `<g class="event rest" data-node-id="${xmlAttribute(event.id)}" data-order="${placement.order}" role="img" aria-label="${xmlAttribute(semanticEvent(event))}" data-x="${placement.x}" data-width="${placement.width}" data-offset="${event.offset}" data-duration="${xmlAttribute(event.duration)}"${metadataAttribute(event)}>${restGlyph(placement.x, staffTop, event.duration)}</g>`;

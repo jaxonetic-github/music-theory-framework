@@ -72,6 +72,11 @@ function group(svg, id) {
 function eventAttribute(svg, id, name) {
     return new RegExp(`${name}="([^"]+)"`).exec(group(svg, id))?.[1];
 }
+function chordOffsets(svg, id) {
+    return Object.fromEntries([...group(svg, id).matchAll(
+        /data-written-position="(-?\d+)" data-head-offset="(-?\d+)"/g
+    )].map(match => [Number(match[1]), Number(match[2])]));
+}
 function precedenceGraph(events, nextPairs, reverse = false) {
     const root = new ScoreRootNode({ id: "precedence-score", title: "Precedence fixture" });
     const part = new PartNode({ id: "precedence-part", name: "Piano", clef: new Clef("treble") });
@@ -265,6 +270,59 @@ test("triads and accidental-heavy sevenths share rhythmic x with readable heads 
     }
     const accidentalXs = [...group(svg, "seventh").matchAll(/class="accidental [^"]+"[^>]*d="M(-?\d+(?:\.\d+)?)/g)].map(match => Number(match[1]));
     assert.equal(new Set(accidentalXs).size, accidentalXs.length);
+});
+
+test("consecutive-second chord chains alternate head sides by written staff position", () => {
+    const cases = [
+        ["seconds-2", ["C4", "D4"], { 28: 0, 29: -9 }],
+        ["seconds-3", ["C4", "D4", "E4"], { 28: 0, 29: -9, 30: 0 }],
+        ["seconds-4", ["C4", "D4", "E4", "F4"], { 28: 0, 29: -9, 30: 0, 31: -9 }],
+        ["seconds-separated", ["C4", "D4", "E4", "G4"], { 28: 0, 29: -9, 30: 0, 32: 0 }],
+        ["seconds-two-chains", ["C4", "D4", "F4", "G4"], { 28: 0, 29: -9, 31: 0, 32: -9 }],
+        ["seconds-cross-octave", ["B4", "C5", "D5"], { 34: 0, 35: 9, 36: 0 }],
+        ["seconds-spelled", ["Cb4", "Db4", "Eb4"], { 28: 0, 29: -9, 30: 0 }],
+        ["enharmonic-not-adjacent", ["C#4", "Ebb4"], { 28: 0, 30: 0 }]
+    ];
+    for (const [id, notes, expected] of cases) {
+        const chord = new ChordNode({ id, notes, duration: duration(1, 4), offset: 0 });
+        assert.deepEqual(chordOffsets(render(graph({ measures: [[chord]] })), id), expected);
+    }
+});
+
+test("chord displacement is member-order invariant, mirrors with stem direction, and preserves stems", () => {
+    const up = new ChordNode({ id: "chain-up", notes: ["C4", "D4", "E4", "F4"], duration: duration(1, 8), offset: 0 });
+    const reversed = new ChordNode({ id: "chain-up", notes: ["F4", "E4", "D4", "C4"], duration: duration(1, 8), offset: 0 });
+    const down = new ChordNode({ id: "chain-down", notes: ["C5", "D5", "E5", "F5"], duration: duration(3, 8), offset: 0 });
+    const upScore = graph({ measures: [[up]] }), before = JSON.stringify(upScore);
+    const upSvg = render(upScore), reversedSvg = render(graph({ measures: [[reversed]], reverse: true }));
+    assert.deepEqual(chordOffsets(upSvg, "chain-up"), chordOffsets(reversedSvg, "chain-up"));
+    assert.deepEqual(chordOffsets(upSvg, "chain-up"), { 28: 0, 29: -9, 30: 0, 31: -9 });
+    const downSvg = render(graph({ measures: [[down]] }));
+    assert.deepEqual(chordOffsets(downSvg, "chain-down"), { 35: 0, 36: 9, 37: 0, 38: 9 });
+    assert.match(group(upSvg, "chain-up"), /class="stem stem-up" x1="[^"]+" x2="[^"]+"/);
+    assert.match(group(upSvg, "chain-up"), /class="flag flag-up"/);
+    assert.match(group(downSvg, "chain-down"), /class="stem stem-down"/);
+    assert.equal((group(downSvg, "chain-down").match(/class="augmentation-dot"/g) ?? []).length, 4);
+    assert.equal(JSON.stringify(upScore), before);
+});
+
+test("accidental, ledger-line, duration, and Layout bounds contain alternating chord heads", () => {
+    const values = [
+        new ChordNode({ id: "chain-accidentals", notes: ["C##4", "Db4", "E#4", "Fb4"], duration: duration(1, 2), offset: 0 }),
+        new ChordNode({ id: "chain-ledgers", notes: ["A5", "B5", "C6", "D6"], duration: duration(1, 4), offset: 1 }),
+        new ChordNode({ id: "chain-dotted", notes: ["Cb4", "Db4", "Eb4"], duration: duration(3, 8), offset: 2 })
+    ];
+    const score = graph({ measures: [values] }), plan = layout(score), svg = render(score, { layoutPlan: plan });
+    const accidental = group(svg, "chain-accidentals"), ledgers = group(svg, "chain-ledgers"), dotted = group(svg, "chain-dotted");
+    assert.equal((accidental.match(/class="accidental /g) ?? []).length, 4);
+    assert.ok(new Set([...accidental.matchAll(/data-head-offset="(-?\d+)"/g)].map(match => match[1])).size > 1);
+    assert.ok((ledgers.match(/class="ledger-line"/g) ?? []).length >= 4);
+    assert.equal((dotted.match(/class="augmentation-dot"/g) ?? []).length, 3);
+    for (const placement of plan.placements) {
+        assert.ok(placement.width >= 18 + 18);
+        assert.ok(placement.x - 9 >= plan.systems[0].measures[0].x);
+        assert.ok(placement.x + 9 < plan.systems[0].measures[0].x + plan.systems[0].measures[0].width);
+    }
 });
 
 test("key, meter, continuous measures, wrapping, parts, and deterministic reversal remain structural", () => {

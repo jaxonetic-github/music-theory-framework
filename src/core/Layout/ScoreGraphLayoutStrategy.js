@@ -4,6 +4,7 @@ import { LayoutStrategy } from "./LayoutStrategy.js";
 import { LayoutBounds, LayoutEventPlacement, LayoutMeasure, LayoutMetadata, LayoutPlan, LayoutSystem } from "./values.js";
 import { engravingHeader } from "./engravingHeaders.js";
 import { engravingDurationStyle } from "./engravingDuration.js";
+import { chordHeadDisplacement, chordHeadGeometry } from "./chordGeometry.js";
 
 const eventTypes = new Set(["note", "rest", "chord"]);
 function children(score, parent, type) {
@@ -45,16 +46,15 @@ function eventWidth(event, profile) {
         return parse(a) - parse(b) || String(a).localeCompare(String(b));
     });
     const accidentals = pitches.length;
-    const seconds = pitches.slice(1).filter((pitch, index) => {
-        const letters = "CDEFGAB", previous = String(pitches[index]), current = String(pitch);
-        return Math.abs(letters.indexOf(current[0]) - letters.indexOf(previous[0])) === 1;
-    }).length;
-    return profile.noteheadWidth + profile.stemWidth + rhythmicWidth + dotWidth + ratioWidth + accidentals * profile.accidentalWidth + seconds * profile.noteheadWidth * .55;
+    const displaced = String(event.type) === "chord" && chordHeadGeometry(pitches).hasAdjacentSecond;
+    return profile.noteheadWidth + profile.stemWidth + rhythmicWidth + dotWidth + ratioWidth
+        + accidentals * profile.accidentalWidth + (displaced ? chordHeadDisplacement * 2 : 0);
 }
 function eventExtents(event, profile) {
     const width = eventWidth(event, profile);
+    const displaced = String(event.type) === "chord" && chordHeadGeometry([...event.notes]).hasAdjacentSecond;
     const left = String(event.type) === "chord"
-        ? event.notes.length * profile.accidentalWidth
+        ? event.notes.length * profile.accidentalWidth + (displaced ? chordHeadDisplacement : 0)
         : String(event.type) === "note" ? profile.accidentalWidth : 0;
     return Object.freeze({ left, right: width - left, width });
 }
