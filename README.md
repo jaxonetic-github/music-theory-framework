@@ -22,6 +22,7 @@ An immutable, plugin-scoped music theory framework with generation, first-class 
 - v8.7 Embeddable Web Package and Next.js App Router integration
 - v8.8 Responsive Engraving and Exercise Layout with deterministic, width-explicit visual systems
 - v8.9 Exercise Templates and Curriculum Core with deterministic ExerciseSet expansion
+- v9.0 Worksheet Publishing and Document Export
 
 Playback Planning produces immutable tick plans only. React passes generated scores to the planning engine, loads returned plans into Transport, and issues explicit user commands. Web Audio alone converts ticks and schedules sound. Core remains browser-free. Pause, seek, looping, score-following, and Web MIDI remain excluded.
 
@@ -40,6 +41,8 @@ The v8.7 package exposes a self-providing `MusicTheoryApp`, a `"use client"` `Mu
 Layout v8.8 plans immutable visual systems from the same authoritative `ScoreGraph` at an explicit width. Screen compact, screen regular, and print worksheet profiles use fixed framework units and glyph metrics; they never read the DOM or reinterpret offsets as musical time. The SVG renderer consumes the resulting plan, while a Web-only `ResizeObserver` adapter can request layout/render refreshes without regenerating exercise music. See [`src/core/Layout/README.md`](src/core/Layout/README.md).
 
 Curriculum v8.9 adds plugin-scoped immutable template and curriculum catalogs. The browser-free expansion engine validates configurable parameters, fixed constraints, active Theory/Exercise catalog references, difficulty, prerequisites, and deterministic ordering, then produces an ordinary `ExerciseSetRequest`. React only browses and edits draft intent; `ExerciseSetApplication` remains authoritative and the existing trusted conventional SVG workflow renders the worksheet. See [`src/core/Curriculum/README.md`](src/core/Curriculum/README.md) and [`src/web/curriculum/README.md`](src/web/curriculum/README.md).
+
+Publishing v9.0 plans immutable pages from completed ExerciseSet and Curriculum results using exact hundredths-of-a-point geometry. It emits self-contained print HTML, one accessible vector SVG asset per page, and a deterministic dependency-free PDF adapter without regenerating music or measuring the DOM. The Web adapter previews Core pages and owns print/download cleanup only. See [`src/core/Publishing/README.md`](src/core/Publishing/README.md) and [`src/web/publishing/README.md`](src/web/publishing/README.md).
 
 ## Development
 
@@ -60,4 +63,4 @@ git diff --check
 
 The production build is emitted to `dist/`. See [`src/web/README.md`](src/web/README.md) for the adapter architecture, trusted SVG boundary, and MusicXML download behavior.
 
-The v8.9 repository suite contains **417 passing tests**: 349 plain-Node tests and 68 React DOM tests. `npm ci` installs 154 packages and audits 155; `npm audit` reports **0 vulnerabilities**. The production Vite build transforms **344 modules** and emits 580.48 kB JavaScript (155.48 kB gzip). The Next.js 15.5.22 fixture compiles and statically prerenders successfully; its app route is 97.6 kB with 200 kB first-load JavaScript.
+The v9.0 repository suite contains **432 passing tests**: 359 plain-Node tests and 73 React DOM tests. `npm ci` installs 154 packages and audits 155; `npm audit` reports **0 vulnerabilities**. The production Vite build transforms **362 modules** and emits 616.81 kB JavaScript (166.62 kB gzip), a 36.33 kB / 11.14 kB gzip increase over v8.9. The Next.js 15.5.22 fixture compiles and statically prerenders successfully; its app route is 109 kB with 211 kB first-load JavaScript.

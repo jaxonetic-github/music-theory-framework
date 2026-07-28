@@ -4,6 +4,7 @@ export { RenderingEngine } from "./RenderingEngine.js";
 export { RenderingModule } from "./RenderingModule.js";
 export { renderingServiceDescriptors, renderingRendererDescriptors, defaultRenderingPluginDescriptor } from "./descriptors.js";
 export { renderingPackageDescriptor } from "./package.descriptor.js";
+export { validateTrustedSvgContent } from "./trustedSvg.js";
 
 import * as strategies from "./strategies/index.js";
 import { RendererStrategyRegistry } from "./RendererStrategyRegistry.js";

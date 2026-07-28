@@ -293,8 +293,8 @@ function ReadyApplication({ runtime, accessibilityIdPrefix }) {
                 </section>
             </div>
             <ExercisePracticePanel engine={runtime.exerciseApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} accessibilityIdPrefix={accessibilityIdPrefix ? `${accessibilityIdPrefix}-practice` : undefined} />
-            <ExerciseSetPanel application={runtime.exerciseSetApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} accessibilityIdPrefix={accessibilityIdPrefix ? `${accessibilityIdPrefix}-worksheet` : undefined} />
-            {runtime.curriculumEngine && <CurriculumBrowser engine={runtime.curriculumEngine} application={runtime.exerciseSetApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} accessibilityIdPrefix={accessibilityIdPrefix ? `${accessibilityIdPrefix}-curriculum` : undefined} />}
+            <ExerciseSetPanel application={runtime.exerciseSetApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} publishingEngine={runtime.publishingEngine} accessibilityIdPrefix={accessibilityIdPrefix ? `${accessibilityIdPrefix}-worksheet` : undefined} />
+            {runtime.curriculumEngine && <CurriculumBrowser engine={runtime.curriculumEngine} application={runtime.exerciseSetApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} publishingEngine={runtime.publishingEngine} accessibilityIdPrefix={accessibilityIdPrefix ? `${accessibilityIdPrefix}-curriculum` : undefined} />}
         </main>
     );
 }

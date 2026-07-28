@@ -1,0 +1,14 @@
+import { boundedExerciseSetId } from "../../ExerciseSet/index.js";
+import { PublishedAsset, PublishedDocument } from "../values.js";
+import { PublishingStrategy } from "../PublishingStrategy.js";
+import { namespaceSvg, pageTitle, points, xmlAttribute, xmlText } from "./shared.js";
+function block(block,page){
+    const style=`left:${points(block.x)}pt;top:${points(block.y)}pt;width:${points(block.width)}pt;height:${points(block.height)}pt`;
+    if(block.type==="notation")return `<figure class="publication-block notation" style="${style}" data-block-id="${xmlAttribute(block.id)}">${namespaceSvg(block.svg,block.id,{width:"100%",height:"100%"})}</figure>`;
+    const tag=block.type==="title"?"h1":block.type==="section-heading"?"h2":block.type==="item-heading"?"h3":block.type==="subtitle"?"p":"div";
+    return `<${tag} class="publication-block ${xmlAttribute(block.type)}" style="${style}" data-block-id="${xmlAttribute(block.id)}">${xmlText(block.text)}</${tag}>`;
+}
+export class HtmlPublishingStrategy extends PublishingStrategy{
+    constructor({pluginId="core.publishing.builtins"}={}){super({id:"html",pluginId,format:"html",mediaType:"text/html"});}
+    publish(plan){const request=plan.request,profile=request.pageProfile,pages=plan.pages.map(page=>`<section class="publication-page" role="region" aria-label="${xmlAttribute(pageTitle(page,request.title))}" data-page="${page.number}">${page.blocks.map(value=>block(value,page)).join("")}</section>`).join("");const content=`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${xmlText(request.title)}</title><meta name="author" content="${xmlAttribute(request.author)}"><style>@page{size:${points(profile.width)}pt ${points(profile.height)}pt;margin:0}.publication-page{position:relative;box-sizing:border-box;width:${points(profile.width)}pt;height:${points(profile.height)}pt;overflow:hidden;break-after:page;background:white;color:#111}.publication-page:last-child{break-after:auto}.publication-block{position:absolute;box-sizing:border-box;margin:0}.notation svg{display:block;width:100%;height:100%}@media screen{body{margin:0;background:#ddd}.publication-page{margin:16px auto;box-shadow:0 2px 12px #777}}@media print{body{margin:0}.publication-page{margin:0;box-shadow:none}}</style></head><body><main aria-label="${xmlAttribute(request.title)}">${pages}</main></body></html>`;const asset=new PublishedAsset({id:boundedExerciseSetId({kind:"published-asset",readable:request.filenameBase,identity:{plan:plan.id,format:"html"}}),filename:`${request.filenameBase}.html`,format:"html",mediaType:"text/html",content,metadata:{pageCount:plan.pageCount}});return new PublishedDocument({id:boundedExerciseSetId({kind:"published-document",readable:request.filenameBase,identity:{plan:plan.id,format:"html"}}),plan,assets:[asset],format:"html",mediaType:"text/html",filename:asset.filename,metadata:{selfContained:true,executableScript:false}});}
+}
