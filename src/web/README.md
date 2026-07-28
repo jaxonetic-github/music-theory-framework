@@ -46,4 +46,4 @@ Exercise Worksheet consumes `exercise.set.application`, reuses the same catalog 
 
 This milestone excludes pause/resume, seeking, scrubbing, looping, tempo changes during playback, score-following, cursor animation, Web MIDI, recording, samples, effects, mixer UI, server APIs, persistence, and networking. Core imports remain React-, DOM-, browser-, AudioContext-, and MIDI-free.
 
-The v8.8 repository suite contains **382 passing tests**: 328 plain-Node tests and 54 React DOM tests. `npm audit` reports **0 vulnerabilities**. Vite transforms **331 modules** and emits 527.30 kB JavaScript (141.81 kB gzip). The Next.js 15.5.22 fixture compiles and statically prerenders successfully with an 84.1 kB app route and 186 kB first-load JavaScript.
+The v8.8 repository suite contains **387 passing tests**: 333 plain-Node tests and 54 React DOM tests. `npm audit` reports **0 vulnerabilities**. Vite transforms **331 modules** and emits 528.80 kB JavaScript (142.28 kB gzip). The Next.js 15.5.22 fixture compiles and statically prerenders successfully with an 84.5 kB app route and 187 kB first-load JavaScript.

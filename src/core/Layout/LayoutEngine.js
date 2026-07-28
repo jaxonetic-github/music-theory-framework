@@ -39,6 +39,11 @@ function validatePlan(plan, request, strategy) {
         || plan.metadata.strategy?.strategyId !== String(strategy.id)) {
         throw new ValidationError("Layout plan strategy metadata does not match the selected strategy.");
     }
+    if (String(strategy.pluginId) === "core.layout.score-graph"
+        && String(strategy.id) === "score-graph"
+        && (plan.timingMode !== "exact-onset" || plan.metadata.timingMode !== "exact-onset")) {
+        throw new ValidationError("The built-in ScoreGraph layout strategy must provide exact rhythmic onset for every placement.");
+    }
     return plan;
 }
 

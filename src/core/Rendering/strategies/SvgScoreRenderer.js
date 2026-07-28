@@ -84,15 +84,23 @@ function renderVoice(score, voice, placements, clef, staffTop, polyphonic, accid
             : renderPitchedEvent(event, placement, clef, staffTop, voice.index, polyphonic, accidentalDecisions.get(String(event.id)) ?? []);
     }).join("")}</g>`;
 }
+function legacyPlacementOrder(placements) {
+    return [...placements].sort((a,b)=>
+        a.x-b.x||a.order-b.order||String(a.eventId).localeCompare(String(b.eventId))||String(a.voiceId).localeCompare(String(b.voiceId)));
+}
 function accidentalDecisions(score, placements, key) {
     const state = new Map(), defaults = expectedKeyAccidentals(key), result = new Map();
-    const sameOnset = (a, b) => BigInt(a.onset.numerator) * BigInt(b.onset.denominator)
-        === BigInt(b.onset.numerator) * BigInt(a.onset.denominator);
-    for (let start = 0; start < placements.length;) {
+    const exact = placements[0]?.timingMode === "exact-onset";
+    const ordered = exact ? placements : legacyPlacementOrder(placements);
+    const sameBatch = exact
+        ? (a, b) => BigInt(a.onset.numerator) * BigInt(b.onset.denominator)
+            === BigInt(b.onset.numerator) * BigInt(a.onset.denominator)
+        : (a, b) => a.x === b.x;
+    for (let start = 0; start < ordered.length;) {
         let end = start + 1;
-        while (end < placements.length && sameOnset(placements[start], placements[end])) end += 1;
+        while (end < ordered.length && sameBatch(ordered[start], ordered[end])) end += 1;
         const updates = new Map();
-        for (const placement of placements.slice(start, end)) {
+        for (const placement of ordered.slice(start, end)) {
             const event = node(score, placement.eventId);
             if (String(event.type) === "rest") continue;
             const pitches = (String(event.type) === "chord" ? event.notes : [event.pitch]).map(parseWrittenPitch);
@@ -116,14 +124,16 @@ function accidentalDecisions(score, placements, key) {
 }
 function renderMeasure(score, layoutMeasure, system, index, staffTop, previousMeasure, profile) {
     const measure = node(score, layoutMeasure.id), part = node(score, system.partId), key = measure.keySignature;
+    const placements = layoutMeasure.timingMode === "exact-onset"
+        ? layoutMeasure.eventPlacements : legacyPlacementOrder(layoutMeasure.eventPlacements);
     const byVoice = new Map();
-    for (const placement of layoutMeasure.eventPlacements) {
+    for (const placement of placements) {
         const list = byVoice.get(placement.voiceId) ?? [];
         list.push(placement);
         byVoice.set(placement.voiceId, list);
     }
     const measureVoices = children(score, measure, "voice").sort((a, b) => a.index - b.index || String(a.id).localeCompare(String(b.id)));
-    const decisions = accidentalDecisions(score, layoutMeasure.eventPlacements, key);
+    const decisions = accidentalDecisions(score, placements, key);
     const voices = measureVoices
         .map(voice => renderVoice(score, voice, byVoice.get(String(voice.id)) ?? [], part.clef, staffTop, measureVoices.length > 1, decisions)).join("");
     const end = layoutMeasure.x + layoutMeasure.width;

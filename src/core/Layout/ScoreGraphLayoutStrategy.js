@@ -140,7 +140,7 @@ export class ScoreGraphLayoutStrategy extends LayoutStrategy {
                         columnX += column.left + column.right + profile.eventGap;
                     });
                     placements.sort(compareOnset);
-                    const result = new LayoutMeasure({ id: value.measure.id, number: value.measure.number, x: measureX, width, naturalWidth: width, overflow: width > contentWidth, eventPlacements: placements });
+                    const result = new LayoutMeasure({ id: value.measure.id, number: value.measure.number, x: measureX, width, naturalWidth: width, overflow: width > contentWidth, eventPlacements: placements, timingMode: "exact-onset" });
                     measureX += width;
                     return result;
                 });
@@ -165,6 +165,6 @@ export class ScoreGraphLayoutStrategy extends LayoutStrategy {
         }
         const naturalWidth = Math.max(0, ...systems.map(system => system.naturalWidth)), renderedWidth = Math.max(request.availableWidth, naturalWidth);
         const height = Math.max(1, y - request.systemSpacing + 24);
-        return new LayoutPlan({ request, score, systems, bounds: new LayoutBounds({ x: 0, y: 0, width: renderedWidth, height }), metadata: new LayoutMetadata({ profileId: profile.id, availableWidth: request.availableWidth, naturalWidth, overflow: systems.some(system => system.overflow), systemIds: systems.map(system => system.id), engravingMetrics: { staffLineSpacing: profile.staffLineSpacing, noteheadWidth: profile.noteheadWidth, accidentalWidth: profile.accidentalWidth }, strategy: { pluginId: String(this.pluginId), strategyId: String(this.id) } }) });
+        return new LayoutPlan({ request, score, systems, bounds: new LayoutBounds({ x: 0, y: 0, width: renderedWidth, height }), metadata: new LayoutMetadata({ profileId: profile.id, availableWidth: request.availableWidth, naturalWidth, overflow: systems.some(system => system.overflow), systemIds: systems.map(system => system.id), timingMode: "exact-onset", engravingMetrics: { staffLineSpacing: profile.staffLineSpacing, noteheadWidth: profile.noteheadWidth, accidentalWidth: profile.accidentalWidth }, strategy: { pluginId: String(this.pluginId), strategyId: String(this.id) } }) });
     }
 }
