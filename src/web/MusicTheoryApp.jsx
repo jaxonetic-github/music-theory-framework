@@ -5,10 +5,10 @@ function classes(className) {
     return ["music-theory-app", className].filter(Boolean).join(" ");
 }
 
-export function MusicTheoryApp({ className, runtime, runtimeFactory, runtimeOptions }) {
+export function MusicTheoryApp({ className, runtime, runtimeFactory, runtimeOptions, accessibilityIdPrefix }) {
     return <div className={classes(className)} data-music-theory-app="v8.7">
         <ApplicationProvider runtime={runtime} bootstrap={runtimeFactory} bootstrapOptions={runtimeOptions}>
-            <MusicTheoryWebApp />
+            <MusicTheoryWebApp accessibilityIdPrefix={accessibilityIdPrefix} />
         </ApplicationProvider>
     </div>;
 }
