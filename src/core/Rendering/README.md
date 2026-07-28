@@ -22,6 +22,12 @@ const svg = renderingEngine.render(scoreGraph, {
 
 Legacy requests use the frozen `screen-regular` profile and its default width. Callers may supply an explicit width/profile or an already validated `LayoutPlan`. The SVG renderer consumes plan placements directly and records profile, available width, natural width, overflow, and stable visual-system identities in output metadata; it never parses or repositions completed markup.
 
+### Engraving glyph strategy
+
+The renderer owns a deterministic set of SVG paths and geometric primitives for clefs, accidentals, noteheads, stems, flags, augmentation dots, rests, ledger lines, staff lines, and barlines. Written letter name and octave determine vertical placement relative to the active clef; MIDI is not used for staff position. Key-signature state and per-measure accidental state control visible accidentals. Chord heads share one rhythmic x position, seconds receive a fixed offset, and chords use one stem. Isolated short values receive individual flags; beaming is intentionally deferred.
+
+No third-party engraving dependency or font asset is used. The vector definitions are original project code and are distributed under this repository's existing license. This removes platform-font fallback, network loading, DOM measurement, SSR, additional bundle dependency, and third-party license concerns. SVG metadata and accessible labels preserve exact pitch spelling and rational duration while normal presentation paints no diagnostic pitch names.
+
 ## Kernel integration and descriptors
 
 `RenderingModule` registers `rendering.engine`, `rendering.strategyRegistry`, the `core.rendering.svg` plugin, and the `rendering.svg` renderer descriptor transactionally. Failed configuration rolls back only records created by that attempt. Disposal removes only registrations still owned by the module.
@@ -34,4 +40,4 @@ Rendering Core does not implement MusicXML or other export pipelines, playback, 
 
 ## Validation
 
-Rendering Core is validated by the repository's full v8.8 `npm test` suite: **353 tests passing** (303 plain Node and 50 React DOM). The acceptance suite includes explicit profiles and widths, layout-plan consumption, format-aware strategy selection, deterministic topological event ordering and rendering, complete score hierarchy coverage, notation-value preservation, XML escaping, immutability, malformed inputs, and transactional Kernel registration boundaries.
+Rendering Core is validated by the repository's full v8.8 `npm test` suite. The acceptance suite includes conventional five-line staff fixtures, every accepted clef, written enharmonic placement, ledger lines, duration/rest glyphs, chord/accidental collision handling, key and meter headers, explicit profiles and widths, layout-plan consumption, deterministic topological event ordering, complete score hierarchy coverage, notation-value preservation, accessibility, XML escaping, immutability, malformed inputs, and transactional Kernel registration boundaries.
