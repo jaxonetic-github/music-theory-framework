@@ -124,6 +124,36 @@ test("built-in templates and curricula cover the milestone library and expand de
     } finally { await kernel.dispose(); }
 });
 
+test("lesson expansion requires unit scope and permits duplicate lesson IDs across units", async () => {
+    const definition = {
+        id: "scoped-lessons", title: "Scoped lessons", description: "Duplicate local identities.",
+        objective: "Select one local lesson.", units: ["unit-a", "unit-b"].map((unitId, index) => ({
+            id: unitId, title: `Unit ${index + 1}`, objective: `Objective ${index + 1}`, lessons: [{
+                id: "lesson-1", title: `Lesson ${index + 1}`, objective: `Lesson objective ${index + 1}`,
+                templates: [{ templateId: "major-triad-arpeggios" }]
+            }]
+        }))
+    };
+    const sourceDefinition = structuredClone(definition), curriculum = new Curriculum(definition), kernel = await source();
+    try {
+        const engine = kernel.services.resolve("curriculum.engine");
+        engine.curriculumCatalog.register(plugin, curriculum);
+        assert.throws(() => new CurriculumExpansionRequest({ curriculumId: curriculum.id, pluginId: plugin, lessonId: "lesson-1" }), /requires its unitId/);
+        assert.throws(() => engine.expandCurriculum({ curriculumId: curriculum.id, pluginId: plugin, unitId: "missing" }), /does not contain unit/);
+        assert.throws(() => engine.expandCurriculum({ curriculumId: curriculum.id, pluginId: plugin, unitId: "unit-a", lessonId: "missing" }), /unit "unit-a".*lesson "missing"/);
+        const a = engine.expandCurriculum({ curriculumId: curriculum.id, pluginId: plugin, unitId: "unit-a", lessonId: "lesson-1" });
+        const b = engine.expandCurriculum({ curriculumId: curriculum.id, pluginId: plugin, unitId: "unit-b", lessonId: "lesson-1" });
+        assert.deepEqual(a.exerciseSetRequest.sections.map(value => value.id), ["scoped-lessons-unit-a-lesson-1"]);
+        assert.deepEqual(b.exerciseSetRequest.sections.map(value => value.id), ["scoped-lessons-unit-b-lesson-1"]);
+        assert.equal(a.exerciseSetRequest.items[0].metadata.unitId, "unit-a");
+        assert.equal(b.exerciseSetRequest.items[0].metadata.unitId, "unit-b");
+        assert.deepEqual({ ...a.metadata }, { curriculumId: "scoped-lessons", unitId: "unit-a", lessonId: "lesson-1", sectionCount: 1, itemCount: 1, deterministic: true });
+        assert.notEqual(a.exerciseSetRequest.id, b.exerciseSetRequest.id);
+        assert.deepEqual(definition, sourceDefinition);
+        assert.equal(Object.isFrozen(curriculum.units[0].lessons), true);
+    } finally { await kernel.dispose(); }
+});
+
 test("CurriculumModule is reusable, resolves current active catalogs, and removes owned registrations", async () => {
     const kernel = new Kernel().use(new TheoryModule()).use(new ExerciseModule());
     await kernel.start();

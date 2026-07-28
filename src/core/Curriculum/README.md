@@ -22,6 +22,8 @@ Unknown parameters reject with template and parameter identity. Overrides for co
 
 `CurriculumEngine` resolves the active template, curriculum, Theory scale/chord, and Exercise progression catalogs. Template or curriculum expansion returns one ordinary immutable `ExerciseSetRequest`. Section/item metadata retains curriculum, unit, lesson, template/version, normalized parameter, and family traceability. `ExerciseSetApplication` remains the only worksheet execution boundary and provides contextual atomic downstream failure handling.
 
+Curriculum selection follows the domain identity scopes: omit both `unitId` and `lessonId` for the complete curriculum, provide `unitId` alone for one complete unit, or provide both for exactly one lesson. A `lessonId` without its `unitId` is rejected as ambiguous. Lesson IDs may repeat in different units; lookup never escapes the selected unit, and generated IDs and trace metadata retain both identities.
+
 The built-in plugin supplies twelve templates covering scales, thirds, triad/seventh arpeggios, blocked chords, approaches, enclosures, ii–V–I studies, and twelve-bar blues. Three compact curricula demonstrate beginner fundamentals, intermediate harmony, and advanced chromatic language.
 
 `CurriculumModule` uses transactional service and discovery registration. It resolves active dependencies during each configuration and removes only registrations it still owns on disposal.
