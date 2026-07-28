@@ -186,7 +186,7 @@ function WorkflowResult({ workflow, playback, id }) {
     );
 }
 
-function ReadyApplication({ runtime }) {
+function ReadyApplication({ runtime, accessibilityIdPrefix }) {
     const id = useId();
     const { workflow, run } = useApplicationWorkflow();
     const snapshot = usePlaybackTransport(runtime.transport);
@@ -291,17 +291,17 @@ function ReadyApplication({ runtime }) {
                     }} />
                 </section>
             </div>
-            <ExercisePracticePanel engine={runtime.exerciseApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} />
-            <ExerciseSetPanel application={runtime.exerciseSetApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} />
+            <ExercisePracticePanel engine={runtime.exerciseApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} accessibilityIdPrefix={accessibilityIdPrefix ? `${accessibilityIdPrefix}-practice` : undefined} />
+            <ExerciseSetPanel application={runtime.exerciseSetApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} accessibilityIdPrefix={accessibilityIdPrefix ? `${accessibilityIdPrefix}-worksheet` : undefined} />
         </main>
     );
 }
 
-export function MusicTheoryWebApp() {
+export function MusicTheoryWebApp({ accessibilityIdPrefix }) {
     const runtime = useApplicationRuntime();
     if (runtime.status === "loading") return <main className="bootstrap-state" aria-busy="true"><div role="status" aria-live="polite">Starting music theory services…</div></main>;
     if (runtime.status === "error") return <main className="bootstrap-state"><StageError error={runtime.error} /></main>;
-    return <ReadyApplication runtime={runtime.value} />;
+    return <ReadyApplication runtime={runtime.value} accessibilityIdPrefix={accessibilityIdPrefix} />;
 }
 
 export default MusicTheoryWebApp;

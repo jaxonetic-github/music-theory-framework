@@ -86,11 +86,8 @@ function renderVoice(score, voice, placements, clef, staffTop, polyphonic, accid
 }
 function accidentalDecisions(score, placements, key) {
     const state = new Map(), defaults = expectedKeyAccidentals(key), result = new Map();
-    const ordered = placements.map(placement => ({ placement, event: node(score, placement.eventId) }))
-        .sort((a, b) => Number(a.event.offset) - Number(b.event.offset)
-            || String(a.event.id).localeCompare(String(b.event.id))
-            || String(a.placement.voiceId).localeCompare(String(b.placement.voiceId)));
-    for (const { event } of ordered) {
+    for (const placement of placements) {
+        const event = node(score, placement.eventId);
         if (String(event.type) === "rest") continue;
         const pitches = (String(event.type) === "chord" ? event.notes : [event.pitch]).map(parseWrittenPitch);
         const needed = pitches.map(pitch => {
@@ -98,7 +95,9 @@ function accidentalDecisions(score, placements, key) {
             const current = state.has(position) ? state.get(position) : (defaults.get(pitch.letter) ?? 0);
             return current === pitch.accidental ? null : accidentalName(pitch.accidental);
         });
-        for (const pitch of pitches) state.set(`${pitch.letter}:${pitch.octave}`, pitch.accidental);
+        const updates = [...pitches].sort((a, b) =>
+            `${a.letter}:${a.octave}`.localeCompare(`${b.letter}:${b.octave}`) || a.accidental - b.accidental);
+        for (const pitch of updates) state.set(`${pitch.letter}:${pitch.octave}`, pitch.accidental);
         result.set(String(event.id), Object.freeze(needed));
     }
     return result;

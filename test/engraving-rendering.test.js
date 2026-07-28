@@ -71,6 +71,21 @@ function group(svg, id) {
 function eventAttribute(svg, id, name) {
     return new RegExp(`${name}="([^"]+)"`).exec(group(svg, id))?.[1];
 }
+function precedenceGraph(events, nextPairs, reverse = false) {
+    const root = new ScoreRootNode({ id: "precedence-score", title: "Precedence fixture" });
+    const part = new PartNode({ id: "precedence-part", name: "Piano", clef: new Clef("treble") });
+    const measure = new MeasureNode({ id: "precedence-measure", number: 1, beats: 4, beatUnit: 4 });
+    const voice = new VoiceNode({ id: "precedence-voice", index: 1 });
+    const nodes = [root, part, measure, voice, ...events];
+    const edges = [
+        new ScoreEdge({ from: root.id, to: part.id, type: "contains" }),
+        new ScoreEdge({ from: part.id, to: measure.id, type: "contains" }),
+        new ScoreEdge({ from: measure.id, to: voice.id, type: "contains" }),
+        ...events.map(event => new ScoreEdge({ from: voice.id, to: event.id, type: "contains" })),
+        ...nextPairs.map(([from, to]) => new ScoreEdge({ from, to, type: "next" }))
+    ];
+    return new ScoreGraph({ nodes: reverse ? [...nodes].reverse() : nodes, edges: reverse ? [...edges].reverse() : edges });
+}
 
 test("quarter-note fixture is conventional five-line staff notation without diagnostic painting", () => {
     const svg = render(graph());
@@ -270,6 +285,44 @@ test("measure accidental state is keyed by written step and octave and resets", 
     assert.match(group(svg, "c-sharp-again"), /accidental-sharp/);
     assert.doesNotMatch(group(svg, "c-sharp-repeat"), /class="accidental /);
     assert.match(group(svg, "c-sharp-next-measure"), /accidental-sharp/);
+});
+
+test("accidentals follow authoritative Layout placement precedence instead of conflicting offsets", () => {
+    const events = [
+        new NoteNode({ id: "precedence-first", pitch: "C#4", duration: duration(1, 4), offset: 10 }),
+        new NoteNode({ id: "precedence-second", pitch: "C#4", duration: duration(1, 4), offset: 0 }),
+        new NoteNode({ id: "precedence-cancel", pitch: "C4", duration: duration(1, 4), offset: 1 })
+    ];
+    const links = [["precedence-first", "precedence-second"], ["precedence-second", "precedence-cancel"]];
+    const score = precedenceGraph(events, links), reversed = precedenceGraph(events, links, true);
+    const plan = layout(score), reversedPlan = layout(reversed);
+    const placements = plan.systems[0].measures[0].eventPlacements;
+    assert.deepEqual(placements.map(value => value.eventId), events.map(value => String(value.id)));
+    assert.deepEqual(reversedPlan.systems, plan.systems);
+    const svg = render(score, { layoutPlan: plan });
+    assert.match(group(svg, "precedence-first"), /accidental-sharp/);
+    assert.doesNotMatch(group(svg, "precedence-second"), /class="accidental /);
+    assert.match(group(svg, "precedence-cancel"), /accidental-natural/);
+    assert.ok(svg.indexOf('data-node-id="precedence-first"') < svg.indexOf('data-node-id="precedence-second"'));
+    assert.equal(render(reversed, { layoutPlan: reversedPlan }), svg);
+});
+
+test("chord accidental decisions are atomic in authoritative placement order", () => {
+    const events = [
+        new ChordNode({ id: "precedence-chord", notes: ["E4", "C#4", "C#5"], duration: duration(1, 4), offset: 8 }),
+        new NoteNode({ id: "precedence-after-c4", pitch: "C#4", duration: duration(1, 4), offset: 0 }),
+        new NoteNode({ id: "precedence-after-c5", pitch: "C#5", duration: duration(1, 4), offset: 0 })
+    ];
+    const score = precedenceGraph(events, [
+        ["precedence-chord", "precedence-after-c4"],
+        ["precedence-after-c4", "precedence-after-c5"]
+    ]);
+    const plan = layout(score), svg = render(score, { layoutPlan: plan });
+    assert.deepEqual(plan.systems[0].measures[0].eventPlacements.map(value => value.eventId),
+        ["precedence-chord", "precedence-after-c4", "precedence-after-c5"]);
+    assert.equal((group(svg, "precedence-chord").match(/accidental-sharp/g) ?? []).length, 2);
+    assert.doesNotMatch(group(svg, "precedence-after-c4"), /class="accidental /);
+    assert.doesNotMatch(group(svg, "precedence-after-c5"), /class="accidental /);
 });
 
 test("key defaults apply across octaves while cancellations remain position-specific", () => {
