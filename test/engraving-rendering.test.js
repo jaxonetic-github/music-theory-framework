@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-    ChordNode, Clef, KeySignature, LayoutEngine, LayoutStrategyRegistry, MeasureNode, NoteNode,
+    ChordNode, Clef, KeySignature, LayoutEngine, LayoutProfile, LayoutStrategyRegistry, MeasureNode, NoteNode,
     PartNode, RendererStrategyRegistry, RenderingEngine, RestNode, ScoreEdge, ScoreGraph,
     ScoreGraphLayoutStrategy, ScoreRootNode, SvgScoreRenderer, VoiceNode
 } from "../src/core/index.js";
@@ -127,6 +127,24 @@ test("quarter-note fixture is conventional five-line staff notation without diag
     assert.doesNotMatch(svg, /<rect[^>]*class="measure|>treble clef<|>no key signature<|>D4</);
     assert.match(svg, /aria-label="1\/4 note D4"/);
     assert.match(svg, /data-pitch="D4"/);
+});
+
+test("RenderingEngine engraves through a legacy custom LayoutProfile", () => {
+    const legacy = new LayoutProfile({
+        id: "legacy-rendering", eventGap: 24, measurePadding: 24, clefWidth: 48,
+        keySignatureWidth: 40, barlineWidth: 14, staffHeight: 110, staffSpacing: 44, systemSpacing: 42
+    });
+    const score = graph(), plan = layout(score);
+    const customPlan = (() => {
+        const registry = new LayoutStrategyRegistry(), strategy = new ScoreGraphLayoutStrategy();
+        registry.register(strategy.pluginId, strategy);
+        return new LayoutEngine(registry).plan({ score, availableWidth: 600, profile: legacy });
+    })();
+    const svg = render(score, { layoutPlan: customPlan });
+    assert.match(svg, /data-layout-profile="legacy-rendering"/);
+    assert.match(svg, /class="notehead"/);
+    assert.ok(customPlan.bounds.width >= 600);
+    assert.ok(plan.placements.length > 0);
 });
 
 test("all accepted clefs use deterministic renderer-owned vector glyphs", () => {
