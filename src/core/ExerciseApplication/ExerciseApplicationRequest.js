@@ -5,7 +5,7 @@ import { Clef, Duration, KeySignature } from "../Notation/index.js";
 const requestKeys = new Set(["exercise", "model", "notation", "rendering"]);
 const notationKeys = new Set(["duration", "clef", "timeSignature", "measuresPerSystem", "keySignaturePolicy", "keySignature", "pluginId", "strategyId"]);
 const renderingKeys = new Set(["format", "pluginId", "strategyId", "options"]);
-const rendererOptionKeys = new Set(["width", "height", "title", "metadata"]);
+const rendererOptionKeys = new Set(["width", "height", "title", "metadata", "layoutProfile", "horizontalPadding", "minimumSystemWidth", "staffSpacing", "systemSpacing", "layoutPluginId", "layoutStrategyId"]);
 const keyPolicies = new Set(["none", "explicit", "exercise-root"]);
 
 function object(value, label, fallback = undefined) {
@@ -44,7 +44,9 @@ function renderingOptions(value) {
     if (strategyId && !pluginId) throw new ValidationError("Rendering strategyId requires pluginId.");
     const options = object(source.options, "Renderer-specific options", {}); rejectUnknown(options, rendererOptionKeys, "renderer-specific");
     const normalized = {};
-    for (const key of ["width", "height"]) if (options[key] !== undefined) { const number = Number(options[key]); if (!Number.isFinite(number) || number <= 0) throw new ValidationError(`Renderer ${key} must be a positive finite number.`); normalized[key] = number; }
+    for (const key of ["width", "height", "horizontalPadding", "minimumSystemWidth", "staffSpacing", "systemSpacing"]) if (options[key] !== undefined) { const number = Number(options[key]); if (!Number.isFinite(number) || number < 0 || (["width","height","minimumSystemWidth"].includes(key) && number <= 0)) throw new ValidationError(`Renderer ${key} must be a valid finite number.`); normalized[key] = number; }
+    for (const key of ["layoutProfile", "layoutPluginId", "layoutStrategyId"]) if (options[key] !== undefined) { const id = String(options[key]).trim(); if (!id) throw new ValidationError(`Renderer ${key} must be a non-empty string.`); normalized[key] = id; }
+    if (normalized.layoutStrategyId && !normalized.layoutPluginId) throw new ValidationError("Renderer layoutStrategyId requires layoutPluginId.");
     if (options.title !== undefined) { const title = String(options.title); if (!title.trim()) throw new ValidationError("Renderer title must be a non-empty string."); normalized.title = title; }
     if (options.metadata !== undefined) { object(options.metadata, "Renderer metadata"); try { canonicalSerialize(options.metadata); } catch (cause) { throw new ValidationError(`Renderer metadata is not deterministically serializable: ${cause.message}`, { cause }); } normalized.metadata = options.metadata; }
     return Object.freeze({ format, pluginId, strategyId, options: freezeDeep(cloneDeep(normalized)) });

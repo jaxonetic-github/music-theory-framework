@@ -1,6 +1,6 @@
 # Embeddable React Web Application, Playback, and Exercise Practice Adapters
 
-The v8.7 Web package preserves the general workflow, playback UI, Exercise Practice adapter, and heterogeneous Exercise Set worksheet while adding supported Vite and Next.js embedding entry points. React does not generate theory or exercises, traverse `ScoreGraph`, calculate musical timing, serialize SVG or MusicXML, schedule audio nodes, or manage AudioContext directly.
+The v8.8 Web package preserves the general workflow, playback UI, Exercise Practice adapter, heterogeneous Exercise Set worksheet, and supported Vite/Next.js embedding entry points while adding responsive engraving. React does not generate theory or exercises, calculate engraving positions, traverse `ScoreGraph`, serialize SVG or MusicXML, schedule audio nodes, or manage AudioContext directly.
 
 ## Embedding
 
@@ -38,8 +38,10 @@ Exercise Practice consumes only `exercise.application.engine`. Bootstrap adapts 
 
 Exercise Worksheet consumes `exercise.set.application`, reuses the same catalog records and request normalization, and validates every nested authoritative ExerciseApplication presentation through that trust boundary. Stable draft IDs support section/item add, remove, duplicate, and reorder operations without array-index React keys. Completed results remain visible and stale after material edits; newer operations win and later failures do not destroy prior output. Responsive and print CSS produce a coherent worksheet without adding a PDF or export strategy. See [`exercise-set/README.md`](exercise-set/README.md).
 
+`ResponsiveNotation` observes its own notation container only after client mount. It rounds CSS-pixel widths into one layout unit per CSS pixel, ignores zero and duplicate effective widths, coalesces callbacks in a microtask, and disconnects on cleanup. It reruns only Core layout and SVG rendering against the completed row's unchanged `ScoreGraph`; generation requests, semantic summaries, and authoritative result ownership do not change. Monotonic operation IDs reject stale completions, and layout errors are announced separately while the last trusted SVG remains visible. Observer injection keeps tests deterministic, multiple embeds isolated, and Web/Next imports safe during server analysis.
+
 ## Exclusions and validation
 
 This milestone excludes pause/resume, seeking, scrubbing, looping, tempo changes during playback, score-following, cursor animation, Web MIDI, recording, samples, effects, mixer UI, server APIs, persistence, and networking. Core imports remain React-, DOM-, browser-, AudioContext-, and MIDI-free.
 
-The v8.7 repository suite contains **334 passing tests**: 288 plain-Node tests and 46 React DOM tests. `npm audit` reports **0 vulnerabilities**. Vite transforms **314 modules**, and the Next.js 15.5.20 fixture compiles and statically prerenders successfully.
+The v8.8 repository suite contains **353 passing tests**: 303 plain-Node tests and 50 React DOM tests. `npm audit` reports **0 vulnerabilities**. Vite transforms **327 modules**, and the Next.js 15.5.22 fixture compiles and statically prerenders successfully.

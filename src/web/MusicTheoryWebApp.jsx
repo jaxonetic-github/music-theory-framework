@@ -291,8 +291,8 @@ function ReadyApplication({ runtime }) {
                     }} />
                 </section>
             </div>
-            <ExercisePracticePanel engine={runtime.exerciseApplication} catalogs={runtime.catalogs} />
-            <ExerciseSetPanel application={runtime.exerciseSetApplication} catalogs={runtime.catalogs} />
+            <ExercisePracticePanel engine={runtime.exerciseApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} />
+            <ExerciseSetPanel application={runtime.exerciseSetApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} />
         </main>
     );
 }

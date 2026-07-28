@@ -6,7 +6,7 @@ Rendering Core is the v6.5 boundary that turns an immutable Notation `ScoreGraph
 
 `RenderingEngine.render(scoreGraph, options)` selects a `RendererStrategy` through `RendererStrategyRegistry`. Strategies are registered inside plugin scopes, so independent plugins can use the same strategy id without colliding. Selection is deterministic: an explicit `pluginId` and `strategyId` selects that exact strategy, while implicit selection uses registration order among strategies matching the normalized requested `format`. Omitting `format` preserves registration-order selection across all supported formats.
 
-The engine owns input, selection, and output-contract validation only. Format-specific layout and presentation remain inside renderer strategies.
+The engine owns input, deterministic layout-plan resolution, renderer selection, and output-contract validation. Layout v8.8 remains renderer-independent; format-specific presentation stays inside renderer strategies.
 
 ## Default SVG renderer
 
@@ -20,6 +20,8 @@ const svg = renderingEngine.render(scoreGraph, {
 });
 ```
 
+Legacy requests use the frozen `screen-regular` profile and its default width. Callers may supply an explicit width/profile or an already validated `LayoutPlan`. The SVG renderer consumes plan placements directly and records profile, available width, natural width, overflow, and stable visual-system identities in output metadata; it never parses or repositions completed markup.
+
 ## Kernel integration and descriptors
 
 `RenderingModule` registers `rendering.engine`, `rendering.strategyRegistry`, the `core.rendering.svg` plugin, and the `rendering.svg` renderer descriptor transactionally. Failed configuration rolls back only records created by that attempt. Disposal removes only registrations still owned by the module.
@@ -32,4 +34,4 @@ Rendering Core does not implement MusicXML or other export pipelines, playback, 
 
 ## Validation
 
-Rendering Core is validated by the repository's full `npm test` suite: **113 tests passing**. The acceptance suite includes format-aware strategy selection, exact SVG output, deterministic topological event ordering and rendering, complete score hierarchy coverage, notation-value preservation, XML escaping, immutability, malformed inputs, and transactional Kernel registration boundaries.
+Rendering Core is validated by the repository's full v8.8 `npm test` suite: **353 tests passing** (303 plain Node and 50 React DOM). The acceptance suite includes explicit profiles and widths, layout-plan consumption, format-aware strategy selection, deterministic topological event ordering and rendering, complete score hierarchy coverage, notation-value preservation, XML escaping, immutability, malformed inputs, and transactional Kernel registration boundaries.

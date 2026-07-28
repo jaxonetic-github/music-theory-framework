@@ -10,7 +10,7 @@ const eventHandler = /\s(?:[a-z][\w.-]*:)?on[a-z0-9_.:-]*\s*=/i;
 const hrefAttribute = /\s(?:xlink:href|href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi;
 const safeFragment = /^#[A-Za-z_][A-Za-z0-9_.:-]*$/;
 
-function trustedSvg(content) {
+export function validateTrustedSvgContent(content) {
     if (typeof content !== "string" || !content.trim() || !svgDocument.test(content)) return false;
     if (/<\?|<!doctype\b/i.test(content) || activeElement.test(content) || eventHandler.test(content)) return false;
     if (/<style\b|\sstyle\s*=|@import\b|url\s*\(/i.test(content)) return false;
@@ -39,7 +39,7 @@ export function validateExercisePresentation(result) {
             if (row.rendererPluginId !== SVG_PLUGIN_ID || row.rendererStrategyId !== SVG_STRATEGY_ID || row.metadata?.renderer?.format !== SVG_FORMAT || row.metadata?.renderer?.pluginId !== SVG_PLUGIN_ID || row.metadata?.renderer?.strategyId !== SVG_STRATEGY_ID) {
                 throw new TypeError(`Row "${row.id}" renderer metadata does not match the completed presentation.`);
             }
-            if (!trustedSvg(row.content)) {
+            if (!validateTrustedSvgContent(row.content)) {
                 throw new TypeError(`Row "${row.id}" does not contain trusted internal SVG.`);
             }
         }
