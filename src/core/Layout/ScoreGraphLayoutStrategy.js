@@ -45,6 +45,20 @@ function eventWidth(event, profile) {
     return profile.noteheadWidth + profile.stemWidth + rhythmicWidth + dotWidth + accidentals * profile.accidentalWidth + seconds * profile.noteheadWidth * .55;
 }
 function semanticIds(request, measureId) { return request.semanticSystems.filter(system => system.measureIds.includes(measureId)).map(system => system.id); }
+function addDuration(onset, duration) {
+    const numerator = onset.numerator * duration.denominator + duration.numerator * onset.denominator;
+    const denominator = onset.denominator * duration.denominator;
+    if (!Number.isSafeInteger(numerator) || !Number.isSafeInteger(denominator)) throw new ValidationError("Layout rhythmic onset exceeds the safe exact-rational range.");
+    let a = numerator, b = denominator;
+    while (b) { const next = a % b; a = b; b = next; }
+    return { numerator: numerator / a, denominator: denominator / a };
+}
+function compareOnset(a, b) {
+    const difference = BigInt(a.onset.numerator) * BigInt(b.onset.denominator)
+        - BigInt(b.onset.numerator) * BigInt(a.onset.denominator);
+    return difference < 0n ? -1 : difference > 0n ? 1
+        : String(a.eventId).localeCompare(String(b.eventId)) || String(a.voiceId).localeCompare(String(b.voiceId));
+}
 
 export class ScoreGraphLayoutStrategy extends LayoutStrategy {
     constructor({ pluginId = "core.layout.score-graph" } = {}) { super({ id: "score-graph", pluginId }); }
@@ -77,17 +91,19 @@ export class ScoreGraphLayoutStrategy extends LayoutStrategy {
                     const width = value.bodyWidth + header;
                     const placements = [];
                     value.voices.forEach((voice, voiceIndex) => {
-                        let x = measureX + header + profile.measurePadding;
+                        let x = measureX + header + profile.measurePadding, onset = { numerator: 0, denominator: 1 };
                         value.voiceEvents[voiceIndex].forEach((event, index) => {
                             const glyphWidth = eventWidth(event, profile);
                             const accidentalReserve = String(event.type) === "chord"
                                 ? event.notes.length * profile.accidentalWidth
                                 : String(event.type) === "note" ? profile.accidentalWidth : 0;
                             x += accidentalReserve;
-                            placements.push(new LayoutEventPlacement({ eventId: event.id, measureId: value.measure.id, voiceId: voice.id, x, y: systemY + 58, width: glyphWidth, order: index + 1 }));
+                            placements.push(new LayoutEventPlacement({ eventId: event.id, measureId: value.measure.id, voiceId: voice.id, x, y: systemY + 58, width: glyphWidth, order: index + 1, onset }));
                             x += glyphWidth - accidentalReserve + profile.eventGap;
+                            onset = addDuration(onset, event.duration);
                         });
                     });
+                    placements.sort(compareOnset);
                     const result = new LayoutMeasure({ id: value.measure.id, number: value.measure.number, x: measureX, width, naturalWidth: width, overflow: width > contentWidth, eventPlacements: placements });
                     measureX += width;
                     return result;

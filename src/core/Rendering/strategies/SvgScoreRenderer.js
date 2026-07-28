@@ -86,19 +86,31 @@ function renderVoice(score, voice, placements, clef, staffTop, polyphonic, accid
 }
 function accidentalDecisions(score, placements, key) {
     const state = new Map(), defaults = expectedKeyAccidentals(key), result = new Map();
-    for (const placement of placements) {
-        const event = node(score, placement.eventId);
-        if (String(event.type) === "rest") continue;
-        const pitches = (String(event.type) === "chord" ? event.notes : [event.pitch]).map(parseWrittenPitch);
-        const needed = pitches.map(pitch => {
-            const position = `${pitch.letter}:${pitch.octave}`;
-            const current = state.has(position) ? state.get(position) : (defaults.get(pitch.letter) ?? 0);
-            return current === pitch.accidental ? null : accidentalName(pitch.accidental);
-        });
-        const updates = [...pitches].sort((a, b) =>
-            `${a.letter}:${a.octave}`.localeCompare(`${b.letter}:${b.octave}`) || a.accidental - b.accidental);
-        for (const pitch of updates) state.set(`${pitch.letter}:${pitch.octave}`, pitch.accidental);
-        result.set(String(event.id), Object.freeze(needed));
+    const sameOnset = (a, b) => BigInt(a.onset.numerator) * BigInt(b.onset.denominator)
+        === BigInt(b.onset.numerator) * BigInt(a.onset.denominator);
+    for (let start = 0; start < placements.length;) {
+        let end = start + 1;
+        while (end < placements.length && sameOnset(placements[start], placements[end])) end += 1;
+        const updates = new Map();
+        for (const placement of placements.slice(start, end)) {
+            const event = node(score, placement.eventId);
+            if (String(event.type) === "rest") continue;
+            const pitches = (String(event.type) === "chord" ? event.notes : [event.pitch]).map(parseWrittenPitch);
+            const needed = pitches.map(pitch => {
+                const position = `${pitch.letter}:${pitch.octave}`;
+                const current = state.has(position) ? state.get(position) : (defaults.get(pitch.letter) ?? 0);
+                return current === pitch.accidental ? null : accidentalName(pitch.accidental);
+            });
+            for (const pitch of pitches) {
+                const position = `${pitch.letter}:${pitch.octave}`, alterations = updates.get(position) ?? new Set();
+                alterations.add(pitch.accidental); updates.set(position, alterations);
+            }
+            result.set(String(event.id), Object.freeze(needed));
+        }
+        for (const [position, alterations] of [...updates].sort(([a], [b]) => a.localeCompare(b))) {
+            state.set(position, alterations.size === 1 ? [...alterations][0] : null);
+        }
+        start = end;
     }
     return result;
 }

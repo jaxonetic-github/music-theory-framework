@@ -86,6 +86,34 @@ function precedenceGraph(events, nextPairs, reverse = false) {
     ];
     return new ScoreGraph({ nodes: reverse ? [...nodes].reverse() : nodes, edges: reverse ? [...edges].reverse() : edges });
 }
+function polyphonicGraph(voiceEvents, { reverse = false, secondPart = false } = {}) {
+    const root = new ScoreRootNode({ id: "poly-score", title: "Polyphonic accidental fixture" });
+    const part = new PartNode({ id: "poly-part", name: "Piano", clef: new Clef("treble") });
+    const measure = new MeasureNode({ id: "poly-measure", number: 1, beats: 4, beatUnit: 4 });
+    const voices = voiceEvents.map((_, index) => new VoiceNode({ id: `poly-voice:${index + 1}`, index: index + 1 }));
+    const nodes = [root, part, measure, ...voices], edges = [
+        new ScoreEdge({ from: root.id, to: part.id, type: "contains" }),
+        new ScoreEdge({ from: part.id, to: measure.id, type: "contains" }),
+        ...voices.map(voice => new ScoreEdge({ from: measure.id, to: voice.id, type: "contains" }))
+    ];
+    voiceEvents.forEach((events, voiceIndex) => events.forEach((event, index) => {
+        nodes.push(event);
+        edges.push(new ScoreEdge({ from: voices[voiceIndex].id, to: event.id, type: "contains" }));
+        if (index) edges.push(new ScoreEdge({ from: events[index - 1].id, to: event.id, type: "next" }));
+    }));
+    if (secondPart) {
+        const otherPart = new PartNode({ id: "poly-part:2", name: "Bass", clef: new Clef("bass") });
+        const otherMeasure = new MeasureNode({ id: "poly-measure:2", number: 1, beats: 4, beatUnit: 4 });
+        const otherVoice = new VoiceNode({ id: "poly-voice:other", index: 1 });
+        const otherNote = new NoteNode({ id: "poly-other-c-sharp", pitch: "C#3", duration: duration(1, 4), offset: 0 });
+        nodes.push(otherPart, otherMeasure, otherVoice, otherNote);
+        edges.push(new ScoreEdge({ from: root.id, to: otherPart.id, type: "contains" }),
+            new ScoreEdge({ from: otherPart.id, to: otherMeasure.id, type: "contains" }),
+            new ScoreEdge({ from: otherMeasure.id, to: otherVoice.id, type: "contains" }),
+            new ScoreEdge({ from: otherVoice.id, to: otherNote.id, type: "contains" }));
+    }
+    return new ScoreGraph({ nodes: reverse ? [...nodes].reverse() : nodes, edges: reverse ? [...edges].reverse() : edges });
+}
 
 test("quarter-note fixture is conventional five-line staff notation without diagnostic painting", () => {
     const svg = render(graph());
@@ -254,8 +282,54 @@ test("multiple voices use opposing deterministic stems at one rhythmic position"
     assert.equal(eventAttribute(svg, "upper-note", "data-x"), eventAttribute(svg, "lower-note", "data-x"));
     assert.match(group(svg, "upper-note"), /class="stem stem-up"/);
     assert.match(group(svg, "lower-note"), /class="stem stem-down"/);
-    assert.equal((svg.match(/class="accidental accidental-sharp"/g) ?? []).length, 1);
+    assert.equal((svg.match(/class="accidental accidental-sharp"/g) ?? []).length, 2);
     assert.equal((svg.match(/class="staff-line"/g) ?? []).length, 5);
+});
+
+test("polyphonic accidental state follows exact rhythmic onset across voices and rests", () => {
+    const later = new NoteNode({ id: "poly-later", pitch: "C#4", duration: duration(1, 4), offset: 0 });
+    const earlier = new NoteNode({ id: "poly-earlier", pitch: "C#4", duration: duration(1, 4), offset: 100 });
+    const score = polyphonicGraph([
+        [new RestNode({ id: "poly-rest", duration: duration(1, 4), offset: 99 }), later],
+        [earlier]
+    ]);
+    const plan = layout(score), placements = plan.systems[0].measures[0].eventPlacements;
+    assert.deepEqual(placements.map(value => [value.eventId, value.onset]),
+        [["poly-earlier", { numerator: 0, denominator: 1 }], ["poly-rest", { numerator: 0, denominator: 1 }], ["poly-later", { numerator: 1, denominator: 4 }]]);
+    const svg = render(score, { layoutPlan: plan });
+    assert.match(group(svg, "poly-earlier"), /accidental-sharp/);
+    assert.doesNotMatch(group(svg, "poly-later"), /class="accidental /);
+
+    const inverse = polyphonicGraph([[earlier], [
+        new RestNode({ id: "poly-rest", duration: duration(1, 4), offset: 99 }), later
+    ]], { reverse: true });
+    const inversePlan = layout(inverse), inverseSvg = render(inverse, { layoutPlan: inversePlan });
+    assert.match(group(inverseSvg, "poly-earlier"), /accidental-sharp/);
+    assert.doesNotMatch(group(inverseSvg, "poly-later"), /class="accidental /);
+});
+
+test("simultaneous polyphonic accidentals evaluate atomically and retain conflicts", () => {
+    const matching = polyphonicGraph([
+        [new NoteNode({ id: "match-a", pitch: "C#4", duration: duration(1, 4), offset: 9 })],
+        [new NoteNode({ id: "match-b", pitch: "C#4", duration: duration(1, 4), offset: 0 })]
+    ]);
+    const matchingSvg = render(matching, { layoutPlan: layout(matching) });
+    assert.match(group(matchingSvg, "match-a"), /accidental-sharp/);
+    assert.match(group(matchingSvg, "match-b"), /accidental-sharp/);
+
+    const conflicting = polyphonicGraph([
+        [
+            new NoteNode({ id: "conflict-sharp", pitch: "C#4", duration: duration(1, 4), offset: 8 }),
+            new NoteNode({ id: "after-conflict", pitch: "C#4", duration: duration(1, 4), offset: 0 })
+        ],
+        [new NoteNode({ id: "conflict-natural", pitch: "C4", duration: duration(1, 2), offset: 0 })]
+    ], { reverse: true, secondPart: true });
+    const plan = layout(conflicting), svg = render(conflicting, { layoutPlan: plan });
+    assert.match(group(svg, "conflict-sharp"), /accidental-sharp/);
+    assert.doesNotMatch(group(svg, "conflict-natural"), /class="accidental /);
+    assert.match(group(svg, "after-conflict"), /accidental-sharp/);
+    assert.match(group(svg, "poly-other-c-sharp"), /accidental-sharp/);
+    assert.ok(Object.isFrozen(plan.systems[0].measures[0].eventPlacements[0].onset));
 });
 
 test("all supported written accidentals use explicit glyph mappings", () => {
