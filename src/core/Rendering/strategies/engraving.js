@@ -1,5 +1,6 @@
 import { xmlAttribute } from "./svg.js";
 import { ValidationError } from "../../Foundation/index.js";
+import { engravingDurationStyle } from "../../Layout/engravingDuration.js";
 
 export const ENGRAVING = Object.freeze({
     lineGap: 12, halfGap: 6, noteRx: 7, noteRy: 5, stemLength: 34,
@@ -30,16 +31,7 @@ export function pitchY(pitch, clef, staffTop) {
     return staffTop + ENGRAVING.lineGap * 4 - (written.diatonic - bottom) * ENGRAVING.halfGap;
 }
 
-export function durationStyle(duration) {
-    const value = duration.numerator / duration.denominator;
-    const dotted = duration.numerator === 3 && (duration.denominator & (duration.denominator - 1)) === 0;
-    const base = dotted ? value / 1.5 : value;
-    if (base >= 1) return Object.freeze({ kind: "whole", open: true, stem: false, flags: 0, dotted });
-    if (base >= .5) return Object.freeze({ kind: "half", open: true, stem: true, flags: 0, dotted });
-    if (base >= .25) return Object.freeze({ kind: "quarter", open: false, stem: true, flags: 0, dotted });
-    const flags = Math.max(1, Math.min(4, Math.round(Math.log2(.125 / Math.max(base, 1 / 128))) + 1));
-    return Object.freeze({ kind: flags === 1 ? "eighth" : `${2 ** (flags + 2)}th`, open: false, stem: true, flags, dotted });
-}
+export const durationStyle = engravingDurationStyle;
 
 export function accidentalGlyph(kind, x, y, className = "accidental") {
     if (!["double-flat", "flat", "natural", "sharp", "double-sharp"].includes(kind)) {
@@ -126,10 +118,22 @@ export function stemAndFlags(x, y, direction, style) {
 
 export function restGlyph(x, staffTop, duration) {
     const style = durationStyle(duration), middle = staffTop + 24;
-    if (style.kind === "whole") return `<path class="rest rest-whole" d="M${x-8} ${staffTop+18}h16v7h-16z" fill="currentColor"/>`;
-    if (style.kind === "half") return `<path class="rest rest-half" d="M${x-8} ${staffTop+29}h16v-7h-16z" fill="currentColor"/>`;
-    if (style.kind === "quarter") return `<path class="rest rest-quarter" d="M${x+3} ${middle-19}l-8 13l9 9l-8 12c9-3 13 5 7 12c3-9-4-8-9-4l7-13l-9-9l8-14z" fill="currentColor"/>`;
-    return `<g class="rest rest-eighth"><path d="M${x} ${middle-14}v28" stroke="currentColor" stroke-width="2"/><circle cx="${x-4}" cy="${middle-12}" r="4" fill="currentColor"/><path d="M${x} ${middle-8}c12 3 9 13 2 17" fill="none" stroke="currentColor" stroke-width="2"/></g>`;
+    let glyph;
+    if (style.kind === "whole") glyph = `<path class="rest-body" d="M${x-8} ${staffTop+18}h16v7h-16z" fill="currentColor"/>`;
+    else if (style.kind === "half") glyph = `<path class="rest-body" d="M${x-8} ${staffTop+29}h16v-7h-16z" fill="currentColor"/>`;
+    else if (style.kind === "quarter") glyph = `<path class="rest-body" d="M${x+3} ${middle-19}l-8 13l9 9l-8 12c9-3 13 5 7 12c3-9-4-8-9-4l7-13l-9-9l8-14z" fill="currentColor"/>`;
+    else {
+        const top = middle - 15;
+        glyph = `<path class="rest-stem" d="M${x-3} ${top}v${28 + (style.flags - 1) * 7}" stroke="currentColor" stroke-width="2"/>`;
+        glyph += Array.from({ length: style.flags }, (_, index) => {
+            const y = top + index * 7;
+            return `<path class="rest-hook" data-hook="${index+1}" d="M${x-3} ${y}c13 2 12 12 3 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle class="rest-hook-head" cx="${x-6}" cy="${y+1}" r="3.8" fill="currentColor"/>`;
+        }).join("");
+    }
+    const dotX = x + 13;
+    const dots = Array.from({ length: style.dotCount }, (_, index) =>
+        `<circle class="rest-augmentation-dot" data-dot="${index+1}" cx="${dotX + index * 7}" cy="${middle-3}" r="2.1" fill="currentColor"/>`).join("");
+    return `<g class="rest rest-${style.kind}" data-rest-kind="${style.kind}" data-rest-flags="${style.flags}" data-rest-dots="${style.dotCount}">${glyph}${dots}</g>`;
 }
 
 export function expectedKeyAccidentals(key) {

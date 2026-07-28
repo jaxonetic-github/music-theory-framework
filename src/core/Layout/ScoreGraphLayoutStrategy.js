@@ -3,6 +3,7 @@ import { LayoutRequest } from "./LayoutRequest.js";
 import { LayoutStrategy } from "./LayoutStrategy.js";
 import { LayoutBounds, LayoutEventPlacement, LayoutMeasure, LayoutMetadata, LayoutPlan, LayoutSystem } from "./values.js";
 import { engravingHeader } from "./engravingHeaders.js";
+import { engravingDurationStyle } from "./engravingDuration.js";
 
 const eventTypes = new Set(["note", "rest", "chord"]);
 function children(score, parent, type) {
@@ -30,16 +31,18 @@ function events(score, voice) {
     return ordered;
 }
 function accidentalCount(value) { return (String(value).match(/[#bx♯♭]/g) ?? []).length; }
-function flagged(duration) { return duration.numerator / duration.denominator < .25; }
 function eventWidth(event, profile) {
-    if (String(event.type) === "rest") return profile.restWidth + (flagged(event.duration) ? profile.flagWidth : 0);
+    const style = engravingDurationStyle(event.duration);
+    const rhythmicWidth = style.flags ? profile.flagWidth : 0;
+    const dotWidth = style.dotCount * profile.augmentationDotWidth;
+    if (String(event.type) === "rest") return profile.restWidth + rhythmicWidth + dotWidth;
     const pitches = String(event.type) === "chord" ? event.notes : [event.pitch];
     const accidentals = pitches.length;
     const seconds = pitches.slice(1).filter((pitch, index) => {
         const letters = "CDEFGAB", previous = String(pitches[index]), current = String(pitch);
         return Math.abs(letters.indexOf(current[0]) - letters.indexOf(previous[0])) === 1;
     }).length;
-    return profile.noteheadWidth + profile.stemWidth + (flagged(event.duration) ? profile.flagWidth : 0) + accidentals * profile.accidentalWidth + seconds * profile.noteheadWidth * .55;
+    return profile.noteheadWidth + profile.stemWidth + rhythmicWidth + dotWidth + accidentals * profile.accidentalWidth + seconds * profile.noteheadWidth * .55;
 }
 function semanticIds(request, measureId) { return request.semanticSystems.filter(system => system.measureIds.includes(measureId)).map(system => system.id); }
 

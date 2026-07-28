@@ -30,6 +30,8 @@ No third-party engraving dependency or font asset is used. The vector definition
 
 The renderer maps alterations -2 through +2 explicitly to double-flat, flat, natural, sharp, and double-sharp vector glyphs and rejects unsupported values. Within each staff and measure, accidental state is shared across voices and keyed by written diatonic step plus octave; stable offset and node-identity ordering makes simultaneous-voice decisions deterministic. Key signatures supply per-step defaults across octaves, while measure overrides reset at each barline. Changed key and meter headers are emitted at their allocated measure boundary and repeated with the active clef at a new visual system.
 
+Notes and rests share one exact rational engraving classifier owned by Core Layout. Supported base values are whole, half, quarter, eighth, sixteenth, thirty-second, and sixty-fourth, each with zero through three augmentation dots. Thus `3/8` is a dotted quarter, `3/16` is a dotted eighth, and normalized equivalent fractions produce identical output. Classification uses integer equality rather than floating-point rounding; other rationals, including tuplet-like `1/3`, fail with a clear rendering validation error. Rest hooks and augmentation dots are renderer-owned SVG primitives, while frozen Layout metrics reserve their horizontal bounds before SVG emission.
+
 ## Kernel integration and descriptors
 
 `RenderingModule` registers `rendering.engine`, `rendering.strategyRegistry`, the `core.rendering.svg` plugin, and the `rendering.svg` renderer descriptor transactionally. Failed configuration rolls back only records created by that attempt. Disposal removes only registrations still owned by the module.

@@ -125,16 +125,59 @@ test("whole, half, quarter, eighth, and dotted values retain exact duration glyp
     for (const value of ["1/1", "1/2", "1/4", "1/8", "3/8"]) assert.match(svg, new RegExp(`data-duration="${value.replace("/", "\\/")}"`));
 });
 
-test("supported rests render conventional duration-specific shapes without pitch labels", () => {
-    const values = [
-        new RestNode({ id: "rest-whole", duration: duration(1, 1), offset: 0 }),
-        new RestNode({ id: "rest-half", duration: duration(1, 2), offset: 1 }),
-        new RestNode({ id: "rest-quarter", duration: duration(1, 4), offset: 2 }),
-        new RestNode({ id: "rest-eighth", duration: duration(1, 8), offset: 3 })
+test("rests render exact base values, hooks, dots, bounds, and accessible duration names", () => {
+    const cases = [
+        ["whole", 1, 1, 0, 0], ["half", 1, 2, 0, 0], ["quarter", 1, 4, 0, 0],
+        ["eighth", 1, 8, 1, 0], ["16th", 1, 16, 2, 0], ["32nd", 1, 32, 3, 0],
+        ["dotted-half", 3, 4, 0, 1], ["dotted-quarter", 3, 8, 0, 1],
+        ["dotted-eighth", 3, 16, 1, 1], ["double-dotted-quarter", 7, 16, 0, 2],
+        ["triple-dotted-quarter", 15, 32, 0, 3], ["dotted-64th", 3, 128, 4, 1]
     ];
-    const svg = render(graph({ measures: [values] }));
-    for (const kind of ["whole", "half", "quarter", "eighth"]) assert.match(svg, new RegExp(`rest rest-${kind}`));
-    assert.doesNotMatch(svg, />rest<|data-pitch=/);
+    const values = cases.map(([id, numerator, denominator], offset) =>
+        new RestNode({ id: `rest-${id}`, duration: duration(numerator, denominator), offset }));
+    const score = graph({ measures: [values] }), plan = layout(score, 1800);
+    const svg = render(score, { layoutPlan: plan });
+    for (const [id, numerator, denominator, flags, dots] of cases) {
+        const fragment = group(svg, `rest-${id}`);
+        assert.match(fragment, new RegExp(`data-rest-flags="${flags}"`));
+        assert.match(fragment, new RegExp(`data-rest-dots="${dots}"`));
+        assert.equal((fragment.match(/class="rest-hook"/g) ?? []).length, flags);
+        assert.equal((fragment.match(/class="rest-augmentation-dot"/g) ?? []).length, dots);
+        assert.match(fragment, new RegExp(`aria-label="${numerator}\\/${denominator} .*rest"`));
+        assert.doesNotMatch(fragment, /data-pitch=/);
+    }
+    assert.notEqual(group(svg, "rest-eighth"), group(svg, "rest-16th"));
+    assert.notEqual(group(svg, "rest-16th"), group(svg, "rest-32nd"));
+    const placements = plan.systems[0].measures[0].eventPlacements;
+    for (let index = 0; index < placements.length - 1; index += 1) {
+        assert.ok(placements[index + 1].x >= placements[index].x + placements[index].width);
+    }
+    const measure = plan.systems[0].measures[0], last = placements.at(-1);
+    assert.ok(measure.x + measure.width > last.x + last.width);
+    assert.doesNotMatch(svg, />rest</);
+});
+
+test("duration classification is exact, normalized, immutable, and rejects unsupported rationals", () => {
+    const normalized = graph({ measures: [[new RestNode({ id: "normalized", duration: duration(2, 8), offset: 0 })]] });
+    const canonical = graph({ measures: [[new RestNode({ id: "normalized", duration: duration(1, 4), offset: 0 })]] });
+    assert.equal(render(normalized), render(canonical));
+    const responsiveValues = [
+        new RestNode({ id: "responsive-eighth", duration: duration(1, 8), offset: 0 }),
+        new RestNode({ id: "responsive-16th", duration: duration(1, 16), offset: 1 }),
+        new RestNode({ id: "responsive-dotted", duration: duration(3, 16), offset: 2 })
+    ];
+    const responsive = graph({ measures: [responsiveValues] });
+    const reversed = graph({ measures: [[
+        new RestNode({ id: "responsive-eighth", duration: duration(1, 8), offset: 0 }),
+        new RestNode({ id: "responsive-16th", duration: duration(1, 16), offset: 1 }),
+        new RestNode({ id: "responsive-dotted", duration: duration(3, 16), offset: 2 })
+    ]], reverse: true });
+    assert.equal(render(responsive, { width: 260 }), render(reversed, { width: 260 }));
+    assert.equal(render(responsive, { width: 260 }), render(responsive, { width: 260 }));
+    const sourceDuration = duration(1, 3);
+    const unsupported = graph({ measures: [[new RestNode({ id: "unsupported", duration: sourceDuration, offset: 0 })]] });
+    assert.throws(() => render(unsupported), /Unsupported engraving duration "1\/3"/);
+    assert.deepEqual(sourceDuration, { numerator: 1, denominator: 3 });
 });
 
 test("triads and accidental-heavy sevenths share rhythmic x with readable heads and columns", () => {

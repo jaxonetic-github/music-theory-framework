@@ -18,7 +18,7 @@ If a single measure exceeds the content width, it receives one overflow-marked s
 
 ## Spacing and preservation
 
-Fixed metrics reserve room for clefs, key signatures, meters, measure padding, barlines, event gaps, rests, duration-specific notes, chord seconds, flags, and separate accidental columns. These metrics cover the framework's current glyph domain, including naturals, flats, sharps, double sharps, Cb, B#, triads, and seventh chords, without DOM or font bounding boxes. Visual systems use five lines at a fixed 12-unit spacing and explicit inter-system whitespace. Full page pagination remains deferred.
+Fixed metrics reserve room for clefs, key signatures, meters, measure padding, barlines, event gaps, rests, duration-specific notes, chord seconds, flags, augmentation dots, and separate accidental columns. A shared exact-rational classifier supplies base value, hook/flag count, and zero through three dots for whole through sixty-fourth values; unsupported engraving durations fail rather than being rounded. These metrics cover the framework's current glyph domain, including naturals, flats, sharps, double sharps, Cb, B#, triads, and seventh chords, without DOM or font bounding boxes. Visual systems use five lines at a fixed 12-unit spacing and explicit inter-system whitespace. Full page pagination remains deferred.
 
 Every visual-system start reserves a clef plus the active key and meter. Interior measure boundaries reserve header width only when the key or meter changes; key changes include deterministic cancellation naturals before the new signature. The same frozen boundary calculation drives system breaking, measure width, event placement, and SVG emission, so the first event cannot overlap a changed signature.
 

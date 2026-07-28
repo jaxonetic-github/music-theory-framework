@@ -30,7 +30,11 @@ function accidentalName(value) {
     throw new ValidationError(`Unsupported written accidental alteration: ${String(value)}.`);
 }
 function semanticEvent(event) {
-    if (String(event.type) === "rest") return `${event.duration} rest`;
+    if (String(event.type) === "rest") {
+        const style = durationStyle(event.duration);
+        const dots = style.dotCount === 1 ? "dotted " : style.dotCount === 2 ? "double-dotted " : style.dotCount === 3 ? "triple-dotted " : "";
+        return `${event.duration} ${dots}${style.kind} rest`;
+    }
     if (String(event.type) === "chord") return `${event.duration} chord ${event.notes.map(String).join(", ")}`;
     return `${event.duration} note ${event.pitch}`;
 }
@@ -39,7 +43,8 @@ function directionFor(ys, staffTop, voiceIndex, polyphonic) {
     return ys.reduce((sum, value) => sum + value, 0) / ys.length >= staffTop + 24 ? "up" : "down";
 }
 function augmentationDot(x, y, style) {
-    return style.dotted ? `<circle class="augmentation-dot" cx="${x}" cy="${y-3}" r="2.1" fill="currentColor"/>` : "";
+    return Array.from({ length: style.dotCount }, (_, index) =>
+        `<circle class="augmentation-dot" data-dot="${index+1}" cx="${x + index * 7}" cy="${y-3}" r="2.1" fill="currentColor"/>`).join("");
 }
 function renderPitchedEvent(event, placement, clef, staffTop, voiceIndex, polyphonic, needed) {
     const pitches = String(event.type) === "chord" ? event.notes : [event.pitch];
@@ -69,7 +74,7 @@ function renderPitchedEvent(event, placement, clef, staffTop, voiceIndex, polyph
     return `<g class="event ${event.type}" data-node-id="${xmlAttribute(event.id)}" data-order="${placement.order}" role="img" aria-label="${xmlAttribute(semanticEvent(event))}" data-x="${placement.x}" data-offset="${event.offset}" data-duration="${xmlAttribute(event.duration)}"${pitchAttribute} data-pitches="${xmlAttribute(pitchData)}" data-visible-pitch-labels="false"${metadataAttribute(event)}>${accidentals}${heads}${stemAndFlags(stemX, stemY, direction, style)}${augmentationDot(dotX, ys[0], style)}</g>`;
 }
 function renderRest(event, placement, staffTop) {
-    return `<g class="event rest" data-node-id="${xmlAttribute(event.id)}" data-order="${placement.order}" role="img" aria-label="${xmlAttribute(semanticEvent(event))}" data-x="${placement.x}" data-offset="${event.offset}" data-duration="${xmlAttribute(event.duration)}"${metadataAttribute(event)}>${restGlyph(placement.x, staffTop, event.duration)}</g>`;
+    return `<g class="event rest" data-node-id="${xmlAttribute(event.id)}" data-order="${placement.order}" role="img" aria-label="${xmlAttribute(semanticEvent(event))}" data-x="${placement.x}" data-width="${placement.width}" data-offset="${event.offset}" data-duration="${xmlAttribute(event.duration)}"${metadataAttribute(event)}>${restGlyph(placement.x, staffTop, event.duration)}</g>`;
 }
 function renderVoice(score, voice, placements, clef, staffTop, polyphonic, accidentalDecisions) {
     return `<g class="voice" data-node-id="${xmlAttribute(voice.id)}" data-index="${voice.index}" aria-label="Voice ${voice.index}"${metadataAttribute(voice)}>${placements.map(placement => {
