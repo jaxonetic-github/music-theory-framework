@@ -6,6 +6,7 @@ import {
     ScoreGraphLayoutStrategy, ScoreRootNode, SvgScoreRenderer, VoiceNode
 } from "../src/core/index.js";
 import { accidentalGlyph } from "../src/core/Rendering/strategies/engraving.js";
+import { engravingHeader, keySignatureTransition } from "../src/core/Layout/engravingHeaders.js";
 
 const duration = (numerator, denominator) => ({ numerator, denominator });
 function graph({ clef = "treble", key = null, meter = [4, 4], measures = [[
@@ -332,6 +333,56 @@ test("simultaneous polyphonic accidentals evaluate atomically and retain conflic
     assert.ok(Object.isFrozen(plan.systems[0].measures[0].eventPlacements[0].onset));
 });
 
+test("polyphonic shared onset columns align mixed durations, rests, chords, and glyph widths", () => {
+    const score = polyphonicGraph([
+        [
+            new ChordNode({ id: "column-chord", notes: ["C#4", "D4", "G4"], duration: duration(1, 2), offset: 90 }),
+            new RestNode({ id: "column-half-rest", duration: duration(1, 2), offset: 0 })
+        ],
+        [
+            new RestNode({ id: "column-quarter-rest", duration: duration(1, 4), offset: 80 }),
+            new NoteNode({ id: "column-quarter-2", pitch: "Eb4", duration: duration(1, 4), offset: 2 }),
+            new NoteNode({ id: "column-quarter-3", pitch: "F4", duration: duration(1, 4), offset: 1 }),
+            new NoteNode({ id: "column-quarter-4", pitch: "G4", duration: duration(1, 4), offset: 0 })
+        ]
+    ]);
+    const source = score.nodes.map(value => String(value.id)), plan = layout(score);
+    const placements = plan.systems[0].measures[0].eventPlacements;
+    const at = id => placements.find(value => value.eventId === id);
+    assert.equal(at("column-chord").x, at("column-quarter-rest").x);
+    assert.equal(at("column-half-rest").x, at("column-quarter-3").x);
+    assert.ok(at("column-quarter-2").x > at("column-quarter-rest").x);
+    assert.ok(at("column-quarter-3").x > at("column-quarter-2").x);
+    assert.ok(at("column-quarter-4").x > at("column-quarter-3").x);
+    assert.deepEqual(placements.map(value => value.onset), [
+        { numerator: 0, denominator: 1 }, { numerator: 0, denominator: 1 },
+        { numerator: 1, denominator: 4 }, { numerator: 1, denominator: 2 },
+        { numerator: 1, denominator: 2 }, { numerator: 3, denominator: 4 }
+    ]);
+    const measure = plan.systems[0].measures[0];
+    assert.ok(placements.every(value => value.x >= measure.x && value.x + value.width <= measure.x + measure.width));
+    assert.deepEqual(score.nodes.map(value => String(value.id)), source);
+});
+
+test("whole, dotted, and reversed chord-member fixtures retain deterministic shared columns", () => {
+    const build = notes => polyphonicGraph([
+        [new NoteNode({ id: "column-whole", pitch: "C4", duration: duration(1, 1), offset: 40 })],
+        [
+            new ChordNode({ id: "column-reversible", notes, duration: duration(3, 8), offset: 30 }),
+            new NoteNode({ id: "column-dotted-next", pitch: "A4", duration: duration(1, 8), offset: 20 }),
+            new NoteNode({ id: "column-halfway", pitch: "B4", duration: duration(1, 2), offset: 10 })
+        ]
+    ], { reverse: true });
+    const first = layout(build(["C#4", "D4", "G4"])), reversed = layout(build(["G4", "D4", "C#4"]));
+    const values = first.systems[0].measures[0].eventPlacements;
+    assert.equal(values[0].x, values[1].x);
+    assert.ok(values[2].x > values[1].x);
+    assert.ok(values[3].x > values[2].x);
+    assert.equal(first.systems[0].measures[0].naturalWidth, reversed.systems[0].measures[0].naturalWidth);
+    assert.deepEqual(values.map(value => [value.eventId, value.x, value.onset]),
+        reversed.systems[0].measures[0].eventPlacements.map(value => [value.eventId, value.x, value.onset]));
+});
+
 test("all supported written accidentals use explicit glyph mappings", () => {
     const values = ["Cbb4", "Cb4", "C4", "C#4", "C##4"].map((pitch, index) =>
         new NoteNode({ id: `accidental-${index}`, pitch, duration: duration(1, 4), offset: index }));
@@ -431,13 +482,51 @@ test("mid-system key and meter changes reserve headers and remain deterministic"
     assert.equal((svg.match(/class="key-signature"/g) ?? []).length, 2);
     assert.match(svg, /class="boundary-header" role="group" aria-label="D major key signature"/);
     assert.match(svg, /class="boundary-header" role="group" aria-label="3 over 4 time"/);
-    assert.match(svg, /class="boundary-header" role="group" aria-label="G major key signature, 2 over 4 time"/);
+    assert.match(svg, /class="boundary-header" role="group" aria-label="cancel C sharp, G major key signature, 2 over 4 time"/);
     assert.doesNotMatch(group(svg, "after-change"), /class="accidental /);
     const changed = plan.systems[0].measures[1], event = changed.eventPlacements[0];
     assert.ok(event.x > changed.x + 60);
     assert.match(svg, /Measure 2: D major key, 4 over 4 time/);
     assert.deepEqual(reversedPlan.systems, plan.systems);
     assert.equal(reversedSvg, svg);
+});
+
+test("key transitions cancel only removed or changed signature alterations", () => {
+    const transition = (from, to) => keySignatureTransition(
+        from === null ? null : { accidentals: from },
+        to === null ? null : { accidentals: to }
+    );
+    assert.deepEqual(transition(2, 1).cancellations.map(value => value.step), ["C"]);
+    assert.deepEqual(transition(1, 2).cancellations.map(value => value.step), []);
+    assert.deepEqual(transition(2, null).cancellations.map(value => value.step), ["F", "C"]);
+    assert.deepEqual(transition(null, 2).cancellations.map(value => value.step), []);
+    assert.deepEqual(transition(-2, -1).cancellations.map(value => value.step), ["E"]);
+    assert.deepEqual(transition(-1, -2).cancellations.map(value => value.step), []);
+    assert.equal(transition(7, -7).cancellationCount, 7);
+    assert.ok(Object.isFrozen(transition(2, 1).cancellations));
+});
+
+test("D-major key changes share exact transition width and accessible cancellation metadata", () => {
+    const specs = [
+        { key: "D", meter: [4, 4] },
+        { key: "G", meter: [4, 4] },
+        { key: "C", meter: [3, 4] }
+    ];
+    const score = changingSignatureGraph(specs), plan = layout(score), svg = render(score, { layoutPlan: plan });
+    const dToG = engravingHeader(score.node("change-measure:2"), score.node("change-measure:1"), plan.request.profile, false);
+    const gToC = engravingHeader(score.node("change-measure:3"), score.node("change-measure:2"), plan.request.profile, false);
+    assert.equal(dToG.cancellationCount, 1);
+    assert.equal(dToG.keyGlyphCount, 1);
+    assert.equal(dToG.keyWidth, 30);
+    assert.equal(gToC.cancellationCount, 1);
+    assert.equal(gToC.keyGlyphCount, 0);
+    assert.match(svg, /aria-label="cancel C sharp, G major key signature"/);
+    assert.match(svg, /aria-label="cancel F sharp, C major key signature, 3 over 4 time"/);
+    assert.equal((svg.match(/key-cancellation key-C/g) ?? []).length, 1);
+    assert.equal((svg.match(/key-cancellation key-F/g) ?? []).length, 1);
+    assert.doesNotMatch(svg, /cancel F sharp and C sharp, G major/);
+    const changed = plan.systems[0].measures[1], firstEvent = changed.eventPlacements[0];
+    assert.ok(firstEvent.x >= changed.x + dToG.width);
 });
 
 test("system starts repeat active signatures and responsive breaks near changes are stable", () => {

@@ -1,6 +1,6 @@
 import { ScoreGraph } from "../../Notation/index.js";
 import { LayoutPlan, LayoutEngine, LayoutStrategyRegistry, ScoreGraphLayoutStrategy } from "../../Layout/index.js";
-import { engravingHeader } from "../../Layout/engravingHeaders.js";
+import { engravingHeader, keySignatureTransition } from "../../Layout/engravingHeaders.js";
 import { ValidationError } from "../../Foundation/index.js";
 import { RendererStrategy } from "./RendererStrategy.js";
 import { metadataText, xmlAttribute, xmlText } from "./svg.js";
@@ -131,12 +131,15 @@ function renderMeasure(score, layoutMeasure, system, index, staffTop, previousMe
     let headerX = layoutMeasure.x + 10, header = "";
     if (boundary.showClef) { header += clefGlyph(part.clef, headerX, staffTop); headerX += profile.clefWidth; }
     if (boundary.showKey) {
-        header += keySignatureGlyph(key, part.clef, headerX, staffTop, index === 0 ? null : previousMeasure?.keySignature);
+        header += keySignatureGlyph(key, part.clef, headerX, staffTop, index === 0 ? null : previousMeasure?.keySignature, boundary.keyTransition);
         headerX += boundary.keyWidth;
     }
     if (boundary.showMeter) header += timeSignatureGlyph(measure, headerX + profile.timeSignatureWidth / 2, staffTop);
     const headerLabel = [
         boundary.showClef ? `${part.clef.type} clef` : null,
+        boundary.showKey && boundary.keyTransition.cancellations.length
+            ? `cancel ${boundary.keyTransition.cancellations.map(entry => `${entry.step} ${entry.alteration > 0 ? "sharp" : "flat"}`).join(" and ")}`
+            : null,
         boundary.showKey ? (key ? `${key.tonic} ${key.mode} key signature` : "no key signature") : null,
         boundary.showMeter ? `${measure.value.beats} over ${measure.value.beatUnit} time` : null
     ].filter(Boolean).join(", ");
@@ -173,8 +176,16 @@ export class SvgScoreRenderer extends RendererStrategy {
         const title = options.title ?? score.score.title, metadata = options.metadata ?? score.score.metadata;
         const prefix = safeId(options.accessibleId ?? `${score.score.id}-${plan.metadata.profileId}`);
         const titleId = `${prefix}-score-title`, descriptionId = `${prefix}-score-description`;
-        const signatureText = [...score.nodesOfType("measure")].sort((a,b)=>a.number-b.number||String(a.id).localeCompare(String(b.id)))
-            .map(measure => `Measure ${measure.number}: ${measure.keySignature ? `${measure.keySignature.tonic} ${measure.keySignature.mode} key` : "no key signature"}, ${measure.value.beats} over ${measure.value.beatUnit} time`).join("; ");
+        const signatureText = [...score.nodesOfType("part")].sort((a,b)=>String(a.id).localeCompare(String(b.id))).flatMap(part => {
+            const measures = children(score, part, "measure").sort((a,b)=>a.number-b.number||String(a.id).localeCompare(String(b.id)));
+            return measures.map((measure, index) => {
+                const transition = keySignatureTransition(index ? measures[index - 1].keySignature : null, measure.keySignature, index === 0);
+                const cancellations = transition.cancellations.length
+                    ? `cancel ${transition.cancellations.map(entry => `${entry.step} ${entry.alteration > 0 ? "sharp" : "flat"}`).join(" and ")}, `
+                    : "";
+                return `Measure ${measure.number}: ${cancellations}${measure.keySignature ? `${measure.keySignature.tonic} ${measure.keySignature.mode} key` : "no key signature"}, ${measure.value.beats} over ${measure.value.beatUnit} time`;
+            });
+        }).join("; ");
         const description = `${title}. Conventional staff notation with ${plan.systems.length} visual system${plan.systems.length === 1 ? "" : "s"}. ${[...score.nodesOfType("part")].sort((a,b)=>String(a.id).localeCompare(String(b.id))).map(part => `${part.name}, ${part.clef.type} clef`).join("; ")}. ${signatureText}.`;
         const content = plan.systems.map(system => renderSystem(score, system, plan.request.profile)).join("");
         return `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="${xmlAttribute(titleId)} ${xmlAttribute(descriptionId)}" data-layout-profile="${xmlAttribute(plan.metadata.profileId)}" data-available-width="${plan.metadata.availableWidth}" data-natural-width="${plan.metadata.naturalWidth}" data-layout-metadata="${xmlAttribute(metadataText(plan.metadata))}" data-engraving-glyphs="renderer-owned-svg"><title id="${xmlAttribute(titleId)}">${xmlText(title)}</title><desc id="${xmlAttribute(descriptionId)}">${xmlText(description)}</desc><metadata>${xmlText(metadataText(metadata))}</metadata><g class="score" data-node-id="${xmlAttribute(score.score.id)}"${metadataAttribute(score.score)}><text class="score-title" x="24" y="26" font-size="16" font-weight="600">${xmlText(title)}</text>${content}</g></svg>`;

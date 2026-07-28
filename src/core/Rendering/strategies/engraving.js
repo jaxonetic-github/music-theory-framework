@@ -1,6 +1,7 @@
 import { xmlAttribute } from "./svg.js";
 import { ValidationError } from "../../Foundation/index.js";
 import { engravingDurationStyle } from "../../Layout/engravingDuration.js";
+import { keySignatureTransition } from "../../Layout/engravingHeaders.js";
 
 export const ENGRAVING = Object.freeze({
     lineGap: 12, halfGap: 6, noteRx: 7, noteRy: 5, stemLength: 34,
@@ -54,20 +55,21 @@ export function clefGlyph(clef, x, staffTop) {
     return `<g class="clef clef-${xmlAttribute(type)}" fill="none" stroke="currentColor" stroke-width="2"><path d="M${x+5} ${lineY-20}v40h11l-7-8l7-8h-11M${x+31} ${lineY-20}v40h-11l7-8l-7-8h11"/></g>`;
 }
 
-export function keySignatureGlyph(key, clef, x, staffTop, previousKey = null) {
-    const previousCount = Math.abs(previousKey?.accidentals ?? 0);
-    const currentCount = Math.abs(key?.accidentals ?? 0);
+export function keySignatureGlyph(key, clef, x, staffTop, previousKey = null, transition = keySignatureTransition(previousKey, key, !previousKey)) {
+    const previousCount = transition.cancellationCount;
+    const currentCount = transition.keyGlyphCount;
     if (!previousCount && !currentCount) return "";
-    const previousSharp = (previousKey?.accidentals ?? 0) > 0;
-    const previousOrder = previousSharp ? sharpOrder : flatOrder;
+    const previousSharp = (previousKey?.accidentals ?? 0) > 0, previousOrder = previousSharp ? sharpOrder : flatOrder;
     const previousPositions = (keyY[clef.type] ?? keyY.treble)[previousSharp ? "sharp" : "flat"];
-    const cancellations = previousOrder.slice(0, previousCount).map((letter, index) =>
-        accidentalGlyph("natural", x + index * 11, staffTop + previousPositions[index], `key-accidental key-cancellation key-${letter}`)).join("");
+    const cancellations = transition.cancellations.map((entry, index) => {
+        const position = previousOrder.indexOf(entry.step);
+        return accidentalGlyph("natural", x + index * 11, staffTop + previousPositions[position], `key-accidental key-cancellation key-${entry.step}`);
+    }).join("");
     const sharp = (key?.accidentals ?? 0) > 0, order = sharp ? sharpOrder : flatOrder;
     const positions = (keyY[clef.type] ?? keyY.treble)[sharp ? "sharp" : "flat"];
     const offset = previousCount * 11;
-    const current = order.slice(0, currentCount).map((letter, index) =>
-        accidentalGlyph(sharp ? "sharp" : "flat", x + offset + index * 11, staffTop + positions[index], `key-accidental key-${letter}`)).join("");
+    const current = transition.next.map((entry, index) =>
+        accidentalGlyph(entry.alteration > 0 ? "sharp" : "flat", x + offset + index * 11, staffTop + positions[order.indexOf(entry.step)], `key-accidental key-${entry.step}`)).join("");
     const label = key ? `${key.tonic} ${key.mode} key signature` : "no key signature";
     return `<g class="key-signature" aria-label="${xmlAttribute(label)}">${cancellations}${current}</g>`;
 }
