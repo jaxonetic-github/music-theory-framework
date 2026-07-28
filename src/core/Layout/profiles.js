@@ -10,9 +10,9 @@ export class LayoutProfile {
 }
 
 export const layoutProfiles = Object.freeze({
-    "screen-compact": new LayoutProfile({ id: "screen-compact", eventGap: 17, measurePadding: 14, clefWidth: 42, keySignatureWidth: 78, timeSignatureWidth: 38, accidentalWidth: 14, noteheadWidth: 16, stemWidth: 4, flagWidth: 13, restWidth: 20, barlineWidth: 4, staffHeight: 116, staffLineSpacing: 12, staffSpacing: 38, systemSpacing: 38 }),
-    "screen-regular": new LayoutProfile({ id: "screen-regular", eventGap: 25, measurePadding: 18, clefWidth: 48, keySignatureWidth: 84, timeSignatureWidth: 42, accidentalWidth: 15, noteheadWidth: 18, stemWidth: 4, flagWidth: 14, restWidth: 22, barlineWidth: 4, staffHeight: 120, staffLineSpacing: 12, staffSpacing: 44, systemSpacing: 48 }),
-    "print-worksheet": new LayoutProfile({ id: "print-worksheet", eventGap: 20, measurePadding: 16, clefWidth: 46, keySignatureWidth: 80, timeSignatureWidth: 40, accidentalWidth: 15, noteheadWidth: 17, stemWidth: 4, flagWidth: 13, restWidth: 21, barlineWidth: 4, staffHeight: 118, staffLineSpacing: 12, staffSpacing: 42, systemSpacing: 44 })
+    "screen-compact": new LayoutProfile({ id: "screen-compact", eventGap: 17, measurePadding: 14, clefWidth: 42, keySignatureWidth: 85, timeSignatureWidth: 38, accidentalWidth: 18, noteheadWidth: 16, stemWidth: 4, flagWidth: 13, restWidth: 20, barlineWidth: 4, staffHeight: 116, staffLineSpacing: 12, staffSpacing: 38, systemSpacing: 38 }),
+    "screen-regular": new LayoutProfile({ id: "screen-regular", eventGap: 25, measurePadding: 18, clefWidth: 48, keySignatureWidth: 85, timeSignatureWidth: 42, accidentalWidth: 18, noteheadWidth: 18, stemWidth: 4, flagWidth: 14, restWidth: 22, barlineWidth: 4, staffHeight: 120, staffLineSpacing: 12, staffSpacing: 44, systemSpacing: 48 }),
+    "print-worksheet": new LayoutProfile({ id: "print-worksheet", eventGap: 20, measurePadding: 16, clefWidth: 46, keySignatureWidth: 85, timeSignatureWidth: 40, accidentalWidth: 18, noteheadWidth: 17, stemWidth: 4, flagWidth: 13, restWidth: 21, barlineWidth: 4, staffHeight: 118, staffLineSpacing: 12, staffSpacing: 42, systemSpacing: 44 })
 });
 
 export function resolveLayoutProfile(value = "screen-regular") {

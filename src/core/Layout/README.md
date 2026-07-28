@@ -20,6 +20,8 @@ If a single measure exceeds the content width, it receives one overflow-marked s
 
 Fixed metrics reserve room for clefs, key signatures, meters, measure padding, barlines, event gaps, rests, duration-specific notes, chord seconds, flags, and separate accidental columns. These metrics cover the framework's current glyph domain, including naturals, flats, sharps, double sharps, Cb, B#, triads, and seventh chords, without DOM or font bounding boxes. Visual systems use five lines at a fixed 12-unit spacing and explicit inter-system whitespace. Full page pagination remains deferred.
 
+Every visual-system start reserves a clef plus the active key and meter. Interior measure boundaries reserve header width only when the key or meter changes; key changes include deterministic cancellation naturals before the new signature. The same frozen boundary calculation drives system breaking, measure width, event placement, and SVG emission, so the first event cannot overlap a changed signature.
+
 Layout preserves node identities, written pitch spelling, MIDI data, durations, offsets, part/measure/voice membership, chord membership and order, source metadata, semantic row/system identity, and `next` edges. It never mutates the graph or changes playback/export ordering.
 
 ## Rendering and exercise workflows

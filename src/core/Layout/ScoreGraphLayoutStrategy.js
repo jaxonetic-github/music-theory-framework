@@ -2,6 +2,7 @@ import { ValidationError } from "../Foundation/index.js";
 import { LayoutRequest } from "./LayoutRequest.js";
 import { LayoutStrategy } from "./LayoutStrategy.js";
 import { LayoutBounds, LayoutEventPlacement, LayoutMeasure, LayoutMetadata, LayoutPlan, LayoutSystem } from "./values.js";
+import { engravingHeader } from "./engravingHeaders.js";
 
 const eventTypes = new Set(["note", "rest", "chord"]);
 function children(score, parent, type) {
@@ -33,15 +34,13 @@ function flagged(duration) { return duration.numerator / duration.denominator < 
 function eventWidth(event, profile) {
     if (String(event.type) === "rest") return profile.restWidth + (flagged(event.duration) ? profile.flagWidth : 0);
     const pitches = String(event.type) === "chord" ? event.notes : [event.pitch];
-    const accidentals = pitches.reduce((sum, pitch) => sum + accidentalCount(pitch), 0);
+    const accidentals = pitches.length;
     const seconds = pitches.slice(1).filter((pitch, index) => {
         const letters = "CDEFGAB", previous = String(pitches[index]), current = String(pitch);
         return Math.abs(letters.indexOf(current[0]) - letters.indexOf(previous[0])) === 1;
     }).length;
     return profile.noteheadWidth + profile.stemWidth + (flagged(event.duration) ? profile.flagWidth : 0) + accidentals * profile.accidentalWidth + seconds * profile.noteheadWidth * .55;
 }
-function keyWidth(measure, profile) { return Math.min(profile.keySignatureWidth, Math.abs(measure.keySignature?.accidentals ?? 0) * 11 + 8); }
-function headerWidth(measure, profile) { return profile.clefWidth + keyWidth(measure, profile) + profile.timeSignatureWidth + profile.measurePadding; }
 function semanticIds(request, measureId) { return request.semanticSystems.filter(system => system.measureIds.includes(measureId)).map(system => system.id); }
 
 export class ScoreGraphLayoutStrategy extends LayoutStrategy {
@@ -54,23 +53,24 @@ export class ScoreGraphLayoutStrategy extends LayoutStrategy {
         let globalSequence = 0, y = 54;
         for (const part of parts) {
             const measures = children(score, part, "measure").sort((a, b) => a.number - b.number || idCompare(a, b));
-            const prepared = measures.map(measure => {
+            const prepared = measures.map((measure, index) => {
                 const voices = children(score, measure, "voice").sort((a, b) => a.index - b.index || idCompare(a, b));
                 const voiceEvents = voices.map(voice => events(score, voice));
                 const bodyWidth = Math.max(request.minimumSystemWidth, profile.measurePadding * 2 + profile.barlineWidth,
                     ...voiceEvents.map(list => profile.measurePadding * 2 + list.reduce((sum, event) => sum + eventWidth(event, profile) + profile.eventGap, 0) + profile.barlineWidth));
-                return { measure, voices, voiceEvents, bodyWidth };
+                return { measure, previousMeasure: index ? measures[index - 1] : null, voices, voiceEvents, bodyWidth };
             });
             let batch = [];
             const flush = () => {
                 if (!batch.length) return;
                 globalSequence += 1;
                 const systemY = y, systemHeight = profile.staffHeight;
-                const naturalWidth = request.horizontalPadding * 2 + headerWidth(batch[0].measure, profile) + batch.reduce((sum, value) => sum + value.bodyWidth, 0);
+                const naturalWidth = request.horizontalPadding * 2 + batch.reduce((sum, value, index) =>
+                    sum + value.bodyWidth + engravingHeader(value.measure, value.previousMeasure, profile, index === 0).width, 0);
                 const overflow = naturalWidth > request.availableWidth;
                 let measureX = request.horizontalPadding;
                 const layoutMeasures = batch.map((value, measureIndex) => {
-                    const header = measureIndex === 0 ? headerWidth(value.measure, profile) : 0;
+                    const header = engravingHeader(value.measure, value.previousMeasure, profile, measureIndex === 0).width;
                     const width = value.bodyWidth + header;
                     const placements = [];
                     value.voices.forEach((voice, voiceIndex) => {
@@ -78,8 +78,8 @@ export class ScoreGraphLayoutStrategy extends LayoutStrategy {
                         value.voiceEvents[voiceIndex].forEach((event, index) => {
                             const glyphWidth = eventWidth(event, profile);
                             const accidentalReserve = String(event.type) === "chord"
-                                ? event.notes.reduce((sum, pitch) => sum + accidentalCount(pitch), 0) * profile.accidentalWidth
-                                : String(event.type) === "note" ? accidentalCount(event.pitch) * profile.accidentalWidth : 0;
+                                ? event.notes.length * profile.accidentalWidth
+                                : String(event.type) === "note" ? profile.accidentalWidth : 0;
                             x += accidentalReserve;
                             placements.push(new LayoutEventPlacement({ eventId: event.id, measureId: value.measure.id, voiceId: voice.id, x, y: systemY + 58, width: glyphWidth, order: index + 1 }));
                             x += glyphWidth - accidentalReserve + profile.eventGap;
@@ -99,10 +99,12 @@ export class ScoreGraphLayoutStrategy extends LayoutStrategy {
                 const hint = request.semanticSystems.find(system => system.measureIds.includes(String(value.measure.id)));
                 const firstInHint = hint?.measureIds[0] === String(value.measure.id);
                 if (batch.length && firstInHint && hint.breakPolicy === "mandatory") flush();
-                const proposed = headerWidth(batch[0]?.measure ?? value.measure, profile) + batch.reduce((sum, item) => sum + item.bodyWidth, 0) + value.bodyWidth;
+                const proposed = batch.reduce((sum, item, index) =>
+                    sum + item.bodyWidth + engravingHeader(item.measure, item.previousMeasure, profile, index === 0).width, 0)
+                    + value.bodyWidth + engravingHeader(value.measure, value.previousMeasure, profile, batch.length === 0).width;
                 if (batch.length && proposed > contentWidth) flush();
                 batch.push(value);
-                if (headerWidth(value.measure, profile) + value.bodyWidth > contentWidth) flush();
+                if (engravingHeader(value.measure, value.previousMeasure, profile, true).width + value.bodyWidth > contentWidth) flush();
             }
             flush();
         }

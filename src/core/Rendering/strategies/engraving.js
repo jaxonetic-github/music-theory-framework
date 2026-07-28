@@ -1,4 +1,5 @@
 import { xmlAttribute } from "./svg.js";
+import { ValidationError } from "../../Foundation/index.js";
 
 export const ENGRAVING = Object.freeze({
     lineGap: 12, halfGap: 6, noteRx: 7, noteRy: 5, stemLength: 34,
@@ -41,9 +42,13 @@ export function durationStyle(duration) {
 }
 
 export function accidentalGlyph(kind, x, y, className = "accidental") {
+    if (!["double-flat", "flat", "natural", "sharp", "double-sharp"].includes(kind)) {
+        throw new ValidationError(`Unsupported engraving accidental: "${String(kind)}".`);
+    }
     const common = `class="${className} accidental-${kind}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"`;
     if (kind === "sharp") return `<path ${common} d="M${x-4} ${y-13}v26M${x+4} ${y-15}v26M${x-8} ${y-5}l16-4M${x-8} ${y+5}l16-4"/>`;
     if (kind === "flat") return `<path ${common} d="M${x-3} ${y-16}v28c12-5 11-17 0-12"/>`;
+    if (kind === "double-flat") return `<g class="${className} accidental-double-flat">${accidentalGlyph("flat", x-4, y, "accidental-component")}${accidentalGlyph("flat", x+4, y, "accidental-component")}</g>`;
     if (kind === "double-sharp") return `<path ${common} d="M${x-7} ${y-7}l14 14M${x+7} ${y-7}l-14 14M${x-7} ${y-7}l14 0M${x-7} ${y+7}l14 0"/>`;
     return `<path ${common} d="M${x-4} ${y-14}v25M${x+4} ${y-11}v25M${x-4} ${y-2}l8-4M${x-4} ${y+8}l8-4"/>`;
 }
@@ -57,11 +62,22 @@ export function clefGlyph(clef, x, staffTop) {
     return `<g class="clef clef-${xmlAttribute(type)}" fill="none" stroke="currentColor" stroke-width="2"><path d="M${x+5} ${lineY-20}v40h11l-7-8l7-8h-11M${x+31} ${lineY-20}v40h-11l7-8l-7-8h11"/></g>`;
 }
 
-export function keySignatureGlyph(key, clef, x, staffTop) {
-    if (!key?.accidentals) return "";
-    const sharp = key.accidentals > 0, count = Math.abs(key.accidentals), order = sharp ? sharpOrder : flatOrder;
+export function keySignatureGlyph(key, clef, x, staffTop, previousKey = null) {
+    const previousCount = Math.abs(previousKey?.accidentals ?? 0);
+    const currentCount = Math.abs(key?.accidentals ?? 0);
+    if (!previousCount && !currentCount) return "";
+    const previousSharp = (previousKey?.accidentals ?? 0) > 0;
+    const previousOrder = previousSharp ? sharpOrder : flatOrder;
+    const previousPositions = (keyY[clef.type] ?? keyY.treble)[previousSharp ? "sharp" : "flat"];
+    const cancellations = previousOrder.slice(0, previousCount).map((letter, index) =>
+        accidentalGlyph("natural", x + index * 11, staffTop + previousPositions[index], `key-accidental key-cancellation key-${letter}`)).join("");
+    const sharp = (key?.accidentals ?? 0) > 0, order = sharp ? sharpOrder : flatOrder;
     const positions = (keyY[clef.type] ?? keyY.treble)[sharp ? "sharp" : "flat"];
-    return `<g class="key-signature" aria-label="${xmlAttribute(`${key.tonic} ${key.mode} key signature`)}">${order.slice(0, count).map((letter, index) => accidentalGlyph(sharp ? "sharp" : "flat", x + index * 11, staffTop + positions[index], `key-accidental key-${letter}`)).join("")}</g>`;
+    const offset = previousCount * 11;
+    const current = order.slice(0, currentCount).map((letter, index) =>
+        accidentalGlyph(sharp ? "sharp" : "flat", x + offset + index * 11, staffTop + positions[index], `key-accidental key-${letter}`)).join("");
+    const label = key ? `${key.tonic} ${key.mode} key signature` : "no key signature";
+    return `<g class="key-signature" aria-label="${xmlAttribute(label)}">${cancellations}${current}</g>`;
 }
 
 export function timeSignatureGlyph(measure, x, staffTop) {

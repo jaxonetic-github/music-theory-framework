@@ -1,9 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-    ChordNode, Clef, KeySignature, MeasureNode, NoteNode, PartNode, RendererStrategyRegistry,
-    RenderingEngine, RestNode, ScoreEdge, ScoreGraph, ScoreRootNode, SvgScoreRenderer, VoiceNode
+    ChordNode, Clef, KeySignature, LayoutEngine, LayoutStrategyRegistry, MeasureNode, NoteNode,
+    PartNode, RendererStrategyRegistry, RenderingEngine, RestNode, ScoreEdge, ScoreGraph,
+    ScoreGraphLayoutStrategy, ScoreRootNode, SvgScoreRenderer, VoiceNode
 } from "../src/core/index.js";
+import { accidentalGlyph } from "../src/core/Rendering/strategies/engraving.js";
 
 const duration = (numerator, denominator) => ({ numerator, denominator });
 function graph({ clef = "treble", key = null, meter = [4, 4], measures = [[
@@ -32,6 +34,33 @@ function render(score, options = {}) {
     const registry = new RendererStrategyRegistry(), strategy = new SvgScoreRenderer();
     registry.register(strategy.pluginId, strategy);
     return new RenderingEngine(registry).render(score, options);
+}
+function layout(score, width = 1200) {
+    const registry = new LayoutStrategyRegistry(), strategy = new ScoreGraphLayoutStrategy();
+    registry.register(strategy.pluginId, strategy);
+    return new LayoutEngine(registry).plan({ score, availableWidth: width });
+}
+function changingSignatureGraph(specs, reverse = false) {
+    const root = new ScoreRootNode({ id: "change-score", title: "Signature changes" });
+    const part = new PartNode({ id: "change-part", name: "Piano", clef: new Clef("treble") });
+    const nodes = [root, part], edges = [new ScoreEdge({ from: root.id, to: part.id, type: "contains" })];
+    specs.forEach((spec, index) => {
+        const measure = new MeasureNode({
+            id: `change-measure:${index + 1}`, number: index + 1,
+            beats: spec.meter?.[0] ?? 4, beatUnit: spec.meter?.[1] ?? 4,
+            keySignature: spec.key ? new KeySignature(spec.key) : null
+        });
+        const voice = new VoiceNode({ id: `change-voice:${index + 1}`, index: 1 });
+        nodes.push(measure, voice);
+        edges.push(new ScoreEdge({ from: part.id, to: measure.id, type: "contains" }),
+            new ScoreEdge({ from: measure.id, to: voice.id, type: "contains" }));
+        (spec.events ?? [new NoteNode({ id: `change-note:${index + 1}`, pitch: "C4", duration: duration(1, 4), offset: 0 })])
+            .forEach(event => {
+                nodes.push(event);
+                edges.push(new ScoreEdge({ from: voice.id, to: event.id, type: "contains" }));
+            });
+    });
+    return new ScoreGraph({ nodes: reverse ? [...nodes].reverse() : nodes, edges: reverse ? [...edges].reverse() : edges });
 }
 function group(svg, id) {
     const start = svg.indexOf(`data-node-id="${id}"`);
@@ -134,7 +163,7 @@ test("key, meter, continuous measures, wrapping, parts, and deterministic revers
     assert.ok((wide.match(/class="measure"/g) ?? []).length >= 4);
     assert.ok((wide.match(/class="barline/g) ?? []).length >= 6);
     assert.ok((narrow.match(/class="part layout-system"/g) ?? []).length > (wide.match(/class="part layout-system"/g) ?? []).length);
-    assert.equal((narrow.match(/class="time-signature"/g) ?? []).length, 2);
+    assert.equal((narrow.match(/class="time-signature"/g) ?? []).length, (narrow.match(/class="part layout-system"/g) ?? []).length);
     const ys = [...wide.matchAll(/class="staff-line"[^>]*y1="([^"]+)"/g)].map(match => Number(match[1]));
     assert.ok(Math.max(...ys.slice(0, 5)) < Math.min(...ys.slice(5)));
     const reversed = graph({ key: "D", measures: [
@@ -150,8 +179,8 @@ test("multiple voices use opposing deterministic stems at one rhythmic position"
     const measure = new MeasureNode({ id: "two-voice-measure", number: 1, beats: 4, beatUnit: 4 });
     const upper = new VoiceNode({ id: "upper-voice", index: 1 });
     const lower = new VoiceNode({ id: "lower-voice", index: 2 });
-    const upperNote = new NoteNode({ id: "upper-note", pitch: "C5", duration: duration(1, 4), offset: 0 });
-    const lowerNote = new NoteNode({ id: "lower-note", pitch: "E3", duration: duration(1, 4), offset: 0 });
+    const upperNote = new NoteNode({ id: "upper-note", pitch: "C#4", duration: duration(1, 4), offset: 0 });
+    const lowerNote = new NoteNode({ id: "lower-note", pitch: "C#4", duration: duration(1, 4), offset: 1 });
     const score = new ScoreGraph({
         nodes: [root, part, measure, upper, lower, upperNote, lowerNote],
         edges: [
@@ -167,5 +196,90 @@ test("multiple voices use opposing deterministic stems at one rhythmic position"
     assert.equal(eventAttribute(svg, "upper-note", "data-x"), eventAttribute(svg, "lower-note", "data-x"));
     assert.match(group(svg, "upper-note"), /class="stem stem-up"/);
     assert.match(group(svg, "lower-note"), /class="stem stem-down"/);
+    assert.equal((svg.match(/class="accidental accidental-sharp"/g) ?? []).length, 1);
     assert.equal((svg.match(/class="staff-line"/g) ?? []).length, 5);
+});
+
+test("all supported written accidentals use explicit glyph mappings", () => {
+    const values = ["Cbb4", "Cb4", "C4", "C#4", "C##4"].map((pitch, index) =>
+        new NoteNode({ id: `accidental-${index}`, pitch, duration: duration(1, 4), offset: index }));
+    const svg = render(graph({ measures: [values] }));
+    for (const [index, kind] of ["double-flat", "flat", "natural", "sharp", "double-sharp"].entries()) {
+        assert.match(group(svg, `accidental-${index}`), new RegExp(`accidental-${kind}`));
+    }
+    assert.doesNotMatch(group(svg, "accidental-0"), /accidental-natural/);
+    assert.throws(() => accidentalGlyph("triple-sharp", 0, 0), /Unsupported engraving accidental/);
+});
+
+test("measure accidental state is keyed by written step and octave and resets", () => {
+    const first = [
+        new NoteNode({ id: "c-sharp-4", pitch: "C#4", duration: duration(1, 4), offset: 0 }),
+        new NoteNode({ id: "c-natural-5", pitch: "C5", duration: duration(1, 4), offset: 1 }),
+        new NoteNode({ id: "c-natural-4", pitch: "C4", duration: duration(1, 4), offset: 2 }),
+        new NoteNode({ id: "c-sharp-again", pitch: "C#4", duration: duration(1, 4), offset: 3 }),
+        new NoteNode({ id: "c-sharp-repeat", pitch: "C#4", duration: duration(1, 4), offset: 4 })
+    ];
+    const second = [new NoteNode({ id: "c-sharp-next-measure", pitch: "C#4", duration: duration(1, 4), offset: 0 })];
+    const svg = render(graph({ measures: [first, second] }));
+    assert.match(group(svg, "c-sharp-4"), /accidental-sharp/);
+    assert.doesNotMatch(group(svg, "c-natural-5"), /class="accidental /);
+    assert.match(group(svg, "c-natural-4"), /accidental-natural/);
+    assert.match(group(svg, "c-sharp-again"), /accidental-sharp/);
+    assert.doesNotMatch(group(svg, "c-sharp-repeat"), /class="accidental /);
+    assert.match(group(svg, "c-sharp-next-measure"), /accidental-sharp/);
+});
+
+test("key defaults apply across octaves while cancellations remain position-specific", () => {
+    const values = [
+        new NoteNode({ id: "key-c4", pitch: "C#4", duration: duration(1, 4), offset: 0 }),
+        new NoteNode({ id: "key-c5", pitch: "C#5", duration: duration(1, 4), offset: 1 }),
+        new NoteNode({ id: "cancel-c4", pitch: "C4", duration: duration(1, 4), offset: 2 }),
+        new NoteNode({ id: "key-c5-again", pitch: "C#5", duration: duration(1, 4), offset: 3 }),
+        new NoteNode({ id: "restore-c4", pitch: "C#4", duration: duration(1, 4), offset: 4 })
+    ];
+    const svg = render(graph({ key: "D", measures: [values] }));
+    assert.doesNotMatch(group(svg, "key-c4"), /class="accidental /);
+    assert.doesNotMatch(group(svg, "key-c5"), /class="accidental /);
+    assert.match(group(svg, "cancel-c4"), /accidental-natural/);
+    assert.doesNotMatch(group(svg, "key-c5-again"), /class="accidental /);
+    assert.match(group(svg, "restore-c4"), /accidental-sharp/);
+});
+
+test("mid-system key and meter changes reserve headers and remain deterministic", () => {
+    const specs = [
+        { key: "C", meter: [4, 4] },
+        { key: "D", meter: [4, 4], events: [new NoteNode({ id: "after-change", pitch: "F#4", duration: duration(1, 4), offset: 0 })] },
+        { key: "D", meter: [3, 4] },
+        { key: "G", meter: [2, 4] },
+        { key: "G", meter: [2, 4] }
+    ];
+    const score = changingSignatureGraph(specs), reversed = changingSignatureGraph(specs, true);
+    const plan = layout(score), reversedPlan = layout(reversed);
+    const svg = render(score, { layoutPlan: plan }), reversedSvg = render(reversed, { layoutPlan: reversedPlan });
+    assert.equal(plan.systems.length, 1);
+    assert.equal((svg.match(/class="time-signature"/g) ?? []).length, 3);
+    assert.equal((svg.match(/class="key-signature"/g) ?? []).length, 2);
+    assert.match(svg, /class="boundary-header" role="group" aria-label="D major key signature"/);
+    assert.match(svg, /class="boundary-header" role="group" aria-label="3 over 4 time"/);
+    assert.match(svg, /class="boundary-header" role="group" aria-label="G major key signature, 2 over 4 time"/);
+    assert.doesNotMatch(group(svg, "after-change"), /class="accidental /);
+    const changed = plan.systems[0].measures[1], event = changed.eventPlacements[0];
+    assert.ok(event.x > changed.x + 60);
+    assert.match(svg, /Measure 2: D major key, 4 over 4 time/);
+    assert.deepEqual(reversedPlan.systems, plan.systems);
+    assert.equal(reversedSvg, svg);
+});
+
+test("system starts repeat active signatures and responsive breaks near changes are stable", () => {
+    const specs = [
+        { key: "C", meter: [4, 4] },
+        { key: "D", meter: [3, 4] },
+        { key: "D", meter: [3, 4] }
+    ];
+    const score = changingSignatureGraph(specs), narrow = layout(score, 260);
+    const svg = render(score, { layoutPlan: narrow });
+    assert.ok(narrow.systems.length > 1);
+    assert.equal((svg.match(/class="time-signature"/g) ?? []).length, narrow.systems.length);
+    assert.ok((svg.match(/class="key-signature"/g) ?? []).length >= 2);
+    assert.equal(render(score, { layoutPlan: layout(score, 260) }), svg);
 });

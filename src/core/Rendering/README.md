@@ -28,6 +28,8 @@ The renderer owns a deterministic set of SVG paths and geometric primitives for 
 
 No third-party engraving dependency or font asset is used. The vector definitions are original project code and are distributed under this repository's existing license. This removes platform-font fallback, network loading, DOM measurement, SSR, additional bundle dependency, and third-party license concerns. SVG metadata and accessible labels preserve exact pitch spelling and rational duration while normal presentation paints no diagnostic pitch names.
 
+The renderer maps alterations -2 through +2 explicitly to double-flat, flat, natural, sharp, and double-sharp vector glyphs and rejects unsupported values. Within each staff and measure, accidental state is shared across voices and keyed by written diatonic step plus octave; stable offset and node-identity ordering makes simultaneous-voice decisions deterministic. Key signatures supply per-step defaults across octaves, while measure overrides reset at each barline. Changed key and meter headers are emitted at their allocated measure boundary and repeated with the active clef at a new visual system.
+
 ## Kernel integration and descriptors
 
 `RenderingModule` registers `rendering.engine`, `rendering.strategyRegistry`, the `core.rendering.svg` plugin, and the `rendering.svg` renderer descriptor transactionally. Failed configuration rolls back only records created by that attempt. Disposal removes only registrations still owned by the module.
