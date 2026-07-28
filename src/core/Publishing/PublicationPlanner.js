@@ -1,10 +1,10 @@
 import { ValidationError } from "../Foundation/index.js";
 import { boundedExerciseSetId } from "../ExerciseSet/index.js";
 import { validateTrustedSvgContent } from "../Rendering/index.js";
+import { layoutPublicationText } from "./textLayout.js";
 import { PublicationBlock, PublicationPage, PublicationPlan, PublishingRequest } from "./values.js";
 
-const METRICS = Object.freeze({ title: 3200, subtitle: 1800, instructionsLine: 1500, sectionHeading: 2400, itemHeading: 1900, gap: 900, notationScale: 54, minimumNotationScale: 36 });
-const lines = value => Math.max(1, Math.ceil(String(value || "").length / 88));
+const METRICS = Object.freeze({ gap: 900, notationScale: 54, minimumNotationScale: 36 });
 const id = (request, kind, readable, identity) => boundedExerciseSetId({ kind, readable, identity: { publication: request.identity, ...identity } });
 
 function notationDimensions(row, bounds) {
@@ -25,17 +25,20 @@ function publicationNotation(content){
 
 function sourceBlocks(request) {
     const bounds = request.pageProfile.contentBounds, result = [], document = request.source.document;
-    const pushText = (type, value, height, source = {}) => {
-        if (value) result.push({ type, text: value, height, keepWithNext: type.endsWith("heading"), source });
+    const pushText = (type, value, source = {}) => {
+        if (value) {
+            const textLayout = layoutPublicationText({ text: value, availableWidth: bounds.width, category: type });
+            result.push({ type, text: value, height: textLayout.height, keepWithNext: type.endsWith("heading"), source, metadata: { textLayout } });
+        }
     };
-    pushText("title", request.title, METRICS.title, { exerciseSetId: document.id });
-    pushText("subtitle", request.subtitle, METRICS.subtitle, { exerciseSetId: document.id });
-    pushText("instructions", request.instructions, METRICS.instructionsLine * lines(request.instructions), { exerciseSetId: document.id });
+    pushText("title", request.title, { exerciseSetId: document.id });
+    pushText("subtitle", request.subtitle, { exerciseSetId: document.id });
+    pushText("instructions", request.instructions, { exerciseSetId: document.id });
     document.sections.forEach((section, sectionIndex) => {
-        pushText("section-heading", section.title, METRICS.sectionHeading, { exerciseSetId: document.id, sectionId: section.id, sectionIndex });
+        pushText("section-heading", section.title, { exerciseSetId: document.id, sectionId: section.id, sectionIndex });
         section.items.forEach((item, itemIndex) => {
             const itemSource = { exerciseSetId: document.id, sectionId: section.id, itemId: item.id, itemIndex, provenance: item.metadata.toJSON() };
-            pushText("item-heading", item.label || item.presentation.sections[0]?.title || `Exercise ${item.sequence}`, METRICS.itemHeading, itemSource);
+            pushText("item-heading", item.label || item.presentation.sections[0]?.title || `Exercise ${item.sequence}`, itemSource);
             item.presentation.sections.flatMap(sectionValue => sectionValue.rows).forEach((row, rowIndex) => {
                 if (!validateTrustedSvgContent(row.content)) throw new ValidationError(`Publication item "${item.id}", row "${row.id}" contains untrusted SVG.`);
                 const dimensions = notationDimensions(row, bounds);
@@ -50,28 +53,42 @@ export class PublicationPlanner {
     plan(input) {
         const request = PublishingRequest.from(input), profile = request.pageProfile, bounds = profile.contentBounds;
         const candidates = sourceBlocks(request), pages = [];
-        let blocks = [], y = bounds.y, pageNumber = 1, currentSection = "";
+        const documentContext = Object.freeze({ text: request.title, source: Object.freeze({ exerciseSetId: request.source.document.id }) });
+        let blocks = [], y = bounds.y, pageNumber = 1, activeSection = null, pageContext = null;
         const finish = () => {
             if (!blocks.length) return;
             const pageId = id(request, "publication-page", `page-${pageNumber}`, { pageNumber });
             const decorated = [];
             if (request.headerPolicy !== "none" && (pageNumber > 1 || request.headerPolicy === "section-title")) {
-                const value = request.headerPolicy === "section-title" ? (currentSection || request.title) : request.title;
-                decorated.push(new PublicationBlock({ id: id(request, "publication-block", `header-${pageNumber}`, { pageNumber, type: "header" }), type: "header", x: profile.margins.left, y: profile.margins.top, width: bounds.width, height: profile.headerHeight, text: value, source: { exerciseSetId: request.source.document.id } }));
+                const context = request.headerPolicy === "section-title" ? (pageContext ?? documentContext) : documentContext;
+                const textLayout = layoutPublicationText({ text: context.text, availableWidth: bounds.width, category: "header" });
+                if (textLayout.height > profile.headerHeight) throw new ValidationError(`Page ${pageNumber} header text exceeds the reserved header area.`);
+                decorated.push(new PublicationBlock({ id: id(request, "publication-block", `header-${pageNumber}`, { pageNumber, type: "header", context: context.source }), type: "header", x: profile.margins.left, y: profile.margins.top, width: bounds.width, height: textLayout.height, text: context.text, source: context.source, metadata: { textLayout, pageHeaderContext: context } }));
             }
             decorated.push(...blocks);
             const showNumber = request.pageNumberPolicy === "all" || (request.pageNumberPolicy === "except-first" && pageNumber > 1);
-            if (request.footerText || showNumber) decorated.push(new PublicationBlock({ id: id(request, "publication-block", `footer-${pageNumber}`, { pageNumber, type: "footer" }), type: showNumber ? "page-number" : "footer", x: profile.margins.left, y: profile.height - profile.margins.bottom - profile.footerHeight, width: bounds.width, height: profile.footerHeight, text: [request.footerText, showNumber ? `Page ${pageNumber}` : ""].filter(Boolean).join(" · "), source: { exerciseSetId: request.source.document.id } }));
-            pages.push(new PublicationPage({ id: pageId, number: pageNumber, profile, blocks: decorated, metadata: { sourceExerciseSetId: request.source.document.id } }));
-            blocks = []; y = bounds.y; pageNumber += 1;
+            if (request.footerText || showNumber) {
+                const footerText = [request.footerText, showNumber ? `Page ${pageNumber}` : ""].filter(Boolean).join(" · ");
+                const footerType = showNumber ? "page-number" : "footer";
+                const textLayout = layoutPublicationText({ text: footerText, availableWidth: bounds.width, category: footerType });
+                if (textLayout.height > profile.footerHeight) throw new ValidationError(`Page ${pageNumber} footer text exceeds the reserved footer area.`);
+                decorated.push(new PublicationBlock({ id: id(request, "publication-block", `footer-${pageNumber}`, { pageNumber, type: "footer" }), type: footerType, x: profile.margins.left, y: profile.height - profile.margins.bottom - profile.footerHeight, width: bounds.width, height: textLayout.height, text: footerText, source: pageContext?.source ?? documentContext.source, metadata: { textLayout } }));
+            }
+            const capturedContext = pageContext ?? documentContext;
+            pages.push(new PublicationPage({ id: pageId, number: pageNumber, profile, blocks: decorated, metadata: { sourceExerciseSetId: request.source.document.id, headerContext: capturedContext } }));
+            blocks = []; y = bounds.y; pageContext = null; pageNumber += 1;
         };
         for (let index = 0; index < candidates.length; index += 1) {
             const candidate = candidates[index], next = candidates[index + 1];
-            if (candidate.type === "section-heading") currentSection = candidate.text;
             const required = candidate.height + METRICS.gap + (candidate.keepWithNext && next ? next.height : 0);
             const forced = (candidate.type === "section-heading" && request.sectionBreakPolicy === "new-page" && blocks.length)
                 || (candidate.type === "item-heading" && request.exerciseBreakPolicy === "new-page" && blocks.length);
             if (forced || y + required > bounds.y + bounds.height) finish();
+            if (candidate.type === "section-heading") activeSection = Object.freeze({
+                text: candidate.text,
+                source: Object.freeze(JSON.parse(JSON.stringify(candidate.source)))
+            });
+            if (!pageContext) pageContext = activeSection ?? documentContext;
             if (y + candidate.height > bounds.y + bounds.height) throw new ValidationError(`Publication block for row "${candidate.source.rowId ?? "heading"}" exceeds printable page bounds.`);
             const identitySource=JSON.parse(JSON.stringify(candidate.source));
             const blockId = id(request, "publication-block", `${candidate.type}-${pages.length + 1}-${index + 1}`, { index, type: candidate.type, source: identitySource });
@@ -81,7 +98,7 @@ export class PublicationPlanner {
         finish();
         if (!pages.length) throw new ValidationError("Publication source contains no publishable authoritative content.");
         const planId = id(request, "publication-plan", request.title, { pageCount: pages.length });
-        return new PublicationPlan({ id: planId, request, pages, metadata: { units: "hundredths-of-a-point", unitsPerPoint: 100, sourceExerciseSetId: request.source.document.id, pagination: "greedy-keep-heading-with-first-notation", oversizedPolicy: "scale-to-36-percent-point-or-reject" } });
+        return new PublicationPlan({ id: planId, request, pages, metadata: { units: "hundredths-of-a-point", unitsPerPoint: 100, sourceExerciseSetId: request.source.document.id, pagination: "greedy-keep-heading-with-first-notation", pageHeaderPolicy: "section-active-at-page-start", textLayout: "deterministic-glyph-metrics", oversizedPolicy: "scale-to-36-percent-point-or-reject" } });
     }
 }
 

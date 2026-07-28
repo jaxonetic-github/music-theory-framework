@@ -52,4 +52,4 @@ Publishing consumes only the last successful authoritative worksheet. Core suppl
 
 This milestone excludes pause/resume, seeking, scrubbing, looping, tempo changes during playback, score-following, cursor animation, Web MIDI, recording, samples, effects, mixer UI, server APIs, persistence, and networking. Core imports remain React-, DOM-, browser-, AudioContext-, and MIDI-free.
 
-The v9.0 repository suite contains **432 passing tests**: 359 plain-Node tests and 73 React DOM tests. `npm ci` installs 154 packages and audits 155; `npm audit` reports **0 vulnerabilities**. Vite transforms **362 modules** and emits 616.81 kB JavaScript (166.62 kB gzip). The Next.js 15.5.22 fixture statically prerenders with a 109 kB app route and 211 kB first-load JavaScript.
+The v9.0 repository suite contains **438 passing tests**: 365 plain-Node tests and 73 React DOM tests. `npm ci` installs 154 packages and audits 155; `npm audit` reports **0 vulnerabilities**. Vite transforms **363 modules** and emits 624.65 kB JavaScript (169.54 kB gzip). The Next.js 15.5.22 fixture statically prerenders with a 112 kB app route and 214 kB first-load JavaScript.
