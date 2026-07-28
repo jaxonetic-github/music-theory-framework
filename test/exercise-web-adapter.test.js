@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import {
     ApplicationModule, APPROACH_PATTERNS, CANONICAL_EXERCISE_ROOTS, CHORD_TARGETS, ChordCatalog,
     ENCLOSURE_PATTERNS, ExerciseApplicationModule, ExerciseModule, ExerciseNotationModule, ExerciseSetModule, ExportModule,
-    NotationModule, PlaybackModule, RenderingModule, TheoryModule
+    LayoutModule, NotationModule, PlaybackModule, RenderingModule, TheoryModule
 } from "../src/core/index.js";
 import { createWebApplication } from "../src/web/bootstrap.js";
 import { WebAudioPlaybackModule } from "../src/web/audio/index.js";
@@ -105,8 +105,9 @@ test("extended chords survive Web adaptation and foundational generation but are
     chordCatalog.add({ id: "major-9", name: "Major Ninth", symbol: "maj9", intervals: [0, 4, 7, 11, 14] });
     const audio = new WebAudioPlaybackModule();
     const controllerFactory = () => new PlaybackTransportController({ adapter: audio.adapter });
+    const layout = new LayoutModule();
     const modules = [
-        new TheoryModule({ chordCatalog }), new NotationModule(), new RenderingModule(), new ExerciseModule(),
+        new TheoryModule({ chordCatalog }), new NotationModule(), layout, new RenderingModule({ layoutEngine: layout.engine }), new ExerciseModule(),
         new ExerciseNotationModule(), new ExerciseApplicationModule(), new ExerciseSetModule(), new ExportModule(), new ApplicationModule(),
         new PlaybackModule(), audio, new PlaybackTransportModule({ controller: controllerFactory(), controllerFactory, ownsController: true })
     ];
@@ -136,7 +137,7 @@ test("extended chords survive Web adaptation and foundational generation but are
 
 test("Web bootstrap fails clearly and disposes its attempted runtime when the progression service is unavailable", async () => {
     let disposed = 0;
-    const services = new Map([["application.engine", {}], ["exercise.application.engine", {}], ["exercise.set.application", {}], ["playback.engine", {}], ["web.playback.transport", {}]]);
+    const services = new Map([["application.engine", {}], ["layout.engine", {}], ["rendering.engine", {}], ["exercise.application.engine", {}], ["exercise.set.application", {}], ["playback.engine", {}], ["web.playback.transport", {}]]);
     const kernel = { use() {}, async start() {}, services: { resolve(id) { if (!services.has(id)) throw new Error(`Service not found: ${id}`); return services.get(id); } }, async dispose() { disposed += 1; } };
     await assert.rejects(() => createWebApplication({ kernel, modules: [] }), /exercise\.progressionCatalog/);
     assert.equal(disposed, 1);
@@ -243,6 +244,10 @@ test("trusted presentation rejects unapproved renderers and every active or exte
 test("Web namespace declares the exercise adapter boundary and Core stays React-free", async () => {
     const web = await readFile(new URL("../src/web/index.js", import.meta.url), "utf8");
     assert.match(web, /exercise\/index\.js/);
+    assert.match(web, /layout\/index\.js/);
+    const layout = await readFile(new URL("../src/web/layout/index.js", import.meta.url), "utf8");
+    assert.match(layout, /ResponsiveNotation/);
+    assert.match(layout, /useNotationContainerWidth/);
     const core = await readFile(new URL("../src/core/index.js", import.meta.url), "utf8");
     assert.doesNotMatch(core, /src\/web|ExercisePractice|react/i);
 });

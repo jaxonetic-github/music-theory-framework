@@ -8,10 +8,13 @@ import { ExercisePresentationDocument } from "./ExercisePresentationDocument.js"
 import { ExercisePresentationRow } from "./ExercisePresentationRow.js";
 import { ExercisePresentationSection } from "./ExercisePresentationSection.js";
 import { ExercisePresentationSystem } from "./ExercisePresentationSystem.js";
+import { LayoutEngine, LayoutStrategyRegistry, ScoreGraphLayoutStrategy } from "../Layout/index.js";
 
 const mediaTypes = Object.freeze({ svg: "image/svg+xml", html: "text/html", text: "text/plain", json: "application/json" });
 function service(value, method, label) { if (!value || typeof value[method] !== "function") throw new ValidationError(`${label} must implement ${method}().`); return value; }
 function selectionOptions(request) { return { ...request.options, format: request.format, ...(request.pluginId ? { pluginId: request.pluginId } : {}), ...(request.strategyId ? { strategyId: request.strategyId } : {}) }; }
+function fallbackLayoutEngine() { const registry=new LayoutStrategyRegistry(),strategy=new ScoreGraphLayoutStrategy();registry.register(strategy.pluginId,strategy);return new LayoutEngine(registry); }
+const fallbackLayout = fallbackLayoutEngine();
 
 export class ExerciseApplicationEngine {
     constructor({ exerciseEngine, notationEngine, renderingEngine } = {}) {
@@ -40,17 +43,19 @@ export class ExerciseApplicationEngine {
                 rowSequence += 1; const rowId = String(notationRow.sourceRow.id);
                 return this.#stage("rendering", rowId, () => {
                     if (notationRow.sourceRow !== notationSection.sourceSection.rows[notationSection.rows.indexOf(notationRow)]) throw new ValidationError("Notation row does not preserve source row order and identity.");
-                    const strategy = this.renderingEngine.registry.select(notationRow.graph, renderOptions);
+                    const rowRenderOptions = { ...renderOptions, semanticSystems: notationRow.systems.map(system => ({ id: system.id, measureIds: system.measureIds, breakPolicy: system.breakPolicy })) };
+                    const strategy = this.renderingEngine.registry.select(notationRow.graph, rowRenderOptions);
                     if (!strategy) throw new ValidationError(`No renderer strategy supports requested format "${request.rendering.format}".`);
                     if (String(strategy.format) !== request.rendering.format) throw new ValidationError(`Selected renderer produces "${strategy.format}", not "${request.rendering.format}".`);
                     if (request.rendering.pluginId && String(strategy.pluginId) !== request.rendering.pluginId) throw new ValidationError("Selected renderer plugin identity does not match the workflow request.");
                     if (request.rendering.strategyId && String(strategy.id) !== request.rendering.strategyId) throw new ValidationError("Selected renderer strategy identity does not match the workflow request.");
-                    const content = this.renderingEngine.render(notationRow.graph, renderOptions);
+                    const layoutPlan = typeof this.renderingEngine.layout === "function" ? this.renderingEngine.layout(notationRow.graph, rowRenderOptions) : fallbackLayout.plan({ score: notationRow.graph, availableWidth: rowRenderOptions.width, profile: rowRenderOptions.layoutProfile, semanticSystems: rowRenderOptions.semanticSystems });
+                    const content = this.renderingEngine.render(notationRow.graph, { ...rowRenderOptions, layoutPlan });
                     if (typeof content !== "string" || !content.trim()) throw new ValidationError("Rendering engine returned inconsistent renderer output.");
-                    if (this.renderingEngine.registry.select(notationRow.graph, renderOptions) !== strategy) throw new ValidationError("Rendering engine selection changed while producing a row.");
+                    if (this.renderingEngine.registry.select(notationRow.graph, rowRenderOptions) !== strategy) throw new ValidationError("Rendering engine selection changed while producing a row.");
                     const pluginId = String(strategy.pluginId), strategyId = String(strategy.id), format = String(strategy.format); rendererIdentities.add(`${pluginId}:${strategyId}:${format}`);
                     const systems = notationRow.systems.map(system => new ExercisePresentationSystem({ id: `${system.id}:presentation`, sourceSystem: system, sequence: system.sequence, measureIds: system.measureIds, metadata: { notationSystemId: system.id } }));
-                    return new ExercisePresentationRow({ id: `${notationRow.id}:presentation:${format}:${pluginId}:${strategyId}`, modelId: model.id, sectionId: notationSection.sourceSection.id, sourceRow: notationRow.sourceRow, notationRow, graph: notationRow.graph, systems, content, format, mediaType: mediaTypes[format] ?? `application/${format}`, rendererPluginId: pluginId, rendererStrategyId: strategyId, sequence: rowSequence, metadata: { modelId: model.id, sectionId: notationSection.sourceSection.id, exerciseRowId: notationRow.sourceRow.id, notationRowId: notationRow.id, renderer: { pluginId, strategyId, format } } });
+                    return new ExercisePresentationRow({ id: `${notationRow.id}:presentation:${format}:${pluginId}:${strategyId}`, modelId: model.id, sectionId: notationSection.sourceSection.id, sourceRow: notationRow.sourceRow, notationRow, graph: notationRow.graph, layoutPlan, systems, content, format, mediaType: mediaTypes[format] ?? `application/${format}`, rendererPluginId: pluginId, rendererStrategyId: strategyId, sequence: rowSequence, metadata: { modelId: model.id, sectionId: notationSection.sourceSection.id, exerciseRowId: notationRow.sourceRow.id, notationRowId: notationRow.id, renderer: { pluginId, strategyId, format }, layout: layoutPlan.metadata } });
                 });
             });
             return new ExercisePresentationSection({ id: `${notationSection.id}:presentation`, sourceSection: notationSection.sourceSection, notationSection, sequence: notationSection.sequence, rows, metadata: { modelId: model.id, notationSectionId: notationSection.id } });

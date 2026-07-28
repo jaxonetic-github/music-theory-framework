@@ -14,10 +14,11 @@ export const renderingPackageDescriptor = new PackageDescriptor({
         { target: "core.foundation", kind: "required" },
         { target: "core.infrastructure.registries", kind: "required" },
         { target: "core.kernel", kind: "required" },
-        { target: "core.notation", kind: "required" }
+        { target: "core.notation", kind: "required" },
+        { target: "core.layout", kind: "required" }
     ],
-    capabilities: ["rendering-engine", "plugin-scoped-renderers", "deterministic-svg", "standalone-svg", "xml-escaping", "score-graph-input"],
-    consumes: [{ id: "notation.score-graph", kind: "value" }],
+    capabilities: ["rendering-engine", "plugin-scoped-renderers", "deterministic-svg", "standalone-svg", "xml-escaping", "score-graph-input", "layout-plan-input"],
+    consumes: [{ id: "notation.score-graph", kind: "value" }, { id: "layout.engine", kind: "service" }],
     provides: [
         { id: "rendering.engine", kind: "service" },
         { id: "rendering.svg", kind: "renderer" }

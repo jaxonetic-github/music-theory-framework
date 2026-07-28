@@ -4,7 +4,7 @@ export const reactWebPackageDescriptor = new PackageDescriptor({
     id: "web.react-application",
     name: { value: "react-web-application", displayName: "React Web Application Adapter" },
     description: "Accessible React workflows for general generation, playback, and exercise practice presentation.",
-    version: "8.7.0",
+    version: "8.8.0",
     layer: "presentation",
     category: "application",
     role: "provider",
@@ -13,6 +13,7 @@ export const reactWebPackageDescriptor = new PackageDescriptor({
     dependencies: [
         { target: "core.theory", kind: "required" },
         { target: "core.notation", kind: "required" },
+        { target: "core.layout", kind: "required" },
         { target: "core.rendering", kind: "required" },
         { target: "core.exercise", kind: "required" },
         { target: "core.exercise-notation", kind: "required" },
@@ -24,7 +25,7 @@ export const reactWebPackageDescriptor = new PackageDescriptor({
         { target: "web.audio-playback", kind: "required" },
         { target: "web.playback-transport", kind: "required" }
     ],
-    capabilities: ["react-adapter", "embeddable-application", "nextjs-client-boundary", "scoped-styles", "accessible-workflow", "accessible-exercise-practice", "advanced-exercise-practice", "exercise-worksheet", "accessible-playback-controls", "transport-subscription", "trusted-svg-view", "musicxml-download", "responsive-layout", "print-styles"],
+    capabilities: ["react-adapter", "embeddable-application", "nextjs-client-boundary", "scoped-styles", "accessible-workflow", "accessible-exercise-practice", "advanced-exercise-practice", "exercise-worksheet", "responsive-engraving", "resize-observer-adapter", "accessible-playback-controls", "transport-subscription", "trusted-svg-view", "musicxml-download", "responsive-layout", "print-styles"],
     consumes: [
         { id: "application.engine", kind: "service" },
         { id: "exercise.application.engine", kind: "service" },
@@ -32,6 +33,7 @@ export const reactWebPackageDescriptor = new PackageDescriptor({
         { id: "theory.scaleCatalog", kind: "service" },
         { id: "theory.chordCatalog", kind: "service" },
         { id: "exercise.progressionCatalog", kind: "service" },
+        { id: "layout.engine", kind: "service" },
         { id: "playback.engine", kind: "service" },
         { id: "web.playback.transport", kind: "service" }
     ],

@@ -19,6 +19,8 @@ export class RenderingModule {
     #configured = false;
     #ownsStrategy = false;
     #undo = [];
+    #injectedEngine = false;
+    #injectedLayoutEngine = null;
 
     constructor(options = {}) {
         this.id = String(renderingPackageDescriptor.id);
@@ -27,13 +29,22 @@ export class RenderingModule {
         this.svgStrategy = options.svgStrategy ?? new SvgScoreRenderer();
         this.strategyRegistry.register(this.svgStrategy.pluginId, this.svgStrategy);
         this.#ownsStrategy = true;
-        this.engine = options.engine ?? new RenderingEngine(this.strategyRegistry);
+        this.#injectedEngine = Boolean(options.engine);
+        this.#injectedLayoutEngine = options.layoutEngine ?? null;
+        this.engine = options.engine ?? new RenderingEngine(this.strategyRegistry, options.layoutEngine);
         Object.seal(this);
     }
 
     configure({ services, registries }) {
         if (this.#configured) return this;
         const undo = [];
+        if (!this.#injectedEngine) {
+            const activeLayoutEngine = this.#injectedLayoutEngine
+                ?? services.resolve("layout.engine", { optional: true });
+            if (activeLayoutEngine && activeLayoutEngine !== this.engine.layoutEngine) {
+                this.engine = new RenderingEngine(this.strategyRegistry, activeLayoutEngine);
+            }
+        }
         const plugin = Object.freeze({
             id: String(defaultRenderingPluginDescriptor.id),
             strategies: Object.freeze([this.svgStrategy])

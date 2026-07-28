@@ -18,6 +18,7 @@ import {
     transitionExercisePracticeState
 } from "./workflow.js";
 import { useExercisePracticeWorkflow } from "./useExercisePracticeWorkflow.js";
+import { ResponsiveNotation } from "../layout/ResponsiveNotation.jsx";
 
 const label = value => String(value).replaceAll("-", " ");
 const safeMessage = error => error?.cause?.message ?? error?.message ?? "Exercise generation could not be completed.";
@@ -70,7 +71,7 @@ function ExerciseControls({ state, catalogs, busy, onChange, onSubmit }) {
     </form>;
 }
 
-function PresentationRow({ row, id }) {
+function PresentationRow({ row, id, renderingEngine, ResizeObserver }) {
     const source = row.sourceRow;
     const advancedTarget = isTargetExerciseFamily(String(row.type));
     const progression = isProgressionExerciseFamily(String(row.type));
@@ -78,20 +79,20 @@ function PresentationRow({ row, id }) {
         <header><div><p className="eyebrow">{label(row.type)}</p><h4 id={`${id}-${row.id}-title`}>{row.title}</h4></div><span className="result-badge">{String(row.root)}</span></header>
         <dl className="exercise-row-meta"><div><dt>Family</dt><dd>{label(row.type)}</dd></div>{row.quality && <div><dt>Quality</dt><dd>{row.quality}</dd></div>}{!progression && row.pattern && <div><dt>Pattern</dt><dd>{row.pattern}</dd></div>}{advancedTarget && <><div><dt>Target</dt><dd>{label(source.metadata.target)}</dd></div><div><dt>Resolution</dt><dd>{advancedPatternLabel(source.metadata.pattern)}</dd></div></>}{progression && <><div><dt>Progression</dt><dd>{source.metadata.progressionId}</dd></div><div><dt>Mode</dt><dd>{source.metadata.progressionMode}</dd></div><div><dt>Harmonic events</dt><dd>{source.steps.length}</dd></div></>}</dl>
         <ol className="exercise-systems" aria-label={`Semantic systems for ${row.title}`}>{row.systems.map(system => <li key={system.id}>System {system.sequence}: {system.measureIds.length} {system.measureIds.length === 1 ? "measure" : "measures"}</li>)}</ol>
-        <div className="exercise-svg-frame" role="img" aria-label={`Notation for ${row.title}`} dangerouslySetInnerHTML={{ __html: row.content }} />
+        <ResponsiveNotation row={row} renderingEngine={renderingEngine} ResizeObserver={ResizeObserver} />
     </article>;
 }
 
-function ExercisePresentation({ result, stale, resultRef, id }) {
+function ExercisePresentation({ result, stale, resultRef, id, renderingEngine, ResizeObserver }) {
     if (!result) return <div className="exercise-empty"><p>No exercise has been generated yet.</p></div>;
     const document = result.presentation;
     return <div className="exercise-document" ref={resultRef} tabIndex="-1" aria-label="Generated exercise presentation">
         <header className="exercise-result-header"><div><p className="eyebrow">Completed exercise result</p><h3>{document.model.sections[0]?.title ?? "Exercise presentation"}</h3></div>{stale && <p className="stale-notice" role="status">Controls changed — generate again to update this result.</p>}</header>
-        {document.sections.map(section => <section key={section.id} aria-labelledby={`${id}-${section.id}-title`}><h3 id={`${id}-${section.id}-title`}>{section.title}</h3>{section.rows.map(row => <PresentationRow key={row.id} row={row} id={id} />)}</section>)}
+        {document.sections.map(section => <section key={section.id} aria-labelledby={`${id}-${section.id}-title`}><h3 id={`${id}-${section.id}-title`}>{section.title}</h3>{section.rows.map(row => <PresentationRow key={row.id} row={row} id={id} renderingEngine={renderingEngine} ResizeObserver={ResizeObserver} />)}</section>)}
     </div>;
 }
 
-export function ExercisePracticePanel({ engine, catalogs }) {
+export function ExercisePracticePanel({ engine, catalogs, renderingEngine, ResizeObserver }) {
     const id = useId();
     const [state, setState] = useState(() => createInitialExercisePracticeState(catalogs));
     const stateRef = useRef(state);
@@ -129,7 +130,7 @@ export function ExercisePracticePanel({ engine, catalogs }) {
             <section className="exercise-results" aria-label="Exercise results" aria-busy={workflow.busy}>
                 <div className="exercise-live" role={workflow.busy ? "status" : undefined} aria-live="polite" aria-atomic="true">{workflow.busy ? "Generating exercise…" : workflow.result ? "Exercise presentation ready." : "Ready to generate an exercise."}</div>
                 <div ref={errorRef} tabIndex="-1"><ExerciseError title="Input validation failed" error={workflow.inputError} /><ExerciseError title="Exercise workflow failed" error={workflow.workflowError} /><ExerciseError title="Presentation validation failed" error={workflow.presentationError} /></div>
-                <ExercisePresentation id={id} result={workflow.result} stale={Boolean(workflow.result) && workflow.resultRevision !== controlRevision.current} resultRef={resultRef} />
+                <ExercisePresentation id={id} result={workflow.result} stale={Boolean(workflow.result) && workflow.resultRevision !== controlRevision.current} resultRef={resultRef} renderingEngine={renderingEngine} ResizeObserver={ResizeObserver} />
             </section>
         </div>
     </section>;

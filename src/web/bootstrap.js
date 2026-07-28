@@ -7,6 +7,7 @@ import {
     ExerciseSetModule,
     ExportModule,
     Kernel,
+    LayoutModule,
     NotationModule,
     PlaybackModule,
     RenderingModule,
@@ -16,6 +17,7 @@ import { WebAudioPlaybackModule } from "./audio/index.js";
 import { PlaybackTransportController, PlaybackTransportModule } from "./transport/index.js";
 
 const defaultModules = () => {
+    const layout = new LayoutModule();
     const audio = new WebAudioPlaybackModule();
     const controllerFactory = () => new PlaybackTransportController({ adapter: audio.adapter });
     const transport = new PlaybackTransportModule({
@@ -24,7 +26,8 @@ const defaultModules = () => {
     return [
         new TheoryModule(),
         new NotationModule(),
-        new RenderingModule(),
+        layout,
+        new RenderingModule({ layoutEngine: layout.engine }),
         new ExerciseModule(),
         new ExerciseNotationModule(),
         new ExerciseApplicationModule(),
@@ -68,6 +71,8 @@ export async function createWebApplication({
         for (const module of modules) kernel.use(module);
         await kernel.start();
         const application = kernel.services.resolve("application.engine");
+        const layout = kernel.services.resolve("layout.engine");
+        const rendering = kernel.services.resolve("rendering.engine");
         const exerciseApplication = kernel.services.resolve("exercise.application.engine");
         const exerciseSetApplication = kernel.services.resolve("exercise.set.application");
         const playback = kernel.services.resolve("playback.engine");
@@ -80,6 +85,8 @@ export async function createWebApplication({
         });
         return Object.freeze({
             application,
+            layout,
+            rendering,
             exerciseApplication,
             exerciseSetApplication,
             playback,

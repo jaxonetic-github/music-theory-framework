@@ -113,6 +113,9 @@ legend, .field > span { margin-bottom: .55rem; font-size: .82rem; font-weight: 7
 .exercise-systems li { padding: .35rem .55rem; border-radius: 999px; background: #edf0e8; font-size: .78rem; }
 .exercise-svg-frame { overflow-x: auto; max-width: 100%; padding: .5rem; border: 1px solid #d0cec5; border-radius: 10px; background: white; }
 .exercise-svg-frame svg { display: block; max-width: none; }
+.responsive-svg { min-width: 0; }
+.layout-error { margin-bottom: .6rem; padding: .65rem; color: #7c291d; border: 1px solid #d99a8d; border-radius: 8px; background: #fff2ef; }
+.layout-overflow { margin: 0 0 .55rem; color: #61450d; font-weight: 650; }
 
 @media (max-width: 760px) {
     .app-shell { width: min(100% - 1rem, 620px); padding-top: 2rem; }

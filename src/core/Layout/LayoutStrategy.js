@@ -1,0 +1,2 @@
+import { Identifier, StrategyContract } from "../Foundation/index.js";
+export class LayoutStrategy extends StrategyContract { constructor({id,pluginId}={}) { super(); this.id=Identifier.from(id); this.pluginId=Identifier.from(pluginId); Object.freeze(this); } supports(){return false;} layout(){throw new Error("LayoutStrategy.layout() must be implemented.");} execute(request){return this.layout(request);} }

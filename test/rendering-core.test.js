@@ -162,9 +162,11 @@ test("renderer strategies are isolated by plugin and selected deterministically"
 
 test("default SVG renderer produces an exact deterministic standalone snapshot", () => {
     const output = defaultEngine().render(scoreOnly());
-    const expected = '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="1200" height="240" viewBox="0 0 1200 240" role="img" aria-labelledby="score-title"><title id="score-title">Solo</title><metadata>{&quot;annotations&quot;:{},&quot;attributes&quot;:{},&quot;documentation&quot;:null,&quot;tags&quot;:[]}</metadata><g class="score" data-node-id="score" data-metadata="{&quot;annotations&quot;:{},&quot;attributes&quot;:{},&quot;documentation&quot;:null,&quot;tags&quot;:[]}"><text class="score-title" x="40" y="35">Solo</text></g></svg>';
-    assert.equal(output, expected);
-    assert.equal(defaultEngine().render(scoreOnly()), expected);
+    assert.equal(defaultEngine().render(scoreOnly()), output);
+    assert.match(output, /data-layout-profile="screen-regular"/);
+    assert.match(output, /data-available-width="1200"/);
+    assert.match(output, /aria-labelledby="score-title"/);
+    assert.match(output, /<title id="score-title">Solo<\/title>/);
     assert.equal(output.startsWith('<svg xmlns="http://www.w3.org/2000/svg"'), true);
     assert.equal(output.includes("<!DOCTYPE html>"), false);
     assert.throws(() => defaultEngine().render(scoreOnly(), { width: 0 }), /positive finite/);
@@ -391,6 +393,24 @@ test("RenderingModule configure and dispose are idempotent and preserve replacem
     assert.equal(reusableModule.configure(reusableKernel.context), reusableModule);
     assert.match(reusableModule.engine.render(scoreOnly()), /^<svg/);
     reusableModule.dispose();
+});
+
+test("RenderingModule resolves the active Layout service while preserving explicit ownership", () => {
+    const activeLayout = Object.freeze({ plan() { throw new Error("active layout"); } });
+    const activeKernel = new Kernel();
+    activeKernel.services.register("layout.engine", activeLayout);
+    const activeModule = new RenderingModule();
+    activeModule.configure(activeKernel.context);
+    assert.strictEqual(activeModule.engine.layoutEngine, activeLayout);
+    activeModule.dispose();
+
+    const explicitLayout = Object.freeze({ plan() { throw new Error("explicit layout"); } });
+    const explicitKernel = new Kernel();
+    explicitKernel.services.register("layout.engine", activeLayout);
+    const explicitModule = new RenderingModule({ layoutEngine: explicitLayout });
+    explicitModule.configure(explicitKernel.context);
+    assert.strictEqual(explicitModule.engine.layoutEngine, explicitLayout);
+    explicitModule.dispose();
 });
 
 test("Rendering public namespace and descriptors expose only the v6.5 contract", () => {

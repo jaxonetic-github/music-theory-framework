@@ -1,0 +1,12 @@
+export { LayoutProfile, layoutProfiles, resolveLayoutProfile } from "./profiles.js";
+export { LayoutRequest } from "./LayoutRequest.js";
+export { LayoutBounds, LayoutEventPlacement, LayoutMeasure, LayoutMetadata, LayoutPlan, LayoutSystem } from "./values.js";
+export { LayoutStrategy } from "./LayoutStrategy.js";
+export { LayoutStrategyRegistry } from "./LayoutStrategyRegistry.js";
+export { ScoreGraphLayoutStrategy } from "./ScoreGraphLayoutStrategy.js";
+export { LayoutEngine } from "./LayoutEngine.js";
+export { LayoutModule } from "./LayoutModule.js";
+export { layoutServiceDescriptors, defaultLayoutPluginDescriptor } from "./descriptors.js";
+export { layoutPackageDescriptor as descriptor } from "./package.descriptor.js";
+import { LayoutProfile, layoutProfiles, resolveLayoutProfile } from "./profiles.js"; import { LayoutRequest } from "./LayoutRequest.js"; import { LayoutBounds, LayoutEventPlacement, LayoutMeasure, LayoutMetadata, LayoutPlan, LayoutSystem } from "./values.js"; import { LayoutStrategy } from "./LayoutStrategy.js"; import { LayoutStrategyRegistry } from "./LayoutStrategyRegistry.js"; import { ScoreGraphLayoutStrategy } from "./ScoreGraphLayoutStrategy.js"; import { LayoutEngine } from "./LayoutEngine.js"; import { LayoutModule } from "./LayoutModule.js"; import { layoutServiceDescriptors, defaultLayoutPluginDescriptor } from "./descriptors.js"; import { layoutPackageDescriptor } from "./package.descriptor.js";
+export const Layout=Object.freeze({LayoutProfile,layoutProfiles,resolveLayoutProfile,LayoutRequest,LayoutBounds,LayoutEventPlacement,LayoutMeasure,LayoutMetadata,LayoutPlan,LayoutSystem,LayoutStrategy,LayoutStrategyRegistry,ScoreGraphLayoutStrategy,LayoutEngine,LayoutModule,serviceDescriptors:layoutServiceDescriptors,pluginDescriptor:defaultLayoutPluginDescriptor,descriptor:layoutPackageDescriptor}); export default Layout;

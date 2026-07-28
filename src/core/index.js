@@ -6,6 +6,8 @@ export * from "./Theory/index.js";
 export { default as Theory } from "./Theory/index.js";
 export * from "./Notation/index.js";
 export { default as Notation } from "./Notation/index.js";
+export * from "./Layout/index.js";
+export { default as Layout } from "./Layout/index.js";
 export * from "./Rendering/index.js";
 export { default as Rendering } from "./Rendering/index.js";
 export * from "./Export/index.js";
