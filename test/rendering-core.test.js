@@ -165,8 +165,9 @@ test("default SVG renderer produces an exact deterministic standalone snapshot",
     assert.equal(defaultEngine().render(scoreOnly()), output);
     assert.match(output, /data-layout-profile="screen-regular"/);
     assert.match(output, /data-available-width="1200"/);
-    assert.match(output, /aria-labelledby="score-title"/);
-    assert.match(output, /<title id="score-title">Solo<\/title>/);
+    assert.match(output, /aria-labelledby="score-screen-regular-score-title score-screen-regular-score-description"/);
+    assert.match(output, /<title id="score-screen-regular-score-title">Solo<\/title>/);
+    assert.match(output, /<desc id="score-screen-regular-score-description">/);
     assert.equal(output.startsWith('<svg xmlns="http://www.w3.org/2000/svg"'), true);
     assert.equal(output.includes("<!DOCTYPE html>"), false);
     assert.throws(() => defaultEngine().render(scoreOnly(), { width: 0 }), /positive finite/);
@@ -181,7 +182,8 @@ test("SVG renders the complete score hierarchy and notation values", () => {
     assert.match(output, /data-clef="bass" data-clef-line="4" data-clef-octave-shift="-1"/);
     assert.match(output, /data-key-tonic="Cb" data-key-mode="major" data-key-accidentals="-7"/);
     assert.match(output, /data-beats="6" data-beat-unit="8"/);
-    assert.match(output, /bass clef, Cb major, 6\/8/);
+    assert.match(output, /aria-label="Measure 1, 6 over 8, Cb major key"/);
+    assert.doesNotMatch(output, />bass clef, Cb major, 6\/8</);
     assert.match(output, /data-duration="1\/2"/);
     assert.match(output, /data-duration="1\/4"/);
     assert.match(output, /data-duration="1\/8"/);

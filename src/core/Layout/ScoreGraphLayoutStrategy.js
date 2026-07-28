@@ -3,20 +3,111 @@ import { LayoutRequest } from "./LayoutRequest.js";
 import { LayoutStrategy } from "./LayoutStrategy.js";
 import { LayoutBounds, LayoutEventPlacement, LayoutMeasure, LayoutMetadata, LayoutPlan, LayoutSystem } from "./values.js";
 
-const eventTypes = new Set(["note","rest","chord"]);
-function children(score,parent,type){const ids=new Set(score.edges.filter(edge=>String(edge.type)==="contains"&&String(edge.from)===String(parent.id)).map(edge=>String(edge.to)));return score.nodes.filter(node=>ids.has(String(node.id))&&(!type||String(node.type)===type));}
-function idCompare(a,b){return String(a.id).localeCompare(String(b.id));}
-function events(score,voice){const values=children(score,voice).filter(node=>eventTypes.has(String(node.type))),ids=new Set(values.map(v=>String(v.id))),next=new Map(values.map(v=>[String(v.id),[]])),indegree=new Map(values.map(v=>[String(v.id),0]));for(const edge of score.edges){if(String(edge.type)!=="next"||!ids.has(String(edge.from))||!ids.has(String(edge.to)))continue;next.get(String(edge.from)).push(String(edge.to));indegree.set(String(edge.to),indegree.get(String(edge.to))+1);}const compare=(a,b)=>a.offset-b.offset||idCompare(a,b),available=values.filter(v=>indegree.get(String(v.id))===0).sort(compare),ordered=[];while(available.length){const value=available.shift();ordered.push(value);for(const target of next.get(String(value.id)).sort()){const remaining=indegree.get(target)-1;indegree.set(target,remaining);if(!remaining){available.push(score.node(target));available.sort(compare);}}}if(ordered.length!==values.length)throw new ValidationError("Layout event precedence contains a cycle.");return ordered;}
-function accidentalCount(value){return (String(value).match(/[#bx♯♭]/g)??[]).length;}
-function eventWidth(event){if(String(event.type)==="rest")return 34;if(String(event.type)==="chord")return 48+event.notes.length*8+Math.max(...event.notes.map(accidentalCount))*14;return 38+accidentalCount(event.pitch)*14;}
-function semanticIds(request,measureId){return request.semanticSystems.filter(system=>system.measureIds.includes(measureId)).map(system=>system.id);}
+const eventTypes = new Set(["note", "rest", "chord"]);
+function children(score, parent, type) {
+    const ids = new Set(score.edges.filter(edge => String(edge.type) === "contains" && String(edge.from) === String(parent.id)).map(edge => String(edge.to)));
+    return score.nodes.filter(node => ids.has(String(node.id)) && (!type || String(node.type) === type));
+}
+function idCompare(a, b) { return String(a.id).localeCompare(String(b.id)); }
+function events(score, voice) {
+    const values = children(score, voice).filter(node => eventTypes.has(String(node.type)));
+    const ids = new Set(values.map(value => String(value.id))), next = new Map(values.map(value => [String(value.id), []])), indegree = new Map(values.map(value => [String(value.id), 0]));
+    for (const edge of score.edges) {
+        if (String(edge.type) !== "next" || !ids.has(String(edge.from)) || !ids.has(String(edge.to))) continue;
+        next.get(String(edge.from)).push(String(edge.to));
+        indegree.set(String(edge.to), indegree.get(String(edge.to)) + 1);
+    }
+    const compare = (a, b) => a.offset - b.offset || idCompare(a, b), available = values.filter(value => indegree.get(String(value.id)) === 0).sort(compare), ordered = [];
+    while (available.length) {
+        const value = available.shift(); ordered.push(value);
+        for (const target of next.get(String(value.id)).sort()) {
+            const remaining = indegree.get(target) - 1; indegree.set(target, remaining);
+            if (!remaining) { available.push(score.node(target)); available.sort(compare); }
+        }
+    }
+    if (ordered.length !== values.length) throw new ValidationError("Layout event precedence contains a cycle.");
+    return ordered;
+}
+function accidentalCount(value) { return (String(value).match(/[#bx♯♭]/g) ?? []).length; }
+function flagged(duration) { return duration.numerator / duration.denominator < .25; }
+function eventWidth(event, profile) {
+    if (String(event.type) === "rest") return profile.restWidth + (flagged(event.duration) ? profile.flagWidth : 0);
+    const pitches = String(event.type) === "chord" ? event.notes : [event.pitch];
+    const accidentals = pitches.reduce((sum, pitch) => sum + accidentalCount(pitch), 0);
+    const seconds = pitches.slice(1).filter((pitch, index) => {
+        const letters = "CDEFGAB", previous = String(pitches[index]), current = String(pitch);
+        return Math.abs(letters.indexOf(current[0]) - letters.indexOf(previous[0])) === 1;
+    }).length;
+    return profile.noteheadWidth + profile.stemWidth + (flagged(event.duration) ? profile.flagWidth : 0) + accidentals * profile.accidentalWidth + seconds * profile.noteheadWidth * .55;
+}
+function keyWidth(measure, profile) { return Math.min(profile.keySignatureWidth, Math.abs(measure.keySignature?.accidentals ?? 0) * 11 + 8); }
+function headerWidth(measure, profile) { return profile.clefWidth + keyWidth(measure, profile) + profile.timeSignatureWidth + profile.measurePadding; }
+function semanticIds(request, measureId) { return request.semanticSystems.filter(system => system.measureIds.includes(measureId)).map(system => system.id); }
 
 export class ScoreGraphLayoutStrategy extends LayoutStrategy {
-    constructor({pluginId="core.layout.score-graph"}={}){super({id:"score-graph",pluginId});}
-    supports(request){return request instanceof LayoutRequest;}
-    layout(input){const request=LayoutRequest.from(input),score=request.score,profile=request.profile,contentWidth=request.availableWidth-request.horizontalPadding*2,parts=score.nodesOfType("part").sort(idCompare),systems=[];let globalSequence=0,y=request.horizontalPadding;
-        for(const part of parts){const measures=children(score,part,"measure").sort((a,b)=>a.number-b.number||idCompare(a,b)),prepared=measures.map(measure=>{const voices=children(score,measure,"voice").sort((a,b)=>a.index-b.index||idCompare(a,b)),leading=profile.measurePadding+profile.clefWidth+profile.keySignatureWidth,voiceEvents=voices.map(voice=>events(score,voice)),naturalWidth=Math.max(request.minimumSystemWidth,leading+profile.barlineWidth+profile.measurePadding,...voiceEvents.map(list=>leading+list.reduce((sum,event)=>sum+eventWidth(event)+profile.eventGap,0)+profile.barlineWidth+profile.measurePadding));return{measure,voices,voiceEvents,naturalWidth};});
-            let batch=[];const flush=()=>{if(!batch.length)return;globalSequence+=1;const systemY=y,systemHeight=Math.max(profile.staffHeight,profile.staffHeight+(Math.max(1,...batch.flatMap(value=>value.voices.map(v=>v.index)))-1)*request.staffSpacing),naturalWidth=request.horizontalPadding*2+batch.reduce((sum,value)=>sum+value.naturalWidth,0),overflow=naturalWidth>request.availableWidth;let measureX=request.horizontalPadding;const layoutMeasures=batch.map(value=>{const leading=profile.measurePadding+profile.clefWidth+profile.keySignatureWidth;const placements=[];value.voices.forEach((voice,voiceIndex)=>{let x=measureX+leading;value.voiceEvents[voiceIndex].forEach((event,index)=>{const width=eventWidth(event);placements.push(new LayoutEventPlacement({eventId:event.id,measureId:value.measure.id,voiceId:voice.id,x,y:systemY+58+voiceIndex*request.staffSpacing,width,order:index+1}));x+=width+profile.eventGap;});});const result=new LayoutMeasure({id:value.measure.id,number:value.measure.number,x:measureX,width:value.naturalWidth,naturalWidth:value.naturalWidth,overflow:value.naturalWidth>contentWidth,eventPlacements:placements});measureX+=value.naturalWidth;return result;});const first=batch[0].measure,last=batch.at(-1).measure,id=`${score.score.id}:layout:${profile.id}:part:${part.id}:system:${globalSequence}:${first.id}:${last.id}`;systems.push(new LayoutSystem({id,partId:part.id,sequence:globalSequence,semanticSystemIds:Object.freeze([...new Set(batch.flatMap(value=>semanticIds(request,String(value.measure.id))))]),measures:layoutMeasures,y:systemY,height:systemHeight,naturalWidth,overflow}));y+=systemHeight+request.systemSpacing;batch=[];};
-            for(const value of prepared){const hint=request.semanticSystems.find(system=>system.measureIds.includes(String(value.measure.id))),firstInHint=hint?.measureIds[0]===String(value.measure.id);if(batch.length&&firstInHint&&hint.breakPolicy==="mandatory")flush();const proposed=batch.reduce((sum,item)=>sum+item.naturalWidth,0)+value.naturalWidth;if(batch.length&&proposed>contentWidth)flush();batch.push(value);if(value.naturalWidth>contentWidth)flush();}flush();}
-        const naturalWidth=Math.max(0,...systems.map(system=>system.naturalWidth)),renderedWidth=Math.max(request.availableWidth,naturalWidth),height=Math.max(1,y-request.systemSpacing+request.horizontalPadding),bounds=new LayoutBounds({x:0,y:0,width:renderedWidth,height});return new LayoutPlan({request,score,systems,bounds,metadata:new LayoutMetadata({profileId:profile.id,availableWidth:request.availableWidth,naturalWidth,overflow:systems.some(system=>system.overflow),systemIds:systems.map(system=>system.id),strategy:{pluginId:String(this.pluginId),strategyId:String(this.id)}})});}
+    constructor({ pluginId = "core.layout.score-graph" } = {}) { super({ id: "score-graph", pluginId }); }
+    supports(request) { return request instanceof LayoutRequest; }
+    layout(input) {
+        const request = LayoutRequest.from(input), score = request.score, profile = request.profile;
+        const contentWidth = request.availableWidth - request.horizontalPadding * 2;
+        const parts = [...score.nodesOfType("part")].sort(idCompare), systems = [];
+        let globalSequence = 0, y = 54;
+        for (const part of parts) {
+            const measures = children(score, part, "measure").sort((a, b) => a.number - b.number || idCompare(a, b));
+            const prepared = measures.map(measure => {
+                const voices = children(score, measure, "voice").sort((a, b) => a.index - b.index || idCompare(a, b));
+                const voiceEvents = voices.map(voice => events(score, voice));
+                const bodyWidth = Math.max(request.minimumSystemWidth, profile.measurePadding * 2 + profile.barlineWidth,
+                    ...voiceEvents.map(list => profile.measurePadding * 2 + list.reduce((sum, event) => sum + eventWidth(event, profile) + profile.eventGap, 0) + profile.barlineWidth));
+                return { measure, voices, voiceEvents, bodyWidth };
+            });
+            let batch = [];
+            const flush = () => {
+                if (!batch.length) return;
+                globalSequence += 1;
+                const systemY = y, systemHeight = profile.staffHeight;
+                const naturalWidth = request.horizontalPadding * 2 + headerWidth(batch[0].measure, profile) + batch.reduce((sum, value) => sum + value.bodyWidth, 0);
+                const overflow = naturalWidth > request.availableWidth;
+                let measureX = request.horizontalPadding;
+                const layoutMeasures = batch.map((value, measureIndex) => {
+                    const header = measureIndex === 0 ? headerWidth(value.measure, profile) : 0;
+                    const width = value.bodyWidth + header;
+                    const placements = [];
+                    value.voices.forEach((voice, voiceIndex) => {
+                        let x = measureX + header + profile.measurePadding;
+                        value.voiceEvents[voiceIndex].forEach((event, index) => {
+                            const glyphWidth = eventWidth(event, profile);
+                            const accidentalReserve = String(event.type) === "chord"
+                                ? event.notes.reduce((sum, pitch) => sum + accidentalCount(pitch), 0) * profile.accidentalWidth
+                                : String(event.type) === "note" ? accidentalCount(event.pitch) * profile.accidentalWidth : 0;
+                            x += accidentalReserve;
+                            placements.push(new LayoutEventPlacement({ eventId: event.id, measureId: value.measure.id, voiceId: voice.id, x, y: systemY + 58, width: glyphWidth, order: index + 1 }));
+                            x += glyphWidth - accidentalReserve + profile.eventGap;
+                        });
+                    });
+                    const result = new LayoutMeasure({ id: value.measure.id, number: value.measure.number, x: measureX, width, naturalWidth: width, overflow: width > contentWidth, eventPlacements: placements });
+                    measureX += width;
+                    return result;
+                });
+                const first = batch[0].measure, last = batch.at(-1).measure;
+                const id = `${score.score.id}:layout:${profile.id}:part:${part.id}:system:${globalSequence}:${first.id}:${last.id}`;
+                systems.push(new LayoutSystem({ id, partId: part.id, sequence: globalSequence, semanticSystemIds: Object.freeze([...new Set(batch.flatMap(value => semanticIds(request, String(value.measure.id))))]), measures: layoutMeasures, y: systemY, height: systemHeight, naturalWidth, overflow }));
+                y += systemHeight + request.systemSpacing;
+                batch = [];
+            };
+            for (const value of prepared) {
+                const hint = request.semanticSystems.find(system => system.measureIds.includes(String(value.measure.id)));
+                const firstInHint = hint?.measureIds[0] === String(value.measure.id);
+                if (batch.length && firstInHint && hint.breakPolicy === "mandatory") flush();
+                const proposed = headerWidth(batch[0]?.measure ?? value.measure, profile) + batch.reduce((sum, item) => sum + item.bodyWidth, 0) + value.bodyWidth;
+                if (batch.length && proposed > contentWidth) flush();
+                batch.push(value);
+                if (headerWidth(value.measure, profile) + value.bodyWidth > contentWidth) flush();
+            }
+            flush();
+        }
+        const naturalWidth = Math.max(0, ...systems.map(system => system.naturalWidth)), renderedWidth = Math.max(request.availableWidth, naturalWidth);
+        const height = Math.max(1, y - request.systemSpacing + 24);
+        return new LayoutPlan({ request, score, systems, bounds: new LayoutBounds({ x: 0, y: 0, width: renderedWidth, height }), metadata: new LayoutMetadata({ profileId: profile.id, availableWidth: request.availableWidth, naturalWidth, overflow: systems.some(system => system.overflow), systemIds: systems.map(system => system.id), engravingMetrics: { staffLineSpacing: profile.staffLineSpacing, noteheadWidth: profile.noteheadWidth, accidentalWidth: profile.accidentalWidth }, strategy: { pluginId: String(this.pluginId), strategyId: String(this.id) } }) });
+    }
 }

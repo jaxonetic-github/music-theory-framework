@@ -6,7 +6,7 @@ Layout v8.8 is the browser-free boundary between immutable Notation `ScoreGraph`
 
 One layout unit is an abstract deterministic engraving unit. The Web adapter currently maps one CSS pixel to one layout unit after integer normalization, but Core never reads a viewport, CSS, fonts, device-pixel ratio, or DOM geometry. Supported widths are 160 through 10,000 units.
 
-The frozen profiles are `screen-compact`, `screen-regular`, and `print-worksheet`. Each declares explicit staff height, clef width, key-signature allowance, event gap, barline width, measure padding, and default vertical spacing. Callers may select a profile by identity; malformed profiles and unsafe numeric options are rejected.
+The frozen profiles are `screen-compact`, `screen-regular`, and `print-worksheet`. Each declares explicit staff-line spacing, staff height, clef/key/meter allowances, accidental columns, notehead/stem/flag/rest widths, event gaps, barlines, measure padding, and vertical spacing. Callers may select a profile by identity; malformed profiles and unsafe numeric options are rejected.
 
 ## Ordering and system breaking
 
@@ -18,7 +18,7 @@ If a single measure exceeds the content width, it receives one overflow-marked s
 
 ## Spacing and preservation
 
-Fixed metrics reserve room for clefs, key signatures, measure padding, barlines, event gaps, rests, notes, chord density, and accidental columns. These metrics cover the framework's current glyph domain, including flats, sharps, Cb, B#, triads, and seventh chords, without DOM bounding boxes. Vertical positions use explicit staff height, per-voice spacing, and inter-system spacing, so systems do not overlap. Full page pagination remains deferred.
+Fixed metrics reserve room for clefs, key signatures, meters, measure padding, barlines, event gaps, rests, duration-specific notes, chord seconds, flags, and separate accidental columns. These metrics cover the framework's current glyph domain, including naturals, flats, sharps, double sharps, Cb, B#, triads, and seventh chords, without DOM or font bounding boxes. Visual systems use five lines at a fixed 12-unit spacing and explicit inter-system whitespace. Full page pagination remains deferred.
 
 Layout preserves node identities, written pitch spelling, MIDI data, durations, offsets, part/measure/voice membership, chord membership and order, source metadata, semantic row/system identity, and `next` edges. It never mutates the graph or changes playback/export ordering.
 
