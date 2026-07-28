@@ -9,7 +9,7 @@ function text(value, label, { required = false, max = EXERCISE_SET_LIMITS.textLe
     const result = String(value).trim(); if (!result || result.length > max) throw new ValidationError(`${label} must be a non-empty string of at most ${max} characters.`); return result;
 }
 function rejectUnknown(value, allowed, label) { const unknown = Object.keys(value).filter(key => !allowed.has(key)); if (unknown.length) throw new ValidationError(`Unknown ${label} option${unknown.length === 1 ? "" : "s"}: ${unknown.join(", ")}.`); }
-function identifier(value, label, fallback) { if (value === undefined || value === null) return fallback; try { const id = String(Identifier.from(value)); if (id.length > EXERCISE_SET_LIMITS.labelLength) throw new Error(`identifier exceeds ${EXERCISE_SET_LIMITS.labelLength} characters`); return id; } catch (cause) { throw new ValidationError(`Invalid ${label}: ${cause.message}`, { cause }); } }
+function identifier(value, label, fallback) { if (value === undefined || value === null) return fallback; try { const id = String(Identifier.from(value)); if (id.length > EXERCISE_SET_LIMITS.idLength) throw new Error(`identifier exceeds ${EXERCISE_SET_LIMITS.idLength} characters`); return id; } catch (cause) { throw new ValidationError(`Invalid ${label}: ${cause.message}`, { cause }); } }
 function token(value) { return String(value).replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase() || "worksheet"; }
 export class ExerciseSetRequest {
     constructor(value = {}) {

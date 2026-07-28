@@ -97,7 +97,9 @@ function curriculumOptions(templateCatalog, curriculumCatalog, catalogs) {
             id: unit.id, title: unit.title, objective: unit.objective, difficulty: String(unit.difficulty),
             lessons: Object.freeze(unit.lessons.map(lesson => Object.freeze({
                 id: lesson.id, title: lesson.title, objective: lesson.objective, difficulty: String(lesson.difficulty),
-                prerequisites: lesson.prerequisites, templateIds: Object.freeze(lesson.templates.map(reference => reference.templateId))
+                prerequisites: lesson.prerequisites,
+                templateIds: Object.freeze(lesson.templates.map(reference => reference.templateId)),
+                templateReferences: Object.freeze(lesson.templates.map(reference => Object.freeze({ pluginId: reference.pluginId ?? pluginId, templateId: reference.templateId })))
             })))
         })))
     })));

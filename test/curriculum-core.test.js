@@ -4,9 +4,9 @@ import test from "node:test";
 import {
     Curriculum as CurriculumNamespace, CurriculumCatalog, CurriculumExpansionRequest, CurriculumModule,
     DifficultyLevel, ExerciseApplicationModule, ExerciseModule, ExerciseNotationModule,
-    ExerciseSetModule, ExerciseTemplate, ExerciseTemplateCatalog, ExerciseTemplateParameter,
+    EXERCISE_SET_LIMITS, ExerciseSetModule, ExerciseTemplate, ExerciseTemplateCatalog, ExerciseTemplateParameter,
     Kernel, LayoutModule, NotationModule, RenderingModule, TheoryModule,
-    builtInCurricula, builtInExerciseTemplates
+    boundedExerciseSetId, builtInCurricula, builtInExerciseTemplates
 } from "../src/core/index.js";
 const Curriculum = CurriculumNamespace.Curriculum;
 
@@ -85,7 +85,7 @@ test("plugin catalogs enumerate deterministically and preserve isolation, replac
     assert.equal(templates.get("one", "listener-failure"), null);
     stop();
     const curricula = new CurriculumCatalog(templates);
-    assert.throws(() => curricula.register("one", curriculumValue()), /not found/);
+    assert.throws(() => curricula.register("one", curriculumValue()), /cannot resolve/);
 });
 
 test("built-in templates and curricula cover the milestone library and expand deterministically", async () => {
@@ -130,7 +130,7 @@ test("lesson expansion requires unit scope and permits duplicate lesson IDs acro
         objective: "Select one local lesson.", units: ["unit-a", "unit-b"].map((unitId, index) => ({
             id: unitId, title: `Unit ${index + 1}`, objective: `Objective ${index + 1}`, lessons: [{
                 id: "lesson-1", title: `Lesson ${index + 1}`, objective: `Lesson objective ${index + 1}`,
-                templates: [{ templateId: "major-triad-arpeggios" }]
+                templates: [{ templateId: "major-triad-arpeggios", pluginId: "core.curriculum.builtins" }]
             }]
         }))
     };
@@ -143,11 +143,16 @@ test("lesson expansion requires unit scope and permits duplicate lesson IDs acro
         assert.throws(() => engine.expandCurriculum({ curriculumId: curriculum.id, pluginId: plugin, unitId: "unit-a", lessonId: "missing" }), /unit "unit-a".*lesson "missing"/);
         const a = engine.expandCurriculum({ curriculumId: curriculum.id, pluginId: plugin, unitId: "unit-a", lessonId: "lesson-1" });
         const b = engine.expandCurriculum({ curriculumId: curriculum.id, pluginId: plugin, unitId: "unit-b", lessonId: "lesson-1" });
-        assert.deepEqual(a.exerciseSetRequest.sections.map(value => value.id), ["scoped-lessons-unit-a-lesson-1"]);
-        assert.deepEqual(b.exerciseSetRequest.sections.map(value => value.id), ["scoped-lessons-unit-b-lesson-1"]);
+        assert.match(a.exerciseSetRequest.sections[0].id, /^curriculum-section-unit-a-lesson-1-/);
+        assert.match(b.exerciseSetRequest.sections[0].id, /^curriculum-section-unit-b-lesson-1-/);
         assert.equal(a.exerciseSetRequest.items[0].metadata.unitId, "unit-a");
         assert.equal(b.exerciseSetRequest.items[0].metadata.unitId, "unit-b");
-        assert.deepEqual({ ...a.metadata }, { curriculumId: "scoped-lessons", unitId: "unit-a", lessonId: "lesson-1", sectionCount: 1, itemCount: 1, deterministic: true });
+        assert.equal(a.metadata.curriculumPluginId, plugin);
+        assert.equal(a.metadata.curriculumId, "scoped-lessons");
+        assert.equal(a.metadata.unitId, "unit-a");
+        assert.equal(a.metadata.lessonId, "lesson-1");
+        assert.equal(a.metadata.sectionCount, 1);
+        assert.equal(a.metadata.itemCount, 1);
         assert.notEqual(a.exerciseSetRequest.id, b.exerciseSetRequest.id);
         assert.deepEqual(definition, sourceDefinition);
         assert.equal(Object.isFrozen(curriculum.units[0].lessons), true);
@@ -173,4 +178,54 @@ test("Core Curriculum imports and expands without browser, font, audio, MIDI, or
     const script = `for(const name of ["window","document","ResizeObserver","AudioContext","navigator","MIDIInput","FontFace","setTimeout"])Object.defineProperty(globalThis,name,{configurable:true,get(){throw new Error("forbidden "+name)}});const C=await import("./src/core/index.js");const k=new C.Kernel().use(new C.TheoryModule()).use(new C.ExerciseModule()).use(new C.CurriculumModule());await k.start();const r=k.services.resolve("curriculum.engine").expandTemplate({templateId:"major-scales-canonical"});if(!r.exerciseSetRequest.items.length)throw new Error("missing");await k.dispose();`;
     const child = spawnSync(process.execPath, ["--input-type=module", "--eval", script], { cwd: new URL("..", import.meta.url), encoding: "utf8" });
     assert.equal(child.status, 0, child.stderr || child.stdout);
+});
+
+test("Curriculum capacity is derived from ExerciseSet limits and rejects incompatible aggregate structure", async () => {
+    const lessonDefinition = index => ({id:`lesson-${index}`,title:`Lesson ${index}`,objective:"Capacity.",templates:[{templateId:"custom-scale"}]});
+    const units = [
+        {id:"unit-a",title:"A",objective:"A",lessons:Array.from({length:16},(_,index)=>lessonDefinition(index+1))},
+        {id:"unit-b",title:"B",objective:"B",lessons:Array.from({length:16},(_,index)=>lessonDefinition(index+17))}
+    ];
+    const exact = new Curriculum({id:"exact-capacity",title:"Exact",description:"Exact.",objective:"Exact.",units});
+    assert.equal(exact.units.flatMap(value=>value.lessons).length,EXERCISE_SET_LIMITS.sections);
+    assert.throws(()=>new Curriculum({id:"over-capacity",title:"Over",description:"Over.",objective:"Over.",units:[...units,{id:"unit-c",title:"C",objective:"C",lessons:[lessonDefinition(33)]}]}),/33 lessons.*at most 32/);
+    const oversizedItems=Array.from({length:EXERCISE_SET_LIMITS.itemsPerSection+1},()=>({templateId:"custom-scale"}));
+    assert.throws(()=>new Curriculum({id:"section-over",title:"Over",description:"Over.",objective:"Over.",units:[{id:"unit",title:"Unit",objective:"Unit",lessons:[{id:"lesson",title:"Lesson",objective:"Lesson",templates:oversizedItems}]}]}),/1 through 64/);
+    const fullLesson=(id,count=EXERCISE_SET_LIMITS.itemsPerSection)=>({id,title:id,objective:"Capacity.",templates:Array.from({length:count},()=>({templateId:"custom-scale"}))});
+    const exactItems=new Curriculum({id:"exact-items",title:"Exact items",description:"Exact.",objective:"Exact.",units:[{id:"unit",title:"Unit",objective:"Unit.",lessons:Array.from({length:8},(_,index)=>fullLesson(`full-${index+1}`))}]});
+    assert.throws(()=>new Curriculum({id:"over-items",title:"Over",description:"Over.",objective:"Over.",units:[{id:"unit",title:"Unit",objective:"Unit.",lessons:[...Array.from({length:8},(_,index)=>fullLesson(`full-${index+1}`)),fullLesson("one-more",1)]}]}),/513 template references.*at most 512/);
+    const kernel=await source();try{const engine=kernel.services.resolve("curriculum.engine");engine.templateCatalog.register(plugin,templateValue());engine.curriculumCatalog.register(plugin,exact);engine.curriculumCatalog.register(plugin,exactItems);const result=engine.expandCurriculum({curriculumId:exact.id,pluginId:plugin}),items=engine.expandCurriculum({curriculumId:exactItems.id,pluginId:plugin});assert.equal(result.exerciseSetRequest.sections.length,EXERCISE_SET_LIMITS.sections);assert.equal(result.exerciseSetRequest.items.length,EXERCISE_SET_LIMITS.sections);assert.equal(items.exerciseSetRequest.items.length,EXERCISE_SET_LIMITS.totalItems);assert.equal(items.exerciseSetRequest.sections[0].items.length,EXERCISE_SET_LIMITS.itemsPerSection);}finally{await kernel.dispose();}
+});
+
+test("plugin-scoped template and curriculum identities preserve exact provenance", async () => {
+    const kernel=await source();try{
+        const engine=kernel.services.resolve("curriculum.engine"),template=new ExerciseTemplate(templateValue({id:"shared-template"})),definition={id:"shared-curriculum",title:"Shared",description:"Shared.",objective:"Shared.",version:"2.0.0",units:[{id:"unit",title:"Unit",objective:"Unit.",lessons:[{id:"lesson",title:"Lesson",objective:"Lesson.",templates:[{templateId:"shared-template"}]}]}]};
+        engine.templateCatalog.register("plugin.a",template);engine.curriculumCatalog.register("plugin.a",definition);const before=engine.expandCurriculum({curriculumId:"shared-curriculum",pluginId:"plugin.a"});
+        engine.templateCatalog.register("plugin.b",template);engine.curriculumCatalog.register("plugin.b",definition);
+        const a=engine.expandCurriculum({curriculumId:"shared-curriculum",pluginId:"plugin.a"}),b=engine.expandCurriculum({curriculumId:"shared-curriculum",pluginId:"plugin.b"});
+        assert.deepEqual(a,before);
+        assert.notEqual(a.id,b.id);assert.notEqual(a.exerciseSetRequest.sections[0].id,b.exerciseSetRequest.sections[0].id);assert.notEqual(a.exerciseSetRequest.items[0].id,b.exerciseSetRequest.items[0].id);
+        assert.equal(a.exerciseSetRequest.items[0].metadata.curriculumPluginId,"plugin.a");assert.equal(a.exerciseSetRequest.items[0].metadata.templatePluginId,"plugin.a");
+        assert.equal(b.exerciseSetRequest.items[0].metadata.curriculumPluginId,"plugin.b");assert.equal(b.exerciseSetRequest.items[0].metadata.templatePluginId,"plugin.b");
+        engine.curriculumCatalog.register("plugin.a",{id:"cross",title:"Cross",description:"Cross.",objective:"Cross.",units:[{id:"unit",title:"Unit",objective:"Unit.",lessons:[{id:"lesson",title:"Lesson",objective:"Lesson.",templates:[{templateId:"shared-template",pluginId:"plugin.b"}]}]}]});
+        assert.equal(engine.expandCurriculum({curriculumId:"cross",pluginId:"plugin.a"}).exerciseSetRequest.items[0].metadata.templatePluginId,"plugin.b");
+        engine.templateCatalog.remove("plugin.a","shared-template");
+        assert.throws(()=>engine.expandCurriculum({curriculumId:"shared-curriculum",pluginId:"plugin.a"}),/plugin.a:shared-template/);
+    }finally{await kernel.dispose();}
+});
+
+test("bounded generated IDs retain full long provenance and canonical deterministic inputs", async () => {
+    const long=value=>`${value}-${"x".repeat(240)}`,templateId=long("template"),curriculumId=long("curriculum"),unitId=long("unit"),lessonId=long("lesson");
+    const kernel=await source();try{
+        const engine=kernel.services.resolve("curriculum.engine");
+        engine.templateCatalog.register(plugin,templateValue({id:templateId,version:"9.1.0"}));
+        engine.curriculumCatalog.register(plugin,{id:curriculumId,title:"Long",description:"Long IDs.",objective:"Long IDs.",units:[{id:unitId,title:"Unit",objective:"Unit.",lessons:[{id:lessonId,title:"Lesson",objective:"Lesson.",templates:[{templateId}]}]}]});
+        const templateExpansion=engine.expandTemplate({templateId,pluginId:plugin}),first=engine.expandCurriculum({curriculumId,pluginId:plugin}),second=engine.expandCurriculum({curriculumId,pluginId:plugin});
+        for(const id of [templateExpansion.id,templateExpansion.exerciseSetRequest.sections[0].id,templateExpansion.exerciseSetRequest.items[0].id,first.id,first.exerciseSetRequest.sections[0].id,first.exerciseSetRequest.items[0].id])assert.ok(id.length<=EXERCISE_SET_LIMITS.idLength,id);
+        assert.deepEqual(first,second);assert.equal(first.exerciseSetRequest.items[0].metadata.curriculumId,curriculumId);assert.equal(first.exerciseSetRequest.items[0].metadata.unitId,unitId);assert.equal(first.exerciseSetRequest.items[0].metadata.lessonId,lessonId);assert.equal(first.exerciseSetRequest.items[0].metadata.templateId,templateId);
+        engine.templateCatalog.register(plugin,templateValue({id:templateId,version:"9.2.0"}),{replace:true});
+        assert.notEqual(templateExpansion.id,engine.expandTemplate({templateId,pluginId:plugin}).id);
+        const left=boundedExerciseSetId({kind:"test",readable:"same",identity:{b:2,a:1}}),right=boundedExerciseSetId({kind:"test",readable:"same",identity:{a:1,b:2}});
+        assert.equal(left,right);assert.notEqual(left,boundedExerciseSetId({kind:"test",readable:"same",identity:{a:1,b:3}}));
+    }finally{await kernel.dispose();}
 });
