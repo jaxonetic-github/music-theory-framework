@@ -156,4 +156,16 @@ legend, .field > span { margin-bottom: .55rem; font-size: .82rem; font-weight: 7
 .worksheet-result-item h6 { margin: .5rem 0; font-size: 1rem; }
 @media (max-width: 760px) { .worksheet-workspace, .worksheet-metadata, .worksheet-item-fields { grid-template-columns: 1fr; } .worksheet-wide { grid-column: auto; } }
 @media print { :scope { background: white; } .hero, .workspace, .exercise-practice, .worksheet-editor, .worksheet-generate, .exercise-live, .exercise-error { display: none !important; } .app-shell { width: 100%; padding: 0; } .exercise-set { margin: 0; padding: 0; border: 0; } .worksheet-workspace { display: block; } .worksheet-document { padding: 0; border: 0; box-shadow: none; } .exercise-svg-frame { overflow: visible; border: 0; } .exercise-svg-frame svg { max-width: 100%; height: auto; } }
+.curriculum-browser { margin-top: clamp(3rem, 8vw, 7rem); padding-top: 2rem; border-top: 1px solid #bbb9ae; }
+.curriculum-tabs { display: flex; gap: .5rem; margin: 1rem 0; }
+.curriculum-tabs [aria-selected="true"] { color: white; background: #181714; }
+.curriculum-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.curriculum-workspace { display: grid; grid-template-columns: minmax(18rem, .8fr) minmax(0, 1.2fr); gap: 1.25rem; align-items: start; }
+.curriculum-workspace > section { min-width: 0; }
+.curriculum-fixed { display: grid; grid-template-columns: minmax(8rem, 1fr) 2fr; gap: .5rem; padding: .4rem 0; }
+.curriculum-fixed dt { font-weight: 650; }
+.curriculum-fixed span { font-size: .85em; }
+.curriculum-structure ol { padding-left: 1.4rem; }
+@media (max-width: 760px) { .curriculum-filters, .curriculum-workspace { grid-template-columns: 1fr; } }
+@media print { .curriculum-browser > header, .curriculum-tabs, .curriculum-filters, .curriculum-workspace > div, .curriculum-workspace > section > button, .curriculum-workspace > section > .exercise-live, .curriculum-workspace > section > .exercise-error { display: none !important; } .curriculum-workspace { display: block; } }
 }

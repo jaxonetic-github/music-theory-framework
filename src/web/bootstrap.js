@@ -1,6 +1,7 @@
 import {
     ApplicationModule,
     chordMemberRoles,
+    CurriculumModule,
     ExerciseApplicationModule,
     ExerciseModule,
     ExerciseNotationModule,
@@ -32,6 +33,7 @@ const defaultModules = () => {
         new ExerciseNotationModule(),
         new ExerciseApplicationModule(),
         new ExerciseSetModule(),
+        new CurriculumModule(),
         new ExportModule(),
         new ApplicationModule(),
         new PlaybackModule(),
@@ -61,6 +63,48 @@ function progressionOptions(catalog) {
         })))
     })));
 }
+function curriculumOptions(templateCatalog, curriculumCatalog, catalogs) {
+    const choices = source => source === "theory.scaleCatalog" ? catalogs.scales
+        : source === "theory.chordCatalog" ? catalogs.chords
+        : source === "exercise.progressionCatalog" ? catalogs.progressions
+        : source === "exercise.chordMemberRoles"
+            ? Object.freeze([...new Set(catalogs.chords.flatMap(value => value.memberRoles ?? []))].sort().map(id => Object.freeze({ id, name: id })))
+            : null;
+    const templates = Object.freeze(templateCatalog.entries().map(({ pluginId, value }) => Object.freeze({
+        id: value.id, pluginId, key: `${pluginId}:${value.id}`, name: value.name, description: value.description,
+        family: String(value.family), objective: value.objective, difficulty: String(value.difficulty),
+        tags: value.tags, prerequisites: value.prerequisites, version: value.version, instructions: value.instructions,
+        constraints: value.constraints,
+        parameters: Object.freeze(value.parameters.map(parameter => Object.freeze({
+            id: parameter.id, label: parameter.label, contract: parameter.contract, required: parameter.required,
+            overridable: parameter.overridable, helpText: parameter.helpText,
+            defaultValue: value.constraints[parameter.id] ?? value.defaults[parameter.id] ?? parameter.defaultValue ?? null,
+            fixed: Object.hasOwn(value.constraints, parameter.id),
+            choices: choices(parameter.validationSource) ?? (parameter.allowedValues?.map(entry => Object.freeze({
+                id: typeof entry === "object" ? JSON.stringify(entry) : String(entry),
+                name: typeof entry === "object"
+                    ? (Object.hasOwn(entry, "numerator") ? `${entry.numerator}/${entry.denominator}` : `${entry.beats}/${entry.beatUnit}`)
+                    : String(entry),
+                value: entry
+            })) ?? null)
+        })))
+    })));
+    const curricula = Object.freeze(curriculumCatalog.entries().map(({ pluginId, value }) => Object.freeze({
+        id: value.id, pluginId, key: `${pluginId}:${value.id}`, title: value.title, description: value.description,
+        objective: value.objective, difficulty: String(value.difficulty), tags: value.tags,
+        prerequisites: value.prerequisites, version: value.version,
+        units: Object.freeze(value.units.map(unit => Object.freeze({
+            id: unit.id, title: unit.title, objective: unit.objective, difficulty: String(unit.difficulty),
+            lessons: Object.freeze(unit.lessons.map(lesson => Object.freeze({
+                id: lesson.id, title: lesson.title, objective: lesson.objective, difficulty: String(lesson.difficulty),
+                prerequisites: lesson.prerequisites,
+                templateIds: Object.freeze(lesson.templates.map(reference => reference.templateId)),
+                templateReferences: Object.freeze(lesson.templates.map(reference => Object.freeze({ pluginId: reference.pluginId ?? pluginId, templateId: reference.templateId })))
+            })))
+        })))
+    })));
+    return Object.freeze({ templates, curricula });
+}
 
 export async function createWebApplication({
     kernel = new Kernel({ name: "react-web-application" }),
@@ -78,17 +122,25 @@ export async function createWebApplication({
         const playback = kernel.services.resolve("playback.engine");
         const transport = kernel.services.resolve("web.playback.transport");
         const progressionCatalog = kernel.services.resolve("exercise.progressionCatalog");
-        const catalogs = Object.freeze({
+        const baseCatalogs = {
             scales: catalogOptions(kernel.services.resolve("theory.scaleCatalog")),
             chords: catalogOptions(kernel.services.resolve("theory.chordCatalog"), { chordMembers: true }),
             progressions: progressionOptions(progressionCatalog)
-        });
+        };
+        const curriculumEngine = kernel.services.resolve("curriculum.engine", { optional: true });
+        const templateCatalog = kernel.services.resolve("curriculum.template-catalog", { optional: true });
+        const curriculumCatalog = kernel.services.resolve("curriculum.catalog", { optional: true });
+        const curriculum = curriculumEngine && templateCatalog && curriculumCatalog
+            ? curriculumOptions(templateCatalog, curriculumCatalog, baseCatalogs)
+            : Object.freeze({ templates: Object.freeze([]), curricula: Object.freeze([]) });
+        const catalogs = Object.freeze({ ...baseCatalogs, ...curriculum });
         return Object.freeze({
             application,
             layout,
             rendering,
             exerciseApplication,
             exerciseSetApplication,
+            curriculumEngine,
             playback,
             transport,
             catalogs,

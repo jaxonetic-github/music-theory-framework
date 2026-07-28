@@ -1,8 +1,9 @@
 import { Identifier, ValidationError } from "../Foundation/index.js";
 import { ExerciseApplicationRequest } from "../ExerciseApplication/index.js";
 import { EXERCISE_SET_LIMITS } from "./limits.js";
+import { ExerciseSetMetadata } from "./ExerciseSetMetadata.js";
 
-const keys = new Set(["id", "label", "order", "application"]);
+const keys = new Set(["id", "label", "order", "application", "metadata"]);
 function text(value, label, { required = false, max = EXERCISE_SET_LIMITS.labelLength } = {}) {
     if (value === undefined || value === null) { if (required) throw new ValidationError(`${label} is required.`); return null; }
     const result = String(value).trim(); if (!result || result.length > max) throw new ValidationError(`${label} must be a non-empty string of at most ${max} characters.`); return result;
@@ -15,9 +16,9 @@ export class ExerciseSetItemRequest {
         if (!Number.isSafeInteger(sequence) || sequence < 1) throw new ValidationError("Exercise set item sequence must be a positive safe integer.");
         if (value.order !== undefined && (!Number.isSafeInteger(value.order) || value.order !== sequence)) throw new ValidationError(`Exercise set item order must match its position (${sequence}).`);
         let application; try { application = ExerciseApplicationRequest.from(value.application); } catch (cause) { throw new ValidationError(`Invalid exercise application request: ${cause.message}`, { cause }); }
-        let supplied = null; if (value.id !== undefined && value.id !== null) { try { supplied = String(Identifier.from(value.id)); if (supplied.length > EXERCISE_SET_LIMITS.labelLength) throw new Error(`identifier exceeds ${EXERCISE_SET_LIMITS.labelLength} characters`); } catch (cause) { throw new ValidationError(`Invalid exercise set item id: ${cause.message}`, { cause }); } }
+        let supplied = null; if (value.id !== undefined && value.id !== null) { try { supplied = String(Identifier.from(value.id)); if (supplied.length > EXERCISE_SET_LIMITS.idLength) throw new Error(`identifier exceeds ${EXERCISE_SET_LIMITS.idLength} characters`); } catch (cause) { throw new ValidationError(`Invalid exercise set item id: ${cause.message}`, { cause }); } }
         const id = supplied ?? `${sectionId}:item:${sequence}`;
-        Object.defineProperties(this, { id: { value: id, enumerable: true }, label: { value: text(value.label, "Exercise set item label"), enumerable: true }, sequence: { value: sequence, enumerable: true }, application: { value: application, enumerable: true }, callerSuppliedId: { value: supplied !== null, enumerable: true } }); Object.freeze(this);
+        Object.defineProperties(this, { id: { value: id, enumerable: true }, label: { value: text(value.label, "Exercise set item label"), enumerable: true }, sequence: { value: sequence, enumerable: true }, application: { value: application, enumerable: true }, metadata: { value: new ExerciseSetMetadata(value.metadata), enumerable: true }, callerSuppliedId: { value: supplied !== null, enumerable: true } }); Object.freeze(this);
     }
 }
 export default ExerciseSetItemRequest;

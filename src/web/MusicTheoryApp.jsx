@@ -6,7 +6,7 @@ function classes(className) {
 }
 
 export function MusicTheoryApp({ className, runtime, runtimeFactory, runtimeOptions, accessibilityIdPrefix }) {
-    return <div className={classes(className)} data-music-theory-app="v8.7">
+    return <div className={classes(className)} data-music-theory-app="v8.9">
         <ApplicationProvider runtime={runtime} bootstrap={runtimeFactory} bootstrapOptions={runtimeOptions}>
             <MusicTheoryWebApp accessibilityIdPrefix={accessibilityIdPrefix} />
         </ApplicationProvider>
