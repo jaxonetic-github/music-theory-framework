@@ -18,7 +18,7 @@ test("web bootstrap installs and resolves the complete application workflow", as
     assert.strictEqual(runtime.transport, kernel.services.resolve("web.playback.transport"));
     assert.deepEqual(kernel.modules.map(module => module.id), [
         "core.theory", "core.notation", "core.layout", "core.rendering", "core.exercise", "core.exercise-notation",
-        "core.exercise-application", "core.exercise-set", "core.export", "core.application",
+        "core.exercise-application", "core.exercise-set", "core.curriculum", "core.export", "core.application",
         "core.playback", "web.audio-playback", "web.playback-transport"
     ]);
     assert.strictEqual(runtime.transport.plan, null);
@@ -187,7 +187,7 @@ test("core public entry remains free of React and DOM imports", async () => {
     assert.equal(typeof core.Kernel, "function");
     assert.equal("MusicTheoryWebApp" in core, false);
     assert.equal(String(reactWebPackageDescriptor.id), "web.react-application");
-    assert.equal(String(reactWebPackageDescriptor.version), "8.8.0");
+    assert.equal(String(reactWebPackageDescriptor.version), "8.9.0");
     assert.ok(reactWebPackageDescriptor.capabilities.values.some(capability => String(capability.id) === "accessible-exercise-practice"));
     assert.ok(reactWebPackageDescriptor.capabilities.values.some(capability => String(capability.id) === "advanced-exercise-practice"));
     assert.ok(reactWebPackageDescriptor.capabilities.values.some(capability => String(capability.id) === "exercise-worksheet"));

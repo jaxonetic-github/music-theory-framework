@@ -1,0 +1,10 @@
+export * from "./values.js";
+export * from "./catalogs.js";
+export * from "./builtins.js";
+export { CurriculumEngine } from "./CurriculumEngine.js";
+export { CurriculumModule } from "./CurriculumModule.js";
+export * from "./descriptors.js";
+export { curriculumPackageDescriptor } from "./package.descriptor.js";
+import * as values from "./values.js";import {ExerciseTemplateCatalog,CurriculumCatalog}from"./catalogs.js";import{builtInExerciseTemplates,builtInCurricula}from"./builtins.js";import{CurriculumEngine}from"./CurriculumEngine.js";import{CurriculumModule}from"./CurriculumModule.js";import{curriculumServiceDescriptors,curriculumPluginDescriptor,curriculumExpansionDescriptor,exerciseTemplateDescriptors,builtInCurriculumDescriptors}from"./descriptors.js";import{curriculumPackageDescriptor}from"./package.descriptor.js";
+export const CurriculumCore=Object.freeze({...values,ExerciseTemplateCatalog,CurriculumCatalog,builtInExerciseTemplates,builtInCurricula,CurriculumEngine,CurriculumModule,serviceDescriptors:curriculumServiceDescriptors,pluginDescriptor:curriculumPluginDescriptor,expansionDescriptor:curriculumExpansionDescriptor,templateDescriptors:exerciseTemplateDescriptors,curriculumDescriptors:builtInCurriculumDescriptors,descriptor:curriculumPackageDescriptor});
+export default CurriculumCore;

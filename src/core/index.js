@@ -28,3 +28,5 @@ export * from "./ExerciseApplication/index.js";
 export { default as ExerciseApplication } from "./ExerciseApplication/index.js";
 export * from "./ExerciseSet/index.js";
 export { default as ExerciseSet } from "./ExerciseSet/index.js";
+export * from "./Curriculum/index.js";
+export { default as Curriculum } from "./Curriculum/index.js";

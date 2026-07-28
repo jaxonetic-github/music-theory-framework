@@ -12,6 +12,7 @@ export * from "./transport/index.js";
 export { default as Transport } from "./transport/index.js";
 export * from "./exercise/index.js";
 export * from "./exercise-set/index.js";
+export * from "./curriculum/index.js";
 export * from "./layout/index.js";
 import {
     ExercisePracticePanel, ExercisePracticeApp, useExercisePracticeWorkflow, validateExercisePresentation,

@@ -4,6 +4,7 @@ import { downloadExport, exportFilenameBase } from "./download.js";
 import { usePlaybackTransport, useStopActivePlaybackOnCleanup } from "./usePlaybackTransport.js";
 import { ExercisePracticePanel } from "./exercise/index.js";
 import { ExerciseSetPanel } from "./exercise-set/index.js";
+import { CurriculumBrowser } from "./curriculum/index.js";
 import {
     buildWorkflowRequest,
     createInitialWorkflowState,
@@ -293,6 +294,7 @@ function ReadyApplication({ runtime, accessibilityIdPrefix }) {
             </div>
             <ExercisePracticePanel engine={runtime.exerciseApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} accessibilityIdPrefix={accessibilityIdPrefix ? `${accessibilityIdPrefix}-practice` : undefined} />
             <ExerciseSetPanel application={runtime.exerciseSetApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} accessibilityIdPrefix={accessibilityIdPrefix ? `${accessibilityIdPrefix}-worksheet` : undefined} />
+            {runtime.curriculumEngine && <CurriculumBrowser engine={runtime.curriculumEngine} application={runtime.exerciseSetApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} accessibilityIdPrefix={accessibilityIdPrefix ? `${accessibilityIdPrefix}-curriculum` : undefined} />}
         </main>
     );
 }

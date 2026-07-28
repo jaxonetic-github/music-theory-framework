@@ -1,8 +1,9 @@
 import { canonicalSerialize, Identifier, ValidationError } from "../Foundation/index.js";
 import { ExerciseSetItemRequest } from "./ExerciseSetItemRequest.js";
+import { ExerciseSetMetadata } from "./ExerciseSetMetadata.js";
 import { EXERCISE_SET_LIMITS } from "./limits.js";
 
-const requestKeys = new Set(["id", "title", "subtitle", "instructions", "sections"]), sectionKeys = new Set(["id", "title", "label", "order", "items"]);
+const requestKeys = new Set(["id", "title", "subtitle", "instructions", "sections"]), sectionKeys = new Set(["id", "title", "label", "order", "items", "metadata"]);
 function text(value, label, { required = false, max = EXERCISE_SET_LIMITS.textLength } = {}) {
     if (value === undefined || value === null) { if (required) throw new ValidationError(`${label} is required.`); return null; }
     const result = String(value).trim(); if (!result || result.length > max) throw new ValidationError(`${label} must be a non-empty string of at most ${max} characters.`); return result;
@@ -28,10 +29,10 @@ export class ExerciseSetRequest {
             if (!Array.isArray(source.items) || source.items.length < 1) throw new ValidationError(`Section "${id}" requires at least one exercise item.`);
             if (source.items.length > EXERCISE_SET_LIMITS.itemsPerSection) throw new ValidationError(`Section "${id}" supports at most ${EXERCISE_SET_LIMITS.itemsPerSection} items.`);
             const items = source.items.map((item, itemIndex) => { try { const normalized = new ExerciseSetItemRequest(item, { sectionId: id, sequence: itemIndex + 1 }); if (itemIds.has(normalized.id)) throw new ValidationError(`Duplicate exercise set item identity: "${normalized.id}".`); itemIds.add(normalized.id); return normalized; } catch (cause) { throw new ValidationError(`Invalid item ${itemIndex + 1} in section "${id}": ${cause.message}`, { cause }); } });
-            total += items.length; return Object.freeze({ id, title: sectionTitle, label: text(source.label, `Section "${id}" label`, { max: EXERCISE_SET_LIMITS.labelLength }), sequence, items: Object.freeze(items) });
+            total += items.length; return Object.freeze({ id, title: sectionTitle, label: text(source.label, `Section "${id}" label`, { max: EXERCISE_SET_LIMITS.labelLength }), sequence, metadata: new ExerciseSetMetadata(source.metadata), items: Object.freeze(items) });
         });
         if (total > EXERCISE_SET_LIMITS.totalItems) throw new ValidationError(`Exercise set supports at most ${EXERCISE_SET_LIMITS.totalItems} total items.`);
-        const signature = { title, subtitle: text(value.subtitle, "Exercise set subtitle"), instructions: text(value.instructions, "Exercise set instructions"), sections: sections.map(section => ({ id: section.id, title: section.title, label: section.label, sequence: section.sequence, items: section.items.map(item => ({ id: item.id, label: item.label, sequence: item.sequence, application: item.application.identity })) })) };
+        const signature = { title, subtitle: text(value.subtitle, "Exercise set subtitle"), instructions: text(value.instructions, "Exercise set instructions"), sections: sections.map(section => { const sectionMetadata=section.metadata.toJSON();return { id: section.id, title: section.title, label: section.label, sequence: section.sequence, ...(Object.keys(sectionMetadata).length?{metadata:sectionMetadata}:{}), items: section.items.map(item => { const itemMetadata=item.metadata.toJSON();return { id: item.id, label: item.label, sequence: item.sequence, ...(Object.keys(itemMetadata).length?{metadata:itemMetadata}:{}), application: item.application.identity };}) };}) };
         const serialized = canonicalSerialize(signature), id = identifier(value.id, "exercise set id", `exercise-set:${token(title)}`), identity = `exercise-set-request:${id}:${serialized}`;
         Object.defineProperties(this, { id: { value: id, enumerable: true }, identity: { value: identity, enumerable: true }, title: { value: title, enumerable: true }, subtitle: { value: signature.subtitle, enumerable: true }, instructions: { value: signature.instructions, enumerable: true }, sections: { value: Object.freeze(sections), enumerable: true }, items: { value: Object.freeze(sections.flatMap(section => section.items)), enumerable: true } }); Object.freeze(this);
     }

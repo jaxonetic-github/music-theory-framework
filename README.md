@@ -1,6 +1,6 @@
 # Music Theory Framework
 
-An immutable, plugin-scoped music theory framework with generation, first-class semantic exercises, notation, row-oriented exercise presentation, rendering, export, deterministic playback planning, browser-scoped Web Audio execution and transport, headless application workflows, accessible React playback controls, and a responsive React Exercise Practice UI.
+An immutable, plugin-scoped music theory framework with generation, first-class semantic exercises, reusable templates and curricula, notation, responsive conventional engraving, worksheets, export, deterministic playback planning, browser-scoped Web Audio execution and transport, and accessible embeddable React workflows.
 
 ## Architecture
 
@@ -21,6 +21,7 @@ An immutable, plugin-scoped music theory framework with generation, first-class 
 - v8.6 Exercise Set and Worksheet Workflow for immutable heterogeneous practice documents
 - v8.7 Embeddable Web Package and Next.js App Router integration
 - v8.8 Responsive Engraving and Exercise Layout with deterministic, width-explicit visual systems
+- v8.9 Exercise Templates and Curriculum Core with deterministic ExerciseSet expansion
 
 Playback Planning produces immutable tick plans only. React passes generated scores to the planning engine, loads returned plans into Transport, and issues explicit user commands. Web Audio alone converts ticks and schedules sound. Core remains browser-free. Pause, seek, looping, score-following, and Web MIDI remain excluded.
 
@@ -37,6 +38,8 @@ Exercise Set v8.6 sequentially composes ordered `ExerciseApplicationRequest` val
 The v8.7 package exposes a self-providing `MusicTheoryApp`, a `"use client"` `MusicTheoryPage` for Next.js App Router, and the supported `music-theory-framework/web/styles.css` entry. Reusable imports never execute the standalone `main.jsx` mount. React and ReactDOM are host-owned peers, runtime ownership is explicit, embedded instances receive unique IDs and isolated default runtimes, and CSS is scoped beneath `.music-theory-app`. See [`src/web/next/README.md`](src/web/next/README.md) for local installation and App Router configuration.
 
 Layout v8.8 plans immutable visual systems from the same authoritative `ScoreGraph` at an explicit width. Screen compact, screen regular, and print worksheet profiles use fixed framework units and glyph metrics; they never read the DOM or reinterpret offsets as musical time. The SVG renderer consumes the resulting plan, while a Web-only `ResizeObserver` adapter can request layout/render refreshes without regenerating exercise music. See [`src/core/Layout/README.md`](src/core/Layout/README.md).
+
+Curriculum v8.9 adds plugin-scoped immutable template and curriculum catalogs. The browser-free expansion engine validates configurable parameters, fixed constraints, active Theory/Exercise catalog references, difficulty, prerequisites, and deterministic ordering, then produces an ordinary `ExerciseSetRequest`. React only browses and edits draft intent; `ExerciseSetApplication` remains authoritative and the existing trusted conventional SVG workflow renders the worksheet. See [`src/core/Curriculum/README.md`](src/core/Curriculum/README.md) and [`src/web/curriculum/README.md`](src/web/curriculum/README.md).
 
 ## Development
 
@@ -57,4 +60,4 @@ git diff --check
 
 The production build is emitted to `dist/`. See [`src/web/README.md`](src/web/README.md) for the adapter architecture, trusted SVG boundary, and MusicXML download behavior.
 
-The v8.8 repository suite contains **390 passing tests**: 336 plain-Node tests and 54 React DOM tests. `npm audit` reports **0 vulnerabilities**. The production Vite build transforms **332 modules** and emits 529.64 kB JavaScript (142.57 kB gzip). The Next.js 15.5.22 fixture compiles and statically prerenders successfully; its app route is 84.8 kB with 187 kB first-load JavaScript.
+The v8.9 repository suite contains **400 passing tests**: 342 plain-Node tests and 58 React DOM tests. `npm ci` installs 154 packages and audits 155; `npm audit` reports **0 vulnerabilities**. The production Vite build transforms **342 modules** and emits 572.17 kB JavaScript (152.86 kB gzip). The Next.js 15.5.22 fixture compiles and statically prerenders successfully; its app route is 95.3 kB with 197 kB first-load JavaScript.
