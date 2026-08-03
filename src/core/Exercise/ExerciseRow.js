@@ -9,7 +9,7 @@ export class ExerciseRow {
         const normalizedId = String(id ?? "").trim();
         const normalizedTitle = String(title ?? "").trim();
         if (!normalizedId || !normalizedTitle) throw new ValidationError("Exercise rows require id and title.");
-        if (![1, 2].includes(Number(octaves))) throw new ValidationError("Exercise row octaves must be 1 or 2.");
+        if (!Number.isSafeInteger(octaves) || octaves < 1 || octaves > 4) throw new ValidationError("Exercise row octaves must be an integer from 1 through 4.");
         if (!Number.isInteger(Number(startingOctave)) || Number(startingOctave) < -1 || Number(startingOctave) > 9) {
             throw new ValidationError("Exercise row startingOctave must be an integer from -1 through 9.");
         }

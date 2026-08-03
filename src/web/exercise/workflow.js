@@ -70,7 +70,7 @@ export function exerciseTargetChoices(catalogs, quality) {
 export function createInitialExercisePracticeState(catalogs) {
     return Object.freeze({
         type: "scale", root: "C", allKeys: false, pattern: first(catalogs.scales, "scale"),
-        direction: "ascending", octaves: 1, startingOctave: 4, duration: "1/4", clef: "treble",
+        direction: "ascending", octaves: 2, startingOctave: 4, duration: "1/4", clef: "treble",
         beats: 4, beatUnit: 4, measuresPerSystem: 4, keySignaturePolicy: "none"
     });
 }
@@ -116,7 +116,7 @@ export function transitionExercisePracticeState(state, change, catalogs) {
         const targets = exerciseTargetChoices(catalogs, next.quality);
         if (!hasChoice(targets, next.target)) next.target = hasChoice(targets, "root") ? "root" : first(targets, "target");
     }
-    if (advancedFamily(next.type)) { next.direction = "ascending"; next.octaves = 1; }
+    if (advancedFamily(next.type)) next.direction = "ascending";
     else if (!EXERCISE_DIRECTIONS.includes(next.direction)) next.direction = "ascending";
     if (next.allKeys) delete next.root;
     else if (state.allKeys && change.allKeys === false && !String(next.root ?? "").trim()) next.root = "C";
@@ -145,10 +145,10 @@ export function buildExerciseApplicationRequest(state, catalogs = null) {
         if (!catalogs) throw new TypeError("Advanced target requests require active catalog choices.");
         const quality = String(state.quality ?? "").trim(), target = String(state.target ?? "").trim();
         if (!hasChoice(exerciseTargetChoices(catalogs, quality), target)) throw new TypeError(`Target "${target}" is unavailable for chord quality "${quality}".`);
-        Object.assign(exercise, { quality, target, ...(type === "approach-note" ? { approachPattern: String(state.approachPattern ?? "").trim() } : { enclosurePattern: String(state.enclosurePattern ?? "").trim() }), direction: "ascending", octaves: 1 });
+        Object.assign(exercise, { quality, target, ...(type === "approach-note" ? { approachPattern: String(state.approachPattern ?? "").trim() } : { enclosurePattern: String(state.enclosurePattern ?? "").trim() }), direction: "ascending", octaves: Number(state.octaves ?? 2) });
     } else if (progressionFamily(type)) {
         if (!catalogs?.progressions || !hasChoice(catalogs.progressions, state.progression)) throw new TypeError("Select an available chord progression.");
-        Object.assign(exercise, { progression: String(state.progression), direction: "ascending", octaves: 1 });
+        Object.assign(exercise, { progression: String(state.progression), direction: "ascending", octaves: Number(state.octaves ?? 2) });
     } else Object.assign(exercise, { quality: String(state.quality ?? "").trim(), direction: String(state.direction ?? "ascending"), octaves: Number(state.octaves) });
     const policy = String(state.keySignaturePolicy ?? "none");
     const notation = {

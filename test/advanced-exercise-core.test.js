@@ -25,7 +25,7 @@ test("advanced request contracts validate family options without leaking contrad
         { type: "scale", approachPattern: "chromatic-below" }, { type: "enclosure", approachPattern: "chromatic-below" },
         { type: "approach-note", enclosurePattern: "chromatic-above-below" }, { type: "chord-progression", quality: "major" },
         { type: "scale", progression: "ii-v-i-major" }, { type: "approach-note", direction: "descending" },
-        { type: "enclosure", octaves: 2 }, { type: "approach-note", approachPattern: "unknown" }
+        { type: "enclosure", octaves: 5 }, { type: "approach-note", approachPattern: "unknown" }
     ]) assert.throws(() => new ExerciseRequest(value), ValidationError);
 });
 
@@ -42,10 +42,10 @@ test("approach patterns generate sequential approach-target phrases with exact s
 test("approach target selection supports every available chord member and rejects missing sevenths", async () => {
     const { engine } = await fixture();
     for (const [target, role] of [["root", 1], ["third", 3], ["fifth", 5], ["seventh", 7]]) {
-        const row = engine.generate({ type: "approach-note", quality: "major-7", target }).rows[0];
+        const row = engine.generate({ type: "approach-note", quality: "major-7", target, octaves: 1 }).rows[0];
         assert.deepEqual(row.steps.map(step => step.metadata.targetChordMember), [role]);
     }
-    assert.deepEqual(engine.generate({ type: "approach-note", quality: "major-7", target: "all" }).rows[0].steps.map(step => step.metadata.targetChordMember), [1, 3, 5, 7]);
+    assert.deepEqual(engine.generate({ type: "approach-note", quality: "major-7", target: "all", octaves: 1 }).rows[0].steps.map(step => step.metadata.targetChordMember), [1, 3, 5, 7]);
     assert.throws(() => engine.generate({ type: "approach-note", quality: "major", target: "seventh" }), /does not provide target seventh/);
 });
 
@@ -237,7 +237,7 @@ test("advanced semantic metadata remains deeply immutable through notation and p
     assert.ok(Object.isFrozen(approachNodes[0].metadata.attributes.stepMetadata) && Object.isFrozen(approachNodes[0].metadata.attributes.stepMetadata.eventRoles));
     assert.ok(Object.isFrozen(approachNodes[0].metadata.attributes.eventRole)); assert.notStrictEqual(approachNodes[0].metadata.attributes.stepMetadata, sourceStep.metadata);
 
-    const enclosure = application.run({ exercise: { type: "enclosure", root: "B#", target: "root", enclosurePattern: "diatonic-above-chromatic-below" } });
+    const enclosure = application.run({ exercise: { type: "enclosure", root: "B#", target: "root", enclosurePattern: "diatonic-above-chromatic-below", octaves: 1 } });
     assert.deepEqual(enclosure.presentation.rows[0].graph.nodesOfType("note").map(node => node.metadata.attributes.eventRole), [
         { role: "surrounding", direction: "above", classification: "diatonic" },
         { role: "surrounding", direction: "below", classification: "chromatic" },

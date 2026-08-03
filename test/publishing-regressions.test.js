@@ -21,8 +21,8 @@ async function fixture({ semanticSummary = false, curriculum = false } = {}) {
     const source = kernel.services.resolve("exercise.set.application").run({
         title: "Sections",
         sections: [
-            { id: "section-a", title: "Section A", items: [{ id: "a", label: "A", application: { exercise: { type: "scale", root: "C" }, rendering: { format: "svg" } } }] },
-            { id: "section-b", title: "Section B", ...(curriculum ? { label: "Unit Two", metadata: { curriculumPluginId: "curriculum.test", curriculumId: "course", unitId: "unit-2", lessonId: "lesson-2" } } : {}), items: [{ id: "b", label: "B", metadata: { ...(semanticSummary ? { semanticSummary: "Name the written pitches before playing." } : {}), ...(curriculum ? { curriculumPluginId: "curriculum.test", curriculumId: "course", unitId: "unit-2", lessonId: "lesson-2", templateId: "major-scales" } : {}) }, application: { exercise: { type: "scale", root: "D" }, rendering: { format: "svg" } } }] }
+            { id: "section-a", title: "Section A", items: [{ id: "a", label: "A", application: { exercise: { type: "scale", root: "C", octaves: 1 }, rendering: { format: "svg" } } }] },
+            { id: "section-b", title: "Section B", ...(curriculum ? { label: "Unit Two", metadata: { curriculumPluginId: "curriculum.test", curriculumId: "course", unitId: "unit-2", lessonId: "lesson-2" } } : {}), items: [{ id: "b", label: "B", metadata: { ...(semanticSummary ? { semanticSummary: "Name the written pitches before playing." } : {}), ...(curriculum ? { curriculumPluginId: "curriculum.test", curriculumId: "course", unitId: "unit-2", lessonId: "lesson-2", templateId: "major-scales" } : {}) }, application: { exercise: { type: "scale", root: "D", octaves: 1 }, rendering: { format: "svg" } } }] }
         ]
     });
     return { kernel, source, engine: kernel.services.resolve("publishing.engine") };

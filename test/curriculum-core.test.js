@@ -93,9 +93,10 @@ test("built-in templates and curricula cover the milestone library and expand de
         "major-scales-canonical", "melodic-minor-scales", "scale-thirds",
         "major-triad-arpeggios", "minor-triad-arpeggios", "dominant-seventh-arpeggios",
         "diatonic-seventh-study", "chromatic-approach-targets", "enclosure-targets",
-        "major-ii-v-i", "minor-ii-v-i", "twelve-bar-blues"
+        "major-ii-v-i", "minor-ii-v-i", "twelve-bar-blues", "natural-minor-scales",
+        "harmonic-minor-scales", "chromatic-scales", "diminished-triad-arpeggios", "diminished-seventh-arpeggios"
     ]);
-    assert.deepEqual(builtInCurricula.map(value => value.id), ["beginner-fundamentals", "intermediate-harmony", "advanced-language"]);
+    assert.deepEqual(builtInCurricula.map(value => value.id), ["beginner-fundamentals", "intermediate-harmony", "advanced-language", "daily-scale-studies", "daily-interval-studies", "daily-arpeggio-studies", "daily-harmonic-progression-studies", "full-daily-technical-study"]);
     const kernel = await source();
     try {
         const engine = kernel.services.resolve("curriculum.engine");

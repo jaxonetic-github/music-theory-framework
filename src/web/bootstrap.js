@@ -13,6 +13,14 @@ import {
     PlaybackModule,
     PublishingModule,
     RenderingModule,
+    StudyModule,
+    KEY_TRAVERSAL_ROOTS,
+    KEY_SCOPES,
+    KEY_TRAVERSALS,
+    PROGRESSION_REALIZATIONS,
+    HARMONIC_RHYTHMS,
+    ANNOTATION_POLICIES,
+    STUDY_MEASURES_PER_SYSTEM,
     TheoryModule
 } from "../core/index.js";
 import { WebAudioPlaybackModule } from "./audio/index.js";
@@ -35,6 +43,7 @@ const defaultModules = () => {
         new ExerciseApplicationModule(),
         new ExerciseSetModule(),
         new CurriculumModule(),
+        new StudyModule(),
         new ExportModule(),
         new PublishingModule(),
         new ApplicationModule(),
@@ -131,12 +140,13 @@ export async function createWebApplication({
         };
         const curriculumEngine = kernel.services.resolve("curriculum.engine", { optional: true });
         const publishingEngine = kernel.services.resolve("publishing.engine", { optional: true });
+        const studyEngine = kernel.services.resolve("study.engine", { optional: true });
         const templateCatalog = kernel.services.resolve("curriculum.template-catalog", { optional: true });
         const curriculumCatalog = kernel.services.resolve("curriculum.catalog", { optional: true });
         const curriculum = curriculumEngine && templateCatalog && curriculumCatalog
             ? curriculumOptions(templateCatalog, curriculumCatalog, baseCatalogs)
             : Object.freeze({ templates: Object.freeze([]), curricula: Object.freeze([]) });
-        const catalogs = Object.freeze({ ...baseCatalogs, ...curriculum });
+        const catalogs = Object.freeze({ ...baseCatalogs, ...curriculum, studies: Object.freeze((studyEngine?.studies??[]).map(value=>Object.freeze({id:value.id,name:value.name,description:value.description,tags:value.tags}))),studyControls:Object.freeze({roots:KEY_TRAVERSAL_ROOTS.canonical,keyScopes:KEY_SCOPES,keyTraversals:KEY_TRAVERSALS,realizations:PROGRESSION_REALIZATIONS,harmonicRhythms:HARMONIC_RHYTHMS,annotationPolicies:ANNOTATION_POLICIES,measuresPerSystem:STUDY_MEASURES_PER_SYSTEM}) });
         return Object.freeze({
             application,
             layout,
@@ -145,6 +155,7 @@ export async function createWebApplication({
             exerciseSetApplication,
             curriculumEngine,
             publishingEngine,
+            studyEngine,
             playback,
             transport,
             catalogs,

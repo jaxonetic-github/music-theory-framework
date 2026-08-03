@@ -58,7 +58,7 @@ test("root, all-key, and explicit-key transitions remove stale contradictions", 
 test("advanced transitions install defaults, remove stale fields, and normalize unavailable targets", () => {
     const initial = createInitialExercisePracticeState(catalogs);
     const approach = transitionExercisePracticeState(initial, { type: "approach-note" }, catalogs);
-    assert.deepEqual({ quality: approach.quality, target: approach.target, pattern: approach.approachPattern, direction: approach.direction, octaves: approach.octaves }, { quality: "major", target: "root", pattern: "chromatic-below", direction: "ascending", octaves: 1 });
+    assert.deepEqual({ quality: approach.quality, target: approach.target, pattern: approach.approachPattern, direction: approach.direction, octaves: approach.octaves }, { quality: "major", target: "root", pattern: "chromatic-below", direction: "ascending", octaves: 2 });
     const seventh = transitionExercisePracticeState(approach, { quality: "major-7", target: "seventh" }, catalogs);
     assert.equal(seventh.target, "seventh");
     const triad = transitionExercisePracticeState(seventh, { quality: "major" }, catalogs);
@@ -74,10 +74,10 @@ test("advanced transitions install defaults, remove stale fields, and normalize 
 });
 
 test("advanced request construction covers public patterns, targets, progressions, roots, and irrelevant-field omission", () => {
-    const common = { root: "Cb", allKeys: false, quality: "major-7", target: "root", startingOctave: 3, duration: "1/8", clef: "bass", beats: 3, beatUnit: 4, measuresPerSystem: 2, keySignaturePolicy: "none" };
+    const common = { root: "Cb", allKeys: false, quality: "major-7", target: "root", octaves: 2, startingOctave: 3, duration: "1/8", clef: "bass", beats: 3, beatUnit: 4, measuresPerSystem: 2, keySignaturePolicy: "none" };
     for (const approachPattern of APPROACH_PATTERNS) {
-        const request = buildExerciseApplicationRequest({ ...common, type: "approach-note", approachPattern, pattern: "leak", progression: "leak", enclosurePattern: "leak", direction: "descending", octaves: 9 }, catalogs);
-        assert.equal(String(request.exercise.approachPattern), approachPattern); assert.equal(String(request.exercise.direction), "ascending"); assert.equal(request.exercise.octaves, 1);
+        const request = buildExerciseApplicationRequest({ ...common, type: "approach-note", approachPattern, pattern: "leak", progression: "leak", enclosurePattern: "leak", direction: "descending" }, catalogs);
+        assert.equal(String(request.exercise.approachPattern), approachPattern); assert.equal(String(request.exercise.direction), "ascending"); assert.equal(request.exercise.octaves, 2);
         assert.equal(request.exercise.pattern, null); assert.equal(request.exercise.progression, null); assert.equal(String(request.exercise.roots[0]), "Cb");
     }
     for (const enclosurePattern of ENCLOSURE_PATTERNS) assert.equal(String(buildExerciseApplicationRequest({ ...common, root: "B#", type: "enclosure", enclosurePattern }, catalogs).exercise.enclosurePattern), enclosurePattern);

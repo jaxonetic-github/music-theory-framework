@@ -11,8 +11,8 @@ it("exports the Curriculum workflow and obtains choices from active Core catalog
     try {
         expect(typeof Web.CurriculumBrowser).toBe("function");
         expect(typeof runtime.curriculumEngine.expandTemplate).toBe("function");
-        expect(runtime.catalogs.templates).toHaveLength(12);
-        expect(runtime.catalogs.curricula).toHaveLength(3);
+        expect(runtime.catalogs.templates).toHaveLength(17);
+        expect(runtime.catalogs.curricula).toHaveLength(8);
         expect(Object.isFrozen(runtime.catalogs.templates)).toBe(true);
         const scale = runtime.catalogs.templates.find(value => value.id === "melodic-minor-scales");
         expect(scale.parameters.find(value => value.id === "pattern").choices.map(value => value.id))
@@ -203,16 +203,16 @@ it("normalizes curriculum scope when filters exclude the selection or produce no
         expect(await screen.findByText("Curriculum worksheet ready.")).toBeTruthy();
 
         await user.selectOptions(screen.getByLabelText("Difficulty"), "intermediate");
-        expect(screen.getByLabelText("Curriculum").value).toBe("core.curriculum.builtins:intermediate-harmony");
-        expect(screen.getByLabelText(/^Unit scope/).value).toBe("seventh-harmony");
-        expect(screen.getByLabelText("Lesson scope for Seventh harmony").value).toBe(JSON.stringify(["seventh-harmony","thirds-and-sevenths"]));
+        expect(screen.getByLabelText("Curriculum").value).toBe("core.curriculum.builtins:daily-arpeggio-studies");
+        expect(screen.getByLabelText(/^Unit scope/).value).toBe("arpeggios");
+        expect(screen.getByLabelText("Lesson scope for Arpeggio routines").value).toBe(JSON.stringify(["arpeggios","triads-and-sevenths"]));
         expect(screen.getByText(/Draft changed/)).toBeTruthy();
         await user.click(screen.getByRole("button", { name: "Expand Curriculum" }));
         expect(await screen.findByText("Curriculum worksheet ready.")).toBeTruthy();
         expect(run).toHaveBeenCalledTimes(2);
 
         await user.selectOptions(screen.getByLabelText("Skill or tag"), "harmony");
-        expect(screen.queryByText(/Draft changed/)).toBeNull();
+        expect(screen.getByText(/Draft changed/)).toBeTruthy();
         await user.selectOptions(screen.getByLabelText("Difficulty"), "beginner");
         expect(screen.getByText("No curricula match these filters.")).toBeTruthy();
         expect(screen.getByRole("button", { name: "Expand Curriculum" }).disabled).toBe(true);

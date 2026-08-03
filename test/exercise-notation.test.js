@@ -37,7 +37,7 @@ test("melodic, blocked, broken, and scale-thirds steps preserve semantic shapes 
 });
 
 test("exact rational durations group measures without splitting and mark incomplete finals", async () => {
-    const { model, module } = await fixture({ type: "scale" });
+    const { model, module } = await fixture({ type: "scale", octaves: 1 });
     const quarter = module.engine.notate(model); assert.equal(quarter.rows[0].measureCount, 2); assert.equal(quarter.rows[0].finalMeasureComplete, true);
     const eighth = module.engine.notate(model, { duration: { numerator: 1, denominator: 8 } }); assert.equal(eighth.rows[0].measureCount, 1); assert.equal(eighth.rows[0].finalMeasureComplete, true);
     const half = module.engine.notate(model, { duration: { numerator: 1, denominator: 2 } }); assert.equal(half.rows[0].measureCount, 4);

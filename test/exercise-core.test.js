@@ -23,7 +23,7 @@ test("ExerciseRequest validates families, roots, selection, directions, octaves,
     assert.equal(String(request.roots[0]), "Cb");
     assert.equal(String(request.direction), "ascending-descending");
     assert.equal(request.identity, "exercise:scale:c-flat:melodic-minor:ascending-descending:2oct:from3");
-    for (const values of [{ unknown: true }, { type: "x" }, { direction: "sideways" }, { octaves: 3 }, { startingOctave: 1.5 }, { strategyId: "x" }, { root: "C", roots: ["D"] }, { allKeys: true, root: "C" }, { type: "scale", quality: "major" }, { type: "chord-blocked", pattern: "major" }]) {
+    for (const values of [{ unknown: true }, { type: "x" }, { direction: "sideways" }, { octaves: 5 }, { octaves: 1.5 }, { octaves: "2" }, { startingOctave: 1.5 }, { strategyId: "x" }, { root: "C", roots: ["D"] }, { allKeys: true, root: "C" }, { type: "scale", quality: "major" }, { type: "chord-blocked", pattern: "major" }]) {
         assert.throws(() => new ExerciseRequest(values), ValidationError);
     }
     assert.ok(ExerciseType.from("scale") instanceof ExerciseType);
@@ -40,11 +40,11 @@ test("canonical and explicit roots preserve exact order and reject enharmonic du
 });
 
 test("scale rows support exact directions, turnaround, and actual two-octave expansion", () => {
-    const ascending = generate({ type: "scale", root: "C" }).rows[0];
+    const ascending = generate({ type: "scale", root: "C", octaves: 1 }).rows[0];
     assert.deepEqual(ascending.writtenPitches, ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"]);
-    const descending = generate({ type: "scale", root: "C", direction: "descending" }).rows[0];
+    const descending = generate({ type: "scale", root: "C", direction: "descending", octaves: 1 }).rows[0];
     assert.deepEqual(descending.writtenPitches, [...ascending.writtenPitches].reverse());
-    const both = generate({ type: "scale", root: "C", direction: "ascending-descending" }).rows[0];
+    const both = generate({ type: "scale", root: "C", direction: "ascending-descending", octaves: 1 }).rows[0];
     assert.equal(both.writtenPitches.length, 15);
     assert.deepEqual(both.writtenPitches.slice(6, 10), ["B4", "C5", "B4", "A4"]);
     const two = generate({ type: "scale", root: "C", octaves: 2 }).rows[0];
@@ -65,10 +65,10 @@ test("melodic minor generates deterministically in every canonical key", () => {
 });
 
 test("Cb and B# retain diatonic spelling, MIDI values, and altered octave crossings", () => {
-    const cb = generate({ type: "scale", root: "Cb" }).rows[0];
+    const cb = generate({ type: "scale", root: "Cb", octaves: 1 }).rows[0];
     assert.deepEqual(cb.writtenPitches, ["Cb4", "Db4", "Eb4", "Fb4", "Gb4", "Ab4", "Bb4", "Cb5"]);
     assert.deepEqual(cb.steps.map(step => step.notes[0].midi), [59, 61, 63, 64, 66, 68, 70, 71]);
-    const bs = generate({ type: "scale", root: "B#" }).rows[0];
+    const bs = generate({ type: "scale", root: "B#", octaves: 1 }).rows[0];
     assert.equal(bs.writtenPitches[0], "B#4");
     assert.equal(bs.writtenPitches[1], "C##5");
     assert.equal(bs.steps[0].notes[0].midi, 72);
@@ -77,26 +77,26 @@ test("Cb and B# retain diatonic spelling, MIDI values, and altered octave crossi
 });
 
 test("scale thirds use every starting degree, wrap endpoints, and preserve direction", () => {
-    const row = generate({ type: "scale-thirds", root: "C" }).rows[0];
+    const row = generate({ type: "scale-thirds", root: "C", octaves: 1 }).rows[0];
     assert.equal(row.steps.length, 7);
     assert.deepEqual(row.steps[0].writtenPitches, ["C4", "E4"]);
     assert.deepEqual(row.steps.at(-1).writtenPitches, ["B4", "D5"]);
     assert.equal(row.steps.at(-1).metadata.endpointWrap, true);
     assert.equal(row.steps.every(step => !step.simultaneous), true);
-    const descending = generate({ type: "scale-thirds", root: "C", direction: "descending" }).rows[0];
+    const descending = generate({ type: "scale-thirds", root: "C", direction: "descending", octaves: 1 }).rows[0];
     assert.deepEqual(descending.steps[0].writtenPitches, ["D5", "B4"]);
-    const both = generate({ type: "scale-thirds", root: "C", direction: "ascending-descending" }).rows[0];
+    const both = generate({ type: "scale-thirds", root: "C", direction: "ascending-descending", octaves: 1 }).rows[0];
     assert.equal(both.steps.length, 13);
     assert.equal(generate({ type: "scale-thirds", root: "F#", octaves: 2 }).rows[0].steps.length, 14);
 });
 
 test("triad and seventh arpeggios preserve member roles, directions, and registers", () => {
-    const triad = generate({ type: "arpeggio-triad", root: "Eb", quality: "minor" }).rows[0];
+    const triad = generate({ type: "arpeggio-triad", root: "Eb", quality: "minor", octaves: 1 }).rows[0];
     assert.deepEqual(triad.writtenPitches, ["Eb4", "Gb4", "Bb4", "Eb5"]);
     assert.deepEqual(triad.steps.map(step => step.chordMembers[0]), [1, 3, 5, 1]);
-    assert.deepEqual(generate({ type: "arpeggio-triad", root: "Eb", quality: "minor", direction: "descending" }).rows[0].writtenPitches, ["Eb5", "Bb4", "Gb4", "Eb4"]);
+    assert.deepEqual(generate({ type: "arpeggio-triad", root: "Eb", quality: "minor", direction: "descending", octaves: 1 }).rows[0].writtenPitches, ["Eb5", "Bb4", "Gb4", "Eb4"]);
     assert.equal(generate({ type: "arpeggio-triad", root: "C", octaves: 2 }).rows[0].writtenPitches.at(-1), "C6");
-    const seventh = generate({ type: "arpeggio-seventh", root: "B#", quality: "major-7", direction: "ascending-descending" }).rows[0];
+    const seventh = generate({ type: "arpeggio-seventh", root: "B#", quality: "major-7", direction: "ascending-descending", octaves: 1 }).rows[0];
     assert.deepEqual(seventh.steps.slice(0, 5).map(step => step.chordMembers[0]), [1, 3, 5, 7, 1]);
     assert.equal(seventh.steps.length, 9);
     assert.throws(() => generate({ type: "arpeggio-triad", quality: "dominant-7" }), /incompatible/);
@@ -105,12 +105,12 @@ test("triad and seventh arpeggios preserve member roles, directions, and registe
 });
 
 test("blocked and broken chords distinguish simultaneous and sequential semantic material", () => {
-    const blocked = generate({ type: "chord-blocked", root: "F#", quality: "major" }).rows[0];
+    const blocked = generate({ type: "chord-blocked", root: "F#", quality: "major", octaves: 1 }).rows[0];
     assert.equal(blocked.steps.length, 1);
     assert.equal(blocked.steps[0].simultaneous, true);
     assert.deepEqual(blocked.steps[0].writtenPitches, ["F#4", "A#4", "C#5"]);
     assert.deepEqual(blocked.steps[0].chordMembers, [1, 3, 5]);
-    const broken = generate({ type: "chord-broken", root: "F#", quality: "major" }).rows[0];
+    const broken = generate({ type: "chord-broken", root: "F#", quality: "major", octaves: 1 }).rows[0];
     assert.equal(broken.steps.every(step => step.notes.length === 1 && !step.simultaneous), true);
     assert.deepEqual(broken.writtenPitches, ["F#4", "A#4", "C#5", "F#5"]);
     assert.equal(blocked.steps[0].notes.some(note => note.constructor.name === "ChordNode"), false);
