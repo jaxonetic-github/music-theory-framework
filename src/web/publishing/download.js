@@ -10,7 +10,7 @@ export function authoritativePrintAsset(result){
     if(!result?.plan||!result?.document?.assets)throw new TypeError("Authoritative printing requires a completed PublishingResult.");
     const existing=result.document.assets.find(asset=>asset.format==="html"&&asset.mediaType==="text/html");
     if(existing)return existing;
-    return new HtmlPublishingStrategy().publish(result.plan).assets[0];
+    return new HtmlPublishingStrategy().asset(result.plan);
 }
 
 function removeFrame(frame){

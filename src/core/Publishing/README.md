@@ -38,6 +38,8 @@ Page headers capture an immutable context when the first content block enters a 
 
 No PDF dependency was added, so there is no third-party license, vulnerability, SSR, or bundle-loading cost. PDF output is not a tagged PDF and does not claim PDF/UA compliance.
 
+Every public `PublishedDocument` is validated as one internally consistent output contract. Its format must match its immutable `PublicationPlan` request, its media type must be the canonical media type for that format, and every contained `PublishedAsset` must carry that identical format/media pair. A custom strategy therefore cannot publish a nominal HTML document containing PDF or SVG assets, or expose mismatched media metadata, as a successful result. The Web print adapter may ask the built-in HTML strategy for an HTML `PublishedAsset` view of an already completed non-HTML plan; this preserves the exact authoritative page geometry without constructing or claiming a second, format-inconsistent `PublishedDocument`.
+
 ## Metadata, filenames, and lifecycle
 
 Dates and creation labels are caller-supplied only. Safe filename bases contain no paths or controls and derive from the completed authoritative title when omitted. `PublishingStrategyRegistry` is plugin-scoped with deterministic selection. `PublishingModule` resolves active Layout, Rendering, Export, and ExerciseSet services on each lifecycle and transactionally registers its engine, registry, plugin, and built-ins.

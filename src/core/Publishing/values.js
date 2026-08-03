@@ -116,6 +116,9 @@ export class PublishedAsset {
 export class PublishedDocument {
     constructor({ id, plan, assets, format, mediaType, filename, metadata: extra = {} } = {}) {
         if (!(plan instanceof PublicationPlan) || !Array.isArray(assets) || !assets.length || assets.length > PUBLISHING_LIMITS.assets || assets.some(value => !(value instanceof PublishedAsset))) throw new ValidationError("Invalid published document.");
+        if (!PUBLISHING_FORMATS.includes(format) || format !== plan.request.format || PUBLISHING_MEDIA_TYPES[format] !== mediaType) throw new ValidationError(`Published document format "${String(format)}" and media type "${String(mediaType)}" are incompatible with its publication plan.`);
+        const incompatibleAsset = assets.find(value => value.format !== format || value.mediaType !== mediaType);
+        if (incompatibleAsset) throw new ValidationError(`Published asset "${incompatibleAsset.id}" (${incompatibleAsset.format}, ${incompatibleAsset.mediaType}) is incompatible with document format "${format}" and media type "${mediaType}".`);
         Object.assign(this, { id: text(id, "Published document id", 160), plan, assets: Object.freeze([...assets]), format, mediaType, filename: text(filename, "Published filename", 160), metadata: new PublishingMetadata(extra) });
         Object.freeze(this);
     }
