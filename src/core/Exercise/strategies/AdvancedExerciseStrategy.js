@@ -91,15 +91,16 @@ export class AdvancedExerciseStrategy extends ExerciseStrategy {
         const rowId = `${request.identity}:row:${position}:${identityToken(root)}`;
         const pattern = String(request.approachPattern ?? request.enclosurePattern);
         const parts = patternParts(pattern);
-        const steps = targets.map((target, index) => {
-            const resolved = targetNote(root, chord, target, request.startingOctave);
+        const expandedTargets = Array.from({ length: request.octaves }, (_, cycle) => targets.map(target => ({ target, cycle }))).flat();
+        const steps = expandedTargets.map(({ target, cycle }, index) => {
+            const resolved = targetNote(root, chord, target, request.startingOctave + cycle);
             const context = { root, scale, role: target.role, target: resolved };
             const surrounding = parts.map(part => neighbor(part.kind, part.direction, context));
             const notes = [...surrounding, resolved];
             const eventRoles = [...parts.map(part => Object.freeze({ role: String(request.type) === "approach-note" ? "approach" : "surrounding", direction: part.direction, classification: part.kind })), Object.freeze({ role: "target", chordMember: target.role, resolvesFrom: surrounding.length })];
-            return new ExerciseStep({ id: `${rowId}:target:${target.role}`, sequence: index + 1, sourceId: `theory:chord:${root}:${request.quality}:member:${target.role}`, notes, simultaneous: false, role: String(request.type) === "approach-note" ? "approach-resolution" : "enclosure-resolution", metadata: { sourceChordId: `theory:chord:${root}:${request.quality}`, targetNoteId: `target:${root}:${request.quality}:${target.role}`, targetChordMember: target.role, pattern, eventRoles, resolutionTarget: String(resolved) } });
+            return new ExerciseStep({ id: `${rowId}:target:${target.role}:cycle:${cycle}`, sequence: index + 1, sourceId: `theory:chord:${root}:${request.quality}:member:${target.role}:cycle:${cycle}`, notes, simultaneous: false, role: String(request.type) === "approach-note" ? "approach-resolution" : "enclosure-resolution", metadata: { sourceChordId: `theory:chord:${root}:${request.quality}`, targetNoteId: `target:${root}:${request.quality}:${target.role}:cycle:${cycle}`, targetChordMember: target.role, pattern, eventRoles, resolutionTarget: String(resolved), registerCycle: cycle } });
         });
-        return new ExerciseRow({ id: rowId, title: `${root} ${request.quality} ${String(request.type)}`, subtitle: pattern, root, quality: request.quality, direction: request.direction, octaves: 1, startingOctave: request.startingOctave, type: request.type, steps, metadata: { rootPosition: position, target: String(request.target), pattern, sourceChordQuality: request.quality } });
+        return new ExerciseRow({ id: rowId, title: `${root} ${request.quality} ${String(request.type)}`, subtitle: pattern, root, quality: request.quality, direction: request.direction, octaves: request.octaves, startingOctave: request.startingOctave, type: request.type, steps, metadata: { rootPosition: position, target: String(request.target), pattern, sourceChordQuality: request.quality } });
     }
     #progressionRow(request, root, position) {
         const definition = this.progressionCatalog.get(request.progression, { required: true });
@@ -107,16 +108,42 @@ export class AdvancedExerciseStrategy extends ExerciseStrategy {
         const scale = this.scaleGenerator.generate(root, scalePattern);
         const tonic = new Note(root, request.startingOctave);
         const rowId = `${request.identity}:row:${position}:${identityToken(root)}`;
+        let previousVoicing=null;
         const steps = definition.events.map(event => {
             const degreeIndex = event.degree - 1;
             const eventRoot = degreeIndex === 0 ? root : roleSpelling(root, root.semitones + scale.pattern.intervals[degreeIndex], degreeIndex);
             const rootMidi = tonic.midi + scale.pattern.intervals[degreeIndex];
             const chord = this.chordGenerator.generate(eventRoot, event.quality);
             const roles = chordMemberRoles(chord.pattern);
-            const notes = chord.pattern.intervals.map((interval, index) => noteAt(index === 0 ? eventRoot : roleSpelling(eventRoot, chord.pitchClasses[index].semitones, roles[index] - 1), rootMidi + interval));
-            return new ExerciseStep({ id: `${rowId}:progression:${event.position}`, sequence: event.position, sourceId: `${definition.id}:${event.id}:${root}`, notes, simultaneous: true, role: "harmonic-event", scaleDegree: event.degree, chordMembers: roles, metadata: { progressionId: String(definition.id), harmonicEventId: event.id, position: event.position, romanNumeral: event.romanNumeral, harmonicFunction: event.function, chordQuality: event.quality, sourceKey: String(root), sourceMode: definition.mode, writtenRoot: String(eventRoot), writtenChordNotes: notes.map(String), voicing: "root-position-close" } });
+            let notes = chord.pattern.intervals.map((interval, index) => noteAt(index === 0 ? eventRoot : roleSpelling(eventRoot, chord.pitchClasses[index].semitones, roles[index] - 1), rootMidi + interval));
+            let members=[...roles];
+            if(request.inversion){
+                if(request.inversion>=notes.length)throw new ValidationError(`Progression "${definition.id}" event "${event.id}" uses ${event.quality} with ${notes.length} chord members and does not support inversion ${request.inversion}; the highest available inversion is ${notes.length-1}.`);
+                const count=request.inversion;notes=[...notes.slice(count),...notes.slice(0,count).map(note=>noteAt(note.pitchClass,note.midi+12))];members=[...members.slice(count),...members.slice(0,count)];
+            }
+            if(request.realization==="guide-tones"){const selected=members.map((member,index)=>({member,index})).filter(value=>[3,7].includes(value.member));if(selected.length<2)throw new ValidationError(`Progression "${definition.id}" event "${event.id}" does not provide both third and seventh guide tones.`);notes=selected.map(value=>notes[value.index]);members=selected.map(value=>value.member);}
+            if(request.realization==="voice-led"){
+                const low=tonic.midi,high=low+request.octaves*12;
+                const voiced=notes.map((note,index)=>{
+                    const candidates=[];for(let midi=low;midi<=high;midi+=1)try{candidates.push(noteAt(note.pitchClass,midi));}catch{}
+                    if(!candidates.length)throw new ValidationError(`Progression "${definition.id}" cannot voice ${note.pitchClass} inside the requested ${request.octaves}-octave register.`);
+                    const target=previousVoicing?.[Math.min(index,previousVoicing.length-1)]?.midi??note.midi;
+                    const selected=candidates.sort((a,b)=>Math.abs(a.midi-target)-Math.abs(b.midi-target)||a.midi-b.midi)[0];
+                    return{note:selected,member:members[index]};
+                }).sort((a,b)=>a.note.midi-b.note.midi||a.member-b.member);
+                notes=voiced.map(value=>value.note);members=voiced.map(value=>value.member);
+            }
+            if(request.realization==="broken"){const order=[];for(let low=0,high=notes.length-1;low<=high;low+=1,high-=1){order.push(low);if(high!==low)order.push(high);}notes=order.map(index=>notes[index]);members=order.map(index=>members[index]);}
+            previousVoicing=notes;
+            const simultaneous=request.realization==="blocked"||request.realization==="guide-tones"||request.realization==="voice-led";
+            const chordSuffix=chord.pattern.symbol;
+            const annotations=request.annotationPolicy==="none"?[]:[
+                ...(["chord-symbols","both"].includes(request.annotationPolicy)?[{kind:"chord-symbol",text:`${eventRoot}${chordSuffix}`}]:[]),
+                ...(["roman-numerals","both"].includes(request.annotationPolicy)?[{kind:"roman-numeral",text:event.romanNumeral}]:[])
+            ];
+            return new ExerciseStep({ id: `${rowId}:progression:${event.position}`, sequence: event.position, sourceId: `${definition.id}:${event.id}:${root}`, notes, simultaneous, role: "harmonic-event", scaleDegree: event.degree, chordMembers: members, metadata: { progressionId: String(definition.id), harmonicEventId: event.id, position: event.position, romanNumeral: event.romanNumeral, harmonicFunction: event.function, chordQuality: event.quality, sourceKey: String(root), sourceMode: definition.mode, writtenRoot: String(eventRoot), writtenChordNotes: notes.map(String), annotations, voicing: request.realization==="voice-led"?"closest-deterministic-motion":request.inversion?`inversion-${request.inversion}`:"root-position-close", realization:request.realization,harmonicRhythm:request.harmonicRhythm,annotationPolicy:request.annotationPolicy } });
         });
-        return new ExerciseRow({ id: rowId, title: `${root} ${definition.name}`, subtitle: definition.mode, root, pattern: String(definition.id), direction: request.direction, octaves: 1, startingOctave: request.startingOctave, type: request.type, steps, metadata: { rootPosition: position, progressionId: String(definition.id), progressionMode: definition.mode, voicing: "root-position-close" } });
+        return new ExerciseRow({ id: rowId, title: `${root} ${definition.name}`, subtitle: definition.mode, root, pattern: String(definition.id), direction: request.direction, octaves: request.octaves, startingOctave: request.startingOctave, type: request.type, steps, metadata: { rootPosition: position, progressionId: String(definition.id), progressionMode: definition.mode, voicing: request.realization, registerSpan: request.octaves,harmonicRhythm:request.harmonicRhythm,annotationPolicy:request.annotationPolicy } });
     }
 }
 

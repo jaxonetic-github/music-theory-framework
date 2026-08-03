@@ -61,7 +61,7 @@ it("renders nine deterministic families with only the applicable advanced contro
         expect(screen.getByRole("group", { name: "Chord target" })).toBeTruthy();
         expect(screen.getByLabelText("Exercise approach pattern").value).toBe("chromatic-below");
         expect(screen.queryByLabelText("Exercise enclosure pattern")).toBeNull(); expect(screen.queryByLabelText("Exercise chord progression")).toBeNull();
-        expect(screen.queryByLabelText("Exercise direction")).toBeNull(); expect(screen.queryByLabelText("Exercise octave count")).toBeNull();
+        expect(screen.queryByLabelText("Exercise direction")).toBeNull(); expect(screen.getByLabelText("Exercise octave count").value).toBe("2");
         await user.selectOptions(screen.getByLabelText("Exercise chord quality"), "major-7");
         await user.selectOptions(screen.getByLabelText("Exercise chord target"), "seventh");
         await user.selectOptions(screen.getByLabelText("Exercise chord quality"), "major");
@@ -72,7 +72,8 @@ it("renders nine deterministic families with only the applicable advanced contro
         await user.click(screen.getByLabelText("Chord progression"));
         expect(screen.getByLabelText("Exercise chord progression").value).toBe(runtime.catalogs.progressions[0].id);
         expect(screen.getByText(/ordered simultaneous chords/i)).toBeTruthy();
-        for (const name of ["Exercise chord quality", "Exercise chord target", "Exercise scale pattern", "Exercise approach pattern", "Exercise enclosure pattern", "Exercise direction", "Exercise octave count"]) expect(screen.queryByLabelText(name)).toBeNull();
+        for (const name of ["Exercise chord quality", "Exercise chord target", "Exercise scale pattern", "Exercise approach pattern", "Exercise enclosure pattern", "Exercise direction"]) expect(screen.queryByLabelText(name)).toBeNull();
+        expect(screen.getByLabelText("Exercise octave count").value).toBe("2");
     } finally { view.unmount(); await runtime.dispose(); }
 });
 

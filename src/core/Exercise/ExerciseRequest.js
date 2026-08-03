@@ -6,7 +6,8 @@ import { requestIdentity } from "./identity.js";
 import { ApproachPattern, ChordTarget, EnclosurePattern } from "./advanced/index.js";
 
 export const CANONICAL_EXERCISE_ROOTS = Object.freeze(["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]);
-const keys = new Set(["type", "root", "roots", "allKeys", "pattern", "quality", "direction", "octaves", "startingOctave", "pluginId", "strategyId", "approachPattern", "enclosurePattern", "target", "progression"]);
+const keys = new Set(["type", "root", "roots", "allKeys", "pattern", "quality", "direction", "octaves", "startingOctave", "pluginId", "strategyId", "approachPattern", "enclosurePattern", "target", "progression", "realization", "inversion", "annotationPolicy", "harmonicRhythm"]);
+const progressionChoices=Object.freeze({realization:["blocked","broken","arpeggiated","guide-tones","voice-led"],annotationPolicy:["chord-symbols","roman-numerals","both","none"],harmonicRhythm:["one-per-measure","two-per-measure"]});
 
 function optionalId(value, label) {
     if (value === undefined || value === null) return null;
@@ -59,12 +60,17 @@ export class ExerciseRequest {
         const target = targetFamily ? ChordTarget.from(value.target) : null;
         const progression = progressionFamily ? String(value.progression ?? "ii-v-i-major").trim() : null;
         if (progressionFamily && !progression) throw new ValidationError("Exercise progression must be non-empty.");
+        for(const option of ["realization","inversion","annotationPolicy","harmonicRhythm"])if(!progressionFamily&&value[option]!==undefined)throw new ValidationError(`${option} is valid only for chord-progression exercises.`);
+        const realization=progressionFamily?String(value.realization??"blocked"):null,annotationPolicy=progressionFamily?String(value.annotationPolicy??"both"):null,harmonicRhythm=progressionFamily?String(value.harmonicRhythm??"one-per-measure"):null,inversion=progressionFamily?(value.inversion??0):null;
+        if(progressionFamily&&!progressionChoices.realization.includes(realization))throw new ValidationError(`Unsupported progression realization: "${realization}".`);
+        if(progressionFamily&&!progressionChoices.annotationPolicy.includes(annotationPolicy))throw new ValidationError(`Unsupported annotation policy: "${annotationPolicy}".`);
+        if(progressionFamily&&!progressionChoices.harmonicRhythm.includes(harmonicRhythm))throw new ValidationError(`Unsupported harmonic rhythm: "${harmonicRhythm}".`);
+        if(progressionFamily&&(!Number.isSafeInteger(inversion)||inversion<0||inversion>3))throw new ValidationError("Progression inversion must be an integer from 0 through 3.");
         if (["approach-note", "enclosure", "chord-progression"].includes(family) && value.direction !== undefined && String(value.direction) !== "ascending") throw new ValidationError(`${family} exercises support ascending semantic order only.`);
-        if (["approach-note", "enclosure", "chord-progression"].includes(family) && value.octaves !== undefined && Number(value.octaves) !== 1) throw new ValidationError(`${family} exercises support one semantic octave only.`);
         const direction = ExerciseDirection.from(value.direction ?? "ascending");
-        const octaves = Number(value.octaves ?? 1);
-        if (![1, 2].includes(octaves)) throw new ValidationError("Exercise octaves must be 1 or 2.");
-        const startingOctave = Number(value.startingOctave ?? 4);
+        const octaves = value.octaves ?? 2;
+        if (!Number.isSafeInteger(octaves) || octaves < 1 || octaves > 4) throw new ValidationError("Exercise octaves must be an integer from 1 through 4.");
+        const startingOctave = value.startingOctave ?? 4;
         if (!Number.isInteger(startingOctave) || startingOctave < -1 || startingOctave > 9) {
             throw new ValidationError("Exercise startingOctave must be an integer from -1 through 9.");
         }
@@ -76,6 +82,7 @@ export class ExerciseRequest {
             pattern: { value: pattern, enumerable: true }, quality: { value: quality, enumerable: true },
             approachPattern: { value: approachPattern, enumerable: true }, enclosurePattern: { value: enclosurePattern, enumerable: true },
             target: { value: target, enumerable: true }, progression: { value: progression, enumerable: true },
+            realization:{value:realization,enumerable:true},inversion:{value:inversion,enumerable:true},annotationPolicy:{value:annotationPolicy,enumerable:true},harmonicRhythm:{value:harmonicRhythm,enumerable:true},
             direction: { value: direction, enumerable: true }, octaves: { value: octaves, enumerable: true },
             startingOctave: { value: startingOctave, enumerable: true }, pluginId: { value: pluginId, enumerable: true },
             strategyId: { value: strategyId, enumerable: true }

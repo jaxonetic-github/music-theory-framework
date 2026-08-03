@@ -32,12 +32,17 @@ function events(score, voice) {
     return ordered;
 }
 function accidentalCount(value) { return (String(value).match(/[#bx♯♭]/g) ?? []).length; }
+function annotationWidth(event) {
+    const annotations=event.metadata?.attributes?.emittedIndex===1?event.metadata?.attributes?.stepMetadata?.annotations??[]:[];
+    return annotations.reduce((maximum,value)=>Math.max(maximum,String(value.text??"").length*7+8),0);
+}
 function eventWidth(event, profile) {
     const style = engravingDurationStyle(event.duration);
     const rhythmicWidth = style.flags ? profile.flagWidth : 0;
     const dotWidth = style.dotCount * profile.augmentationDotWidth;
     const ratioWidth = style.ratio ? 10 + String(style.ratio.denominator).length * 7 : 0;
-    if (String(event.type) === "rest") return profile.restWidth + rhythmicWidth + dotWidth + ratioWidth;
+    const labelWidth=annotationWidth(event);
+    if (String(event.type) === "rest") return Math.max(profile.restWidth + rhythmicWidth + dotWidth + ratioWidth,labelWidth);
     const pitches = [...(String(event.type) === "chord" ? event.notes : [event.pitch])].sort((a, b) => {
         const letters = "CDEFGAB", parse = value => {
             const match = /^([A-G])(?:#{1,2}|b{1,2}|x)?(-?\d+)$/.exec(String(value));
@@ -47,16 +52,17 @@ function eventWidth(event, profile) {
     });
     const accidentals = pitches.length;
     const displaced = String(event.type) === "chord" && chordHeadGeometry(pitches).hasAdjacentSecond;
-    return profile.noteheadWidth + profile.stemWidth + rhythmicWidth + dotWidth + ratioWidth
-        + accidentals * profile.accidentalWidth + (displaced ? chordHeadDisplacement * 2 : 0);
+    return Math.max(profile.noteheadWidth + profile.stemWidth + rhythmicWidth + dotWidth + ratioWidth
+        + accidentals * profile.accidentalWidth + (displaced ? chordHeadDisplacement * 2 : 0),labelWidth);
 }
 function eventExtents(event, profile) {
     const width = eventWidth(event, profile);
     const displaced = String(event.type) === "chord" && chordHeadGeometry([...event.notes]).hasAdjacentSecond;
-    const left = String(event.type) === "chord"
+    const musicalLeft = String(event.type) === "chord"
         ? event.notes.length * profile.accidentalWidth + (displaced ? chordHeadDisplacement : 0)
         : String(event.type) === "note" ? profile.accidentalWidth : 0;
-    return Object.freeze({ left, right: width - left, width });
+    const labelWidth=annotationWidth(event),left=Math.max(musicalLeft,labelWidth/2),right=Math.max(width-musicalLeft,labelWidth/2);
+    return Object.freeze({ left, right, width:left+right });
 }
 function semanticIds(request, measureId) { return request.semanticSystems.filter(system => system.measureIds.includes(measureId)).map(system => system.id); }
 function addDuration(onset, duration) {

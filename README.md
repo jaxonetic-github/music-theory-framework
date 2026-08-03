@@ -23,6 +23,7 @@ An immutable, plugin-scoped music theory framework with generation, first-class 
 - v8.8 Responsive Engraving and Exercise Layout with deterministic, width-explicit visual systems
 - v8.9 Exercise Templates and Curriculum Core with deterministic ExerciseSet expansion
 - v9.0 Worksheet Publishing and Document Export
+- v9.1 Taffanel-Style Technical Studies and Chord Progression Exercises
 
 Playback Planning produces immutable tick plans only. React passes generated scores to the planning engine, loads returned plans into Transport, and issues explicit user commands. Web Audio alone converts ticks and schedules sound. Core remains browser-free. Pause, seek, looping, score-following, and Web MIDI remain excluded.
 
@@ -44,6 +45,8 @@ Curriculum v8.9 adds plugin-scoped immutable template and curriculum catalogs. T
 
 Publishing v9.0 plans immutable pages from completed ExerciseSet and Curriculum results using exact hundredths-of-a-point geometry. It emits self-contained print HTML, one accessible vector SVG asset per page, and a deterministic dependency-free PDF adapter without regenerating music or measuring the DOM. The Web adapter previews Core pages and owns print/download cleanup only. See [`src/core/Publishing/README.md`](src/core/Publishing/README.md) and [`src/web/publishing/README.md`](src/web/publishing/README.md).
 
+Technical Studies v9.1 orchestrates the existing Theory, Exercise, Curriculum, ExerciseSet, engraving, and Publishing contracts into bounded daily study books. It provides exact one-to-four-octave register requests (two by default), selected/all-key scope, canonical/chromatic/clockwise-fifths traversal, semantic 1/2/4/8/16-measure system targets, deterministic progression realizations, and five built-in daily curricula. React consumes frozen Core choices and never implements musical generation. See [`src/core/Study/README.md`](src/core/Study/README.md) and [`src/web/study/README.md`](src/web/study/README.md).
+
 ## Development
 
 ```sh
@@ -63,4 +66,4 @@ git diff --check
 
 The production build is emitted to `dist/`. See [`src/web/README.md`](src/web/README.md) for the adapter architecture, trusted SVG boundary, and MusicXML download behavior.
 
-The v9.0 repository suite contains **469 passing tests**: 387 plain-Node tests and 82 React DOM tests. `npm ci` installs 154 packages and audits 155; `npm audit` reports **0 vulnerabilities**. The production Vite build transforms **363 modules** and emits 642.87 kB JavaScript (175.74 kB gzip), a 62.39 kB / 20.26 kB gzip increase over v8.9. The Next.js 15.5.22 fixture compiles and statically prerenders successfully; its app route is 118 kB with 220 kB first-load JavaScript.
+The v9.1 repository suite contains **484 passing tests**: 400 plain-Node tests and 84 React DOM tests. `npm ci` installs 154 packages and audits 155; the current advisory database reports two moderate `postcss` findings through the Next.js fixture, for which npm offers only a breaking Next 16 upgrade. The production Vite build transforms **373 modules** and emits 673.05 kB JavaScript (182.62 kB gzip), a 30.18 kB / 6.88 kB gzip increase over v9.0. The Next.js 15.5.22 fixture compiles and statically prerenders successfully; its app route is 125 kB with 227 kB first-load JavaScript.

@@ -1,0 +1,2 @@
+export * from "./values.js";export * from "./builtins.js";export {StudyEngine}from"./StudyEngine.js";export {StudyModule}from"./StudyModule.js";export * from "./descriptors.js";export * from "./package.descriptor.js";
+import * as values from"./values.js";import{builtInStudies}from"./builtins.js";import{StudyEngine}from"./StudyEngine.js";import{StudyModule}from"./StudyModule.js";import{studyPackageDescriptor}from"./package.descriptor.js";export const Study=Object.freeze({...values,builtInStudies,StudyEngine,StudyModule,descriptor:studyPackageDescriptor});export default Study;

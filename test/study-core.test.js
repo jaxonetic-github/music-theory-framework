@@ -1,0 +1,90 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { ExerciseApplicationModule, ExerciseModule, ExerciseNotationModule, ExerciseSetModule, Kernel, LayoutModule, NotationModule, RenderingModule, Study, StudyModule, StudyRequest, TheoryModule, ValidationError } from "../src/core/index.js";
+
+async function fixture(){const kernel=new Kernel().use(new TheoryModule()).use(new NotationModule()).use(new ExerciseModule()).use(new ExerciseNotationModule()).use(new StudyModule());await kernel.start();return{kernel,engine:kernel.services.resolve("study.engine"),exercise:kernel.services.resolve("exercise.engine")};}
+async function applicationFixture(){const layout=new LayoutModule(),kernel=new Kernel().use(new TheoryModule()).use(new NotationModule()).use(layout).use(new RenderingModule({layoutEngine:layout.engine})).use(new ExerciseModule()).use(new ExerciseNotationModule()).use(new ExerciseApplicationModule()).use(new ExerciseSetModule()).use(new StudyModule());await kernel.start();return{kernel,study:kernel.services.resolve("study.engine"),application:kernel.services.resolve("exercise.set.application"),exerciseApplication:kernel.services.resolve("exercise.application.engine")};}
+
+test("study requests use the strict two-octave default and immutable public controls",()=>{
+    const value=new StudyRequest();assert.equal(value.octaves,2);assert.equal(value.keySignaturePolicy,"none");assert.ok(Object.isFrozen(value));
+    for(const octaves of [1,2,3,4])assert.equal(new StudyRequest({octaves}).octaves,octaves);
+    for(const octaves of [0,5,1.5,"2",NaN,Infinity])assert.throws(()=>new StudyRequest({octaves}),ValidationError);
+    assert.deepEqual(Study.STUDY_MEASURES_PER_SYSTEM,[1,2,4,8,16]);
+    assert.throws(()=>new StudyRequest({measuresPerSystem:3}),/1, 2, 4, 8, or 16/);
+    for(const duration of [{numerator:0,denominator:4},{numerator:1,denominator:0},{numerator:1.5,denominator:4}])assert.throws(()=>new StudyRequest({duration}),ValidationError);
+    for(const timeSignature of [{beats:0,beatUnit:4},{beats:4,beatUnit:0},{beats:4.5,beatUnit:4},{beats:4,beatUnit:4,extra:true}])assert.throws(()=>new StudyRequest({timeSignature}),ValidationError);
+    assert.throws(()=>new StudyRequest({clef:"percussion"}),/treble and bass/);
+    assert.throws(()=>new StudyRequest({keySignaturePolicy:"invented"}),/key-signature policy/);
+});
+
+test("foundational scale generation covers one through four exact octaves without truncation",async()=>{
+    const {kernel,exercise,engine}=await fixture();try{for(const octaves of [1,2,3,4]){const row=exercise.generate({type:"scale",root:"C",octaves}).rows[0];assert.equal(row.writtenPitches.length,octaves*7+1);assert.equal(row.writtenPitches.at(-1),`C${4+octaves}`);}assert.throws(()=>exercise.generate({type:"scale",root:"B#",octaves:4,startingOctave:8}),/MIDI range/);assert.throws(()=>engine.expand({studyId:"daily-scale-studies",root:"B#",octaves:4,startingOctave:8}),/preflight failed.*scale.*B#.*MIDI range/);}finally{await kernel.dispose();}
+});
+
+test("study preflight validates family-specific generated register extensions",async()=>{
+    const {kernel,engine}=await fixture();try{
+        const invalid={studyId:"daily-interval-studies",root:"G",startingOctave:8,octaves:1,direction:"ascending"};
+        assert.throws(()=>engine.estimate(invalid),/daily-interval-studies.*scale-thirds.*G.*MIDI range/);
+        assert.throws(()=>engine.expand(invalid),/daily-interval-studies.*scale-thirds.*G.*MIDI range/);
+        const valid=engine.expand({...invalid,startingOctave:7});assert.equal(valid.exerciseSetRequest.items.length,2);
+    }finally{await kernel.dispose();}
+});
+
+test("study estimates derive semantic systems from exact generated notation measures",async()=>{
+    const {kernel,engine}=await fixture();try{
+        const blues=engine.estimate({studyId:"daily-harmonic-progressions",progression:"twelve-bar-dominant-blues",measuresPerSystem:4});assert.equal(blues.itemCount,1);assert.equal(blues.estimatedSystems,3);assert.equal(blues.estimatedPages,1);
+        const scale=engine.estimate({studyId:"daily-scale-studies",root:"C",octaves:4,direction:"ascending-descending",measuresPerSystem:4});assert.ok(scale.estimatedSystems>scale.itemCount);assert.equal(scale.estimatedPages,Math.ceil(scale.estimatedSystems/4));
+        assert.equal(engine.estimate({studyId:"daily-harmonic-progressions",progression:"twelve-bar-dominant-blues",measuresPerSystem:16}).estimatedSystems,1);
+    }finally{await kernel.dispose();}
+});
+
+test("key scope and traversal are separate, deterministic, and use the documented F-sharp cycle spelling",async()=>{
+    const {kernel,engine}=await fixture();try{
+        assert.deepEqual(engine.roots(new StudyRequest({keyScope:"selected-key",root:"Cb",keyTraversal:"cycle-of-fifths"})),["Cb"]);
+        assert.deepEqual(engine.roots(new StudyRequest({keyScope:"all-keys",keyTraversal:"cycle-of-fifths"})),["C","G","D","A","E","B","F#","Db","Ab","Eb","Bb","F"]);
+        assert.deepEqual(engine.roots(new StudyRequest({keyScope:"all-keys",keyTraversal:"chromatic"})),["C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"]);
+    }finally{await kernel.dispose();}
+});
+
+test("study preflight and expansion produce bounded immutable ExerciseSet requests with complete trace",async()=>{
+    const {kernel,engine}=await fixture();try{
+        const request=new StudyRequest({studyId:"full-daily-technical-study",keyScope:"all-keys",keyTraversal:"cycle-of-fifths"});
+        const estimate=engine.estimate(request);assert.deepEqual({keys:estimate.keyCount,sections:estimate.sectionCount,items:estimate.itemCount,fit:estimate.fitsCapacity},{keys:12,sections:12,items:144,fit:true});
+        const first=engine.expand(request),second=engine.expand(request);assert.deepEqual(first,second);assert.ok(Object.isFrozen(first)&&Object.isFrozen(first.exerciseSetRequest));
+        assert.equal(first.exerciseSetRequest.sections.length,12);assert.equal(first.exerciseSetRequest.sections[0].items.length,12);
+        assert.equal(first.exerciseSetRequest.sections[0].items[6].metadata.root,"F#");assert.equal(first.exerciseSetRequest.sections[0].items[6].metadata.octaves,2);
+        assert.ok(first.exerciseSetRequest.sections.every(section=>section.items.every(item=>item.id.length<=160)));
+    }finally{await kernel.dispose();}
+});
+
+test("the default full daily study executes through ExerciseSetApplication with conservative signatures",async()=>{
+    const {kernel,study,application}=await applicationFixture();try{const expansion=study.expand(new StudyRequest());assert.ok(expansion.exerciseSetRequest.items.every(item=>item.application.notation.keySignaturePolicy==="none"));const result=application.run(expansion.exerciseSetRequest);assert.equal(result.document.sections.length,12);assert.equal(result.document.sections.flatMap(section=>section.items).length,12);assert.ok(result.document.sections.flatMap(section=>section.items).every(item=>item.presentation.rows.every(row=>row.content.startsWith("<svg"))));}finally{await kernel.dispose();}
+});
+
+test("StudyModule is reusable and leaves no owned service registrations",async()=>{
+    const kernel=new Kernel().use(new TheoryModule()).use(new NotationModule()).use(new ExerciseModule()).use(new ExerciseNotationModule()),module=new StudyModule();kernel.use(module);await kernel.start();assert.ok(kernel.services.resolve("study.engine"));await kernel.dispose();assert.equal(kernel.services.resolve("study.engine",{optional:true}),null);assert.equal(String(Study.descriptor.version),"9.1.0");
+});
+
+test("progression realizations are generated semantically in Core with deterministic metadata",async()=>{
+    const {kernel,exercise}=await fixture();try{
+        for(const realization of ["blocked","broken","arpeggiated","guide-tones","voice-led"]){const request={type:"chord-progression",root:"C",progression:"ii-v-i-major",octaves:2,realization,annotationPolicy:"roman-numerals",harmonicRhythm:"one-per-measure"};const first=exercise.generate(request),second=exercise.generate(request);assert.deepEqual(first,second);const steps=first.rows[0].steps;assert.equal(steps[0].metadata.realization,realization);assert.equal(steps[0].metadata.romanNumeral,"ii7");if(["broken","arpeggiated"].includes(realization))assert.equal(steps[0].simultaneous,false);else assert.equal(steps[0].simultaneous,true);if(realization==="guide-tones")assert.deepEqual(steps[0].chordMembers,[3,7]);}
+        const broken=exercise.generate({type:"chord-progression",realization:"broken"}).rows[0].steps[0],arpeggiated=exercise.generate({type:"chord-progression",realization:"arpeggiated"}).rows[0].steps[0];assert.deepEqual(broken.chordMembers,[1,7,3,5]);assert.deepEqual(arpeggiated.chordMembers,[1,3,5,7]);assert.notDeepEqual(broken.writtenPitches,arpeggiated.writtenPitches);
+        assert.throws(()=>new StudyRequest({realization:"imaginary"}),/realization/);assert.throws(()=>new StudyRequest({harmonicRhythm:"one-per-two-measures"}),/Harmonic rhythm/);
+    }finally{await kernel.dispose();}
+});
+
+test("harmonic rhythm determines exact progression durations and measure placement",async()=>{
+    const {kernel,exerciseApplication}=await applicationFixture();try{const one=exerciseApplication.run({exercise:{type:"chord-progression",progression:"ii-v-i-major",harmonicRhythm:"one-per-measure"}}),two=exerciseApplication.run({exercise:{type:"chord-progression",progression:"ii-v-i-major",harmonicRhythm:"two-per-measure"}});const oneRow=one.presentation.rows[0].notationRow,twoRow=two.presentation.rows[0].notationRow;assert.deepEqual(oneRow.graph.nodesOfType("chord").map(node=>String(node.duration)),["1/1","1/1","1/1"]);assert.deepEqual(twoRow.graph.nodesOfType("chord").map(node=>String(node.duration)),["1/2","1/2","1/2"]);assert.equal(oneRow.measureCount,3);assert.equal(twoRow.measureCount,2);const broken=exerciseApplication.run({exercise:{type:"chord-progression",progression:"ii-v-i-major",realization:"broken",harmonicRhythm:"one-per-measure"}}).presentation.rows[0].notationRow;assert.ok(broken.graph.nodesOfType("note").every(node=>String(node.duration)==="1/4"));assert.equal(broken.measureCount,3);}finally{await kernel.dispose();}
+});
+
+test("progression annotation policies produce distinct visible and accessible notation",async()=>{
+    const {kernel,exerciseApplication}=await applicationFixture();try{
+        const render=annotationPolicy=>exerciseApplication.run({exercise:{type:"chord-progression",progression:"ii-v-i-major",annotationPolicy},rendering:{format:"svg"}}).presentation.rows[0];
+        const symbols=render("chord-symbols").content,roman=render("roman-numerals").content,both=render("both").content,none=render("none").content;
+        assert.match(symbols,/class="progression-annotation chord-symbol"/);assert.doesNotMatch(symbols,/progression-annotation roman-numeral/);
+        assert.match(roman,/class="progression-annotation roman-numeral"/);assert.doesNotMatch(roman,/progression-annotation chord-symbol/);
+        assert.match(both,/progression-annotation chord-symbol/);assert.match(both,/progression-annotation roman-numeral/);
+        assert.doesNotMatch(none,/progression-annotations/);assert.notEqual(symbols,roman);assert.notEqual(roman,none);
+        assert.match(both,/aria-label="[^"]+; [^"]+"/);assert.ok(both.indexOf("progression-annotation chord-symbol")<both.indexOf("progression-annotation roman-numeral"));
+    }finally{await kernel.dispose();}
+});

@@ -47,6 +47,14 @@ function augmentationDot(x, y, style) {
     return Array.from({ length: style.dotCount }, (_, index) =>
         `<circle class="augmentation-dot" data-dot="${index+1}" cx="${x + index * 7}" cy="${y-3}" r="2.1" fill="currentColor"/>`).join("");
 }
+function eventAnnotations(event, placement, staffTop) {
+    const attributes=event.metadata?.attributes;
+    if(attributes?.emittedIndex!==1)return "";
+    const annotations=attributes?.stepMetadata?.annotations??[];
+    if(!annotations.length)return "";
+    const label=annotations.map(value=>String(value.text)).join("; ");
+    return `<g class="progression-annotations" role="note" aria-label="${xmlAttribute(label)}" data-annotation-policy="${xmlAttribute(attributes.stepMetadata.annotationPolicy)}">${annotations.map((value,index)=>`<text class="progression-annotation ${xmlAttribute(value.kind)}" x="${placement.x}" y="${staffTop-14-index*13}" text-anchor="middle" font-size="11">${xmlText(value.text)}</text>`).join("")}</g>`;
+}
 function renderPitchedEvent(event, placement, clef, staffTop, voiceIndex, polyphonic, needed) {
     const pitches = String(event.type) === "chord" ? event.notes : [event.pitch];
     const parsed = pitches.map(parseWrittenPitch);
@@ -70,7 +78,7 @@ function renderPitchedEvent(event, placement, clef, staffTop, voiceIndex, polyph
         augmentationDot(placement.x + offsets[index] + ENGRAVING.noteRx + 7, y, style)).join("");
     const pitchData = pitches.map(String).join(" ");
     const pitchAttribute = String(event.type) === "note" ? ` data-pitch="${xmlAttribute(event.pitch)}"` : "";
-    return `<g class="event ${event.type}" data-node-id="${xmlAttribute(event.id)}" data-order="${placement.order}" role="img" aria-label="${xmlAttribute(semanticEvent(event))}" data-x="${placement.x}" data-offset="${event.offset}" data-duration="${xmlAttribute(event.duration)}"${pitchAttribute} data-pitches="${xmlAttribute(pitchData)}" data-visible-pitch-labels="false"${metadataAttribute(event)}>${accidentals}${heads}${stemAndFlags(stemX, stemY, direction, style)}${dots}${durationRatioGlyph(placement.x, Math.min(...ys)-52, style)}</g>`;
+    return `<g class="event ${event.type}" data-node-id="${xmlAttribute(event.id)}" data-order="${placement.order}" role="img" aria-label="${xmlAttribute(semanticEvent(event))}" data-x="${placement.x}" data-offset="${event.offset}" data-duration="${xmlAttribute(event.duration)}"${pitchAttribute} data-pitches="${xmlAttribute(pitchData)}" data-visible-pitch-labels="false"${metadataAttribute(event)}>${eventAnnotations(event,placement,staffTop)}${accidentals}${heads}${stemAndFlags(stemX, stemY, direction, style)}${dots}${durationRatioGlyph(placement.x, Math.min(...ys)-52, style)}</g>`;
 }
 function renderRest(event, placement, staffTop) {
     return `<g class="event rest" data-node-id="${xmlAttribute(event.id)}" data-order="${placement.order}" role="img" aria-label="${xmlAttribute(semanticEvent(event))}" data-x="${placement.x}" data-width="${placement.width}" data-offset="${event.offset}" data-duration="${xmlAttribute(event.duration)}"${metadataAttribute(event)}>${restGlyph(placement.x, staffTop, event.duration)}</g>`;

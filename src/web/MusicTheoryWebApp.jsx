@@ -5,6 +5,7 @@ import { usePlaybackTransport, useStopActivePlaybackOnCleanup } from "./usePlayb
 import { ExercisePracticePanel } from "./exercise/index.js";
 import { ExerciseSetPanel } from "./exercise-set/index.js";
 import { CurriculumBrowser } from "./curriculum/index.js";
+import { TechnicalStudiesPanel } from "./study/index.js";
 import {
     buildWorkflowRequest,
     createInitialWorkflowState,
@@ -295,6 +296,7 @@ function ReadyApplication({ runtime, accessibilityIdPrefix }) {
             <ExercisePracticePanel engine={runtime.exerciseApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} accessibilityIdPrefix={accessibilityIdPrefix ? `${accessibilityIdPrefix}-practice` : undefined} />
             <ExerciseSetPanel application={runtime.exerciseSetApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} publishingEngine={runtime.publishingEngine} accessibilityIdPrefix={accessibilityIdPrefix ? `${accessibilityIdPrefix}-worksheet` : undefined} />
             {runtime.curriculumEngine && <CurriculumBrowser engine={runtime.curriculumEngine} application={runtime.exerciseSetApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} publishingEngine={runtime.publishingEngine} accessibilityIdPrefix={accessibilityIdPrefix ? `${accessibilityIdPrefix}-curriculum` : undefined} />}
+            {runtime.studyEngine && <TechnicalStudiesPanel engine={runtime.studyEngine} application={runtime.exerciseSetApplication} catalogs={runtime.catalogs} renderingEngine={runtime.rendering} publishingEngine={runtime.publishingEngine} accessibilityIdPrefix={accessibilityIdPrefix ? `${accessibilityIdPrefix}-studies` : undefined} />}
         </main>
     );
 }

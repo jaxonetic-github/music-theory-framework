@@ -19,7 +19,7 @@ test("web bootstrap installs and resolves the complete application workflow", as
     assert.strictEqual(runtime.transport, kernel.services.resolve("web.playback.transport"));
     assert.deepEqual(kernel.modules.map(module => module.id), [
         "core.theory", "core.notation", "core.layout", "core.rendering", "core.exercise", "core.exercise-notation",
-        "core.exercise-application", "core.exercise-set", "core.curriculum", "core.export", "core.publishing", "core.application",
+        "core.exercise-application", "core.exercise-set", "core.curriculum", "core.study", "core.export", "core.publishing", "core.application",
         "core.playback", "web.audio-playback", "web.playback-transport"
     ]);
     assert.strictEqual(runtime.transport.plan, null);

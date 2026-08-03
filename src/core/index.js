@@ -30,5 +30,7 @@ export * from "./ExerciseSet/index.js";
 export { default as ExerciseSet } from "./ExerciseSet/index.js";
 export * from "./Curriculum/index.js";
 export { default as Curriculum } from "./Curriculum/index.js";
+export * from "./Study/index.js";
+export { default as Study } from "./Study/index.js";
 export * from "./Publishing/index.js";
 export { default as Publishing } from "./Publishing/index.js";
