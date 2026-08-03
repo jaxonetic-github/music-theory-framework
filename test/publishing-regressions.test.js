@@ -7,6 +7,7 @@ import {
     formatPublishingPoints, layoutPublicationText, measurePublicationText, parseSvgTransform,
     trustedSvgPdfOperations
 } from "../src/core/index.js";
+import { namespaceSvg } from "../src/core/Publishing/strategies/shared.js";
 
 async function fixture({ semanticSummary = false, curriculum = false } = {}) {
     const layout = new LayoutModule();
@@ -29,6 +30,16 @@ async function fixture({ semanticSummary = false, curriculum = false } = {}) {
 const header = page => page.blocks.find(block => block.type === "header")?.text;
 const svg = body => `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">${body}</svg>`;
 const shortPage = (height, id = `short-${height}`) => new PageProfile({ id, name: id, width: 61200, height, orientation: "landscape", minimumContentHeight: 1 });
+
+test("SVG namespacing rewrites only exact declarations, fragment references, and ARIA IDREF tokens", () => {
+    const source=`<svg xmlns="http://www.w3.org/2000/svg" id="root" aria-labelledby="a a-b missing" aria-describedby='fff a-b' aria-controls="a-b a" width="100" height="50"><title id="a">A</title><desc id="a-b">AB</desc><g id="fff" fill="#fff" stroke="#ffffff"><path id='path' d="M0 0h1v1z" fill="#aabbcc"/><use href="#a" xlink:href='#a-b'/></g><text>#a #a-b #fff</text></svg>`;
+    const result=namespaceSvg(source,"page");
+    assert.match(result,/id="page-a"/);assert.match(result,/id="page-a-b"/);assert.match(result,/id="page-fff"/);assert.match(result,/id='page-path'/);
+    assert.match(result,/aria-labelledby="page-a page-a-b missing"/);assert.match(result,/aria-describedby='page-fff page-a-b'/);assert.match(result,/aria-controls="page-a-b page-a"/);
+    assert.match(result,/href="#page-a"/);assert.match(result,/xlink:href='#page-a-b'/);
+    assert.match(result,/fill="#fff"/);assert.match(result,/stroke="#ffffff"/);assert.match(result,/fill="#aabbcc"/);assert.match(result,/>#a #a-b #fff</);
+    assert.doesNotMatch(result,/id="page-a"-b/);assert.equal(source.includes('id="page-a"'),false);
+});
 
 test("section headers are captured per page before the next section changes planner state", async () => {
     const { kernel, source, engine } = await fixture();
