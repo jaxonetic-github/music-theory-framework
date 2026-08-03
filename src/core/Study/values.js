@@ -1,5 +1,6 @@
 import { cloneDeep, freezeDeep, Identifier, ValidationError } from "../Foundation/index.js";
 import { ExerciseSetRequest } from "../ExerciseSet/index.js";
+import { normalizeExerciseNotationOptions } from "../ExerciseApplication/ExerciseApplicationRequest.js";
 import { PitchClass } from "../Theory/index.js";
 
 export const KEY_SCOPES=Object.freeze(["selected-key","all-keys"]);
@@ -23,7 +24,8 @@ export class StudyRequest {
         if(!["ascending","descending","ascending-descending"].includes(String(direction)))throw new ValidationError("Study direction must be ascending, descending, or ascending-descending.");
         if(!STUDY_MEASURES_PER_SYSTEM.includes(measuresPerSystem))throw new ValidationError("Study measures per system must be 1, 2, 4, 8, or 16.");
         realization=choice(realization,PROGRESSION_REALIZATIONS,"Progression realization");harmonicRhythm=choice(harmonicRhythm,HARMONIC_RHYTHMS,"Harmonic rhythm");annotationPolicy=choice(annotationPolicy,ANNOTATION_POLICIES,"Annotation policy");
-        Object.assign(this,{studyId,keyScope,keyTraversal,root,octaves,startingOctave,direction:String(direction),measuresPerSystem,duration:immutable(duration),clef:String(clef),timeSignature:immutable(timeSignature),keySignaturePolicy:String(keySignaturePolicy),progression:String(progression),realization,harmonicRhythm,annotationPolicy});Object.freeze(this);
+        const notation=normalizeExerciseNotationOptions({duration,clef,timeSignature,measuresPerSystem,keySignaturePolicy});
+        Object.assign(this,{studyId,keyScope,keyTraversal,root,octaves,startingOctave,direction:String(direction),measuresPerSystem:notation.measuresPerSystem,duration:immutable({numerator:notation.duration.numerator,denominator:notation.duration.denominator}),clef:String(notation.clef),timeSignature:immutable(notation.timeSignature),keySignaturePolicy:notation.keySignaturePolicy,progression:String(progression),realization,harmonicRhythm,annotationPolicy});Object.freeze(this);
     }
     static from(value){return value instanceof this?value:new this(value);}
 }

@@ -21,7 +21,7 @@ function optionalId(value, label) {
     if (value === undefined || value === null) return null;
     const id = String(value).trim(); if (!id) throw new ValidationError(`${label} must be a non-empty string.`); return id;
 }
-function notationOptions(value) {
+export function normalizeExerciseNotationOptions(value) {
     const source = object(value, "Exercise notation options", {}); rejectUnknown(source, notationKeys, "exercise notation");
     const duration = Duration.from(source.duration);
     if (!Number.isSafeInteger(duration.numerator) || !Number.isSafeInteger(duration.denominator)) throw new ValidationError("Exercise notation duration values must be safe integers.");
@@ -60,7 +60,7 @@ export class ExerciseApplicationRequest {
         if (source.model !== undefined && !(source.model instanceof ExerciseModel)) throw new ValidationError("Exercise application model must be an immutable ExerciseModel.");
         const exercise = source.exercise === undefined ? null : ExerciseRequest.from(source.exercise);
         const model = source.model ?? null;
-        const notation = notationOptions(source.notation), rendering = renderingOptions(source.rendering);
+        const notation = normalizeExerciseNotationOptions(source.notation), rendering = renderingOptions(source.rendering);
         const sourceId = model?.id ?? exercise.identity;
         const identity = `exercise-presentation-request:${sourceId}:duration:${notation.duration}:clef:${notation.clef}:time:${notation.timeSignature.beats}-${notation.timeSignature.beatUnit}:systems:${notation.measuresPerSystem}:key:${notation.keySignaturePolicy}${notation.keySignature ? `-${notation.keySignature}` : ""}:notation:${notation.pluginId ?? "implicit"}-${notation.strategyId ?? "implicit"}:rendering:${rendering.format}-${rendering.pluginId ?? "implicit"}-${rendering.strategyId ?? "implicit"}:options:${canonicalSerialize(rendering.options)}`;
         Object.defineProperties(this, { exercise: { value: exercise, enumerable: true }, model: { value: model, enumerable: true }, notation: { value: notation, enumerable: true }, rendering: { value: rendering, enumerable: true }, identity: { value: identity, enumerable: true } }); Object.freeze(this);

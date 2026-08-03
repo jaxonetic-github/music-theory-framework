@@ -11,6 +11,10 @@ test("study requests use the strict two-octave default and immutable public cont
     for(const octaves of [0,5,1.5,"2",NaN,Infinity])assert.throws(()=>new StudyRequest({octaves}),ValidationError);
     assert.deepEqual(Study.STUDY_MEASURES_PER_SYSTEM,[1,2,4,8,16]);
     assert.throws(()=>new StudyRequest({measuresPerSystem:3}),/1, 2, 4, 8, or 16/);
+    for(const duration of [{numerator:0,denominator:4},{numerator:1,denominator:0},{numerator:1.5,denominator:4}])assert.throws(()=>new StudyRequest({duration}),ValidationError);
+    for(const timeSignature of [{beats:0,beatUnit:4},{beats:4,beatUnit:0},{beats:4.5,beatUnit:4},{beats:4,beatUnit:4,extra:true}])assert.throws(()=>new StudyRequest({timeSignature}),ValidationError);
+    assert.throws(()=>new StudyRequest({clef:"percussion"}),/treble and bass/);
+    assert.throws(()=>new StudyRequest({keySignaturePolicy:"invented"}),/key-signature policy/);
 });
 
 test("foundational scale generation covers one through four exact octaves without truncation",async()=>{
@@ -54,4 +58,16 @@ test("progression realizations are generated semantically in Core with determini
 
 test("harmonic rhythm determines exact progression durations and measure placement",async()=>{
     const {kernel,exerciseApplication}=await applicationFixture();try{const one=exerciseApplication.run({exercise:{type:"chord-progression",progression:"ii-v-i-major",harmonicRhythm:"one-per-measure"}}),two=exerciseApplication.run({exercise:{type:"chord-progression",progression:"ii-v-i-major",harmonicRhythm:"two-per-measure"}});const oneRow=one.presentation.rows[0].notationRow,twoRow=two.presentation.rows[0].notationRow;assert.deepEqual(oneRow.graph.nodesOfType("chord").map(node=>String(node.duration)),["1/1","1/1","1/1"]);assert.deepEqual(twoRow.graph.nodesOfType("chord").map(node=>String(node.duration)),["1/2","1/2","1/2"]);assert.equal(oneRow.measureCount,3);assert.equal(twoRow.measureCount,2);const broken=exerciseApplication.run({exercise:{type:"chord-progression",progression:"ii-v-i-major",realization:"broken",harmonicRhythm:"one-per-measure"}}).presentation.rows[0].notationRow;assert.ok(broken.graph.nodesOfType("note").every(node=>String(node.duration)==="1/4"));assert.equal(broken.measureCount,3);}finally{await kernel.dispose();}
+});
+
+test("progression annotation policies produce distinct visible and accessible notation",async()=>{
+    const {kernel,exerciseApplication}=await applicationFixture();try{
+        const render=annotationPolicy=>exerciseApplication.run({exercise:{type:"chord-progression",progression:"ii-v-i-major",annotationPolicy},rendering:{format:"svg"}}).presentation.rows[0];
+        const symbols=render("chord-symbols").content,roman=render("roman-numerals").content,both=render("both").content,none=render("none").content;
+        assert.match(symbols,/class="progression-annotation chord-symbol"/);assert.doesNotMatch(symbols,/progression-annotation roman-numeral/);
+        assert.match(roman,/class="progression-annotation roman-numeral"/);assert.doesNotMatch(roman,/progression-annotation chord-symbol/);
+        assert.match(both,/progression-annotation chord-symbol/);assert.match(both,/progression-annotation roman-numeral/);
+        assert.doesNotMatch(none,/progression-annotations/);assert.notEqual(symbols,roman);assert.notEqual(roman,none);
+        assert.match(both,/aria-label="[^"]+; [^"]+"/);assert.ok(both.indexOf("progression-annotation chord-symbol")<both.indexOf("progression-annotation roman-numeral"));
+    }finally{await kernel.dispose();}
 });
