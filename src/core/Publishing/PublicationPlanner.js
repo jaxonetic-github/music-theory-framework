@@ -108,7 +108,7 @@ export class PublicationPlanner {
         for (let index = 0; index < candidates.length;) {
             const group = minimumKeepGroup(candidates, index), first = group.members[0];
             if (group.height > bounds.height) throw new ValidationError(`Minimum publication keep group exceeds one printable page${keepGroupContext(group) ? ` for ${keepGroupContext(group)}` : ""}; its headings and first notation system cannot be split or scaled below the readability minimum.`);
-            const forced = (first.type === "section-heading" && request.sectionBreakPolicy === "new-page" && blocks.length)
+            const forced = (group.members.some(candidate => candidate.type === "section-heading") && request.sectionBreakPolicy === "new-page" && blocks.length)
                 || (first.type === "item-heading" && request.exerciseBreakPolicy === "new-page" && blocks.length);
             if (forced || y + group.height > bounds.y + bounds.height) finish();
             const enteringSection = group.members.find(candidate => candidate.type === "section-heading");

@@ -6,6 +6,23 @@ export const formatPublishingPoints = units => {
 };
 export const points = formatPublishingPoints;
 const IDREF_ATTRIBUTES=Object.freeze(["aria-labelledby","aria-describedby","aria-controls","aria-owns","aria-flowto","aria-activedescendant"]);
+const ROOT_GEOMETRY_ATTRIBUTES=Object.freeze(["x","y","width","height","preserveAspectRatio"]);
+function replaceRootGeometry(content,{x,y,width,height}){
+    let quote=null,end=-1;
+    const start=content.search(/<svg\b/i);
+    if(start<0)throw new TypeError("Publishing SVG must contain a root svg element.");
+    for(let index=start+4;index<content.length;index+=1){const character=content[index];if(quote){if(character===quote)quote=null;}else if(character==='"'||character==="'")quote=character;else if(character===">"){end=index;break;}}
+    if(end<0)throw new TypeError("Publishing SVG root element is unterminated.");
+    let opening=content.slice(start,end+1);
+    const replacements={x:String(x),y:String(y),preserveAspectRatio:"xMinYMin meet",...(width===null?{}:{width:String(width)}),...(height===null?{}:{height:String(height)})};
+    for(const name of ROOT_GEOMETRY_ATTRIBUTES){
+        if(!(name in replacements))continue;
+        opening=opening.replace(new RegExp(`\\s+${name}\\s*=\\s*(?:"[^"]*"|'[^']*')`,"gi"),"");
+    }
+    const attributes=Object.entries(replacements).map(([name,value])=>` ${name}="${xmlAttribute(value)}"`).join("");
+    opening=opening.replace(/<svg\b/i,`<svg${attributes}`);
+    return content.slice(0,start)+opening+content.slice(end+1);
+}
 export function namespaceSvg(content,prefix,{x=0,y=0,width=null,height=null}={}){
     if(!validateTrustedSvgContent(content))throw new TypeError("Publishing accepts only trusted SVG.");
     const ids=new Map([...content.matchAll(/\bid\s*=\s*(["'])([^"']+)\1/gi)].map(match=>[match[2],`${prefix}-${match[2]}`]));
@@ -19,10 +36,7 @@ export function namespaceSvg(content,prefix,{x=0,y=0,width=null,height=null}={})
         if(IDREF_ATTRIBUTES.includes(normalized))value=value.replace(/\S+/g,token=>ids.get(token)??token);
         return `${space}${name}=${quote}${value}${quote}`;
     });
-    if(width!==null)result=result.replace(/(<svg\b[^>]*?)\swidth="[^"]*"/i,"$1");
-    if(height!==null)result=result.replace(/(<svg\b[^>]*?)\sheight="[^"]*"/i,"$1");
-    result=result.replace(/^(\s*)<svg\b/i,`$1<svg x="${x}" y="${y}"${width===null?"":` width="${width}"`}${height===null?"":` height="${height}"`} preserveAspectRatio="xMinYMin meet"`);
-    return result;
+    return replaceRootGeometry(result,{x,y,width,height});
 }
 export function pageTitle(page,documentTitle){return `${documentTitle}, page ${page.number}`;}
 export {xmlAttribute,xmlText};

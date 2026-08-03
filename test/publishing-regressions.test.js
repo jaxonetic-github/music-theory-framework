@@ -41,6 +41,15 @@ test("SVG namespacing rewrites only exact declarations, fragment references, and
     assert.doesNotMatch(result,/id="page-a"-b/);assert.equal(source.includes('id="page-a"'),false);
 });
 
+test("SVG namespacing replaces mixed-quote root geometry without duplicate attributes", () => {
+    const source = `<svg xmlns='http://www.w3.org/2000/svg' x='7' y="8" width='100' height="50" preserveAspectRatio='none' viewBox='0 0 100 50'><g width='9'><path d='M0 0h1v1z'/></g></svg>`;
+    const result = namespaceSvg(source, "page", { x: 120, y: 340, width: 560, height: 780 });
+    const opening = result.slice(0, result.indexOf(">") + 1);
+    assert.match(opening, /x="120"/);assert.match(opening, /y="340"/);assert.match(opening, /width="560"/);assert.match(opening, /height="780"/);assert.match(opening, /preserveAspectRatio="xMinYMin meet"/);
+    for (const name of ["x", "y", "width", "height", "preserveAspectRatio"]) assert.equal((opening.match(new RegExp(`\\s${name}=`, "g")) ?? []).length, 1);
+    assert.match(opening, /viewBox='0 0 100 50'/);assert.match(result, /<g width='9'>/);assert.equal(source.includes('width="560"'), false);
+});
+
 test("section headers are captured per page before the next section changes planner state", async () => {
     const { kernel, source, engine } = await fixture();
     const result = engine.publish({ source, format: "html", headerPolicy: "section-title", sectionBreakPolicy: "new-page" });
@@ -52,6 +61,20 @@ test("section headers are captured per page before the next section changes plan
     assert.equal(Object.isFrozen(pageA.metadata.headerContext), true);
     assert.equal(engine.publish({ source, format: "html", headerPolicy: "none" }).plan.pages.some(page => header(page)), false);
     assert.equal(header(engine.publish({ source, format: "html", headerPolicy: "document-title", sectionBreakPolicy: "new-page" }).plan.pages[1]), "Sections");
+    await kernel.dispose();
+});
+
+test("new-page section policy applies when a curriculum keep group begins with a unit heading", async () => {
+    const { kernel, source, engine } = await fixture({ curriculum: true });
+    const profile = new PageProfile({ id: "curriculum-section-break", name: "curriculum-section-break", width: 120000, height: 100000, orientation: "landscape", minimumContentHeight: 1 });
+    const flowed = engine.publish({ source, format: "html", pageProfile: profile, sectionBreakPolicy: "flow" });
+    assert.ok(flowed.plan.pages.some(page => page.blocks.some(block => block.source.sectionId === "section-a") && page.blocks.some(block => block.source.sectionId === "section-b")));
+    const paged = engine.publish({ source, format: "html", pageProfile: profile, sectionBreakPolicy: "new-page", headerPolicy: "section-title" });
+    const pageA = paged.plan.pages.find(page => page.blocks.some(block => block.source.sectionId === "section-a"));
+    const pageB = paged.plan.pages.find(page => page.blocks.some(block => block.source.sectionId === "section-b"));
+    assert.notEqual(pageA.number, pageB.number);
+    assert.deepEqual(pageB.blocks.filter(block => block.source.sectionId === "section-b" && block.type !== "header").slice(0, 3).map(block => block.type), ["unit-heading", "section-heading", "item-heading"]);
+    assert.equal(header(pageA), "Section A");assert.equal(header(pageB), "Section B");
     await kernel.dispose();
 });
 
