@@ -2,7 +2,7 @@
 
 Study v9.1 is a browser-free orchestration layer over active Theory, Exercise, ExerciseSet, Curriculum, Layout, Rendering, and Publishing contracts. It never regenerates notation or publishes directly.
 
-`StudyRequest` defaults to two octaves, one selected key, canonical traversal, and four measures per semantic system. Octaves are exact integers from one through four. Key scope and traversal are independent: selected-key always emits one root; all-keys uses the documented canonical, chromatic, or clockwise cycle-of-fifths order. The cycle uses F-sharp at the tritone position: C, G, D, A, E, B, F#, Db, Ab, Eb, Bb, F.
+`StudyRequest` defaults to two octaves, one selected key, canonical traversal, four measures per semantic system, and no derived key signature. The conservative `none` policy lets heterogeneous full studies render safely; callers may request `exercise-root` explicitly for compatible material. Octaves are exact integers from one through four. Key scope and traversal are independent: selected-key always emits one root; all-keys uses the documented canonical, chromatic, or clockwise cycle-of-fifths order. The cycle uses F-sharp at the tritone position: C, G, D, A, E, B, F#, Db, Ab, Eb, Bb, F.
 
 The built-in Full Daily Technical Study combines supported scale, thirds, triad, seventh, broken-chord, approach, enclosure, and progression families. Preflight reports exact key, section, item, system, and conservative page counts and rejects capacity overflow without partial output. Measures per system accepts 1, 2, 4, 8, or 16; ExerciseNotation preserves that semantic grouping while responsive Layout may wrap it into additional visual systems.
 

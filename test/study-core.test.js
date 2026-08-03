@@ -1,11 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ExerciseModule, Kernel, Study, StudyModule, StudyRequest, TheoryModule, ValidationError } from "../src/core/index.js";
+import { ExerciseApplicationModule, ExerciseModule, ExerciseNotationModule, ExerciseSetModule, Kernel, LayoutModule, NotationModule, RenderingModule, Study, StudyModule, StudyRequest, TheoryModule, ValidationError } from "../src/core/index.js";
 
 async function fixture(){const kernel=new Kernel().use(new TheoryModule()).use(new ExerciseModule()).use(new StudyModule());await kernel.start();return{kernel,engine:kernel.services.resolve("study.engine"),exercise:kernel.services.resolve("exercise.engine")};}
+async function applicationFixture(){const layout=new LayoutModule(),kernel=new Kernel().use(new TheoryModule()).use(new NotationModule()).use(layout).use(new RenderingModule({layoutEngine:layout.engine})).use(new ExerciseModule()).use(new ExerciseNotationModule()).use(new ExerciseApplicationModule()).use(new ExerciseSetModule()).use(new StudyModule());await kernel.start();return{kernel,study:kernel.services.resolve("study.engine"),application:kernel.services.resolve("exercise.set.application")};}
 
 test("study requests use the strict two-octave default and immutable public controls",()=>{
-    const value=new StudyRequest();assert.equal(value.octaves,2);assert.ok(Object.isFrozen(value));
+    const value=new StudyRequest();assert.equal(value.octaves,2);assert.equal(value.keySignaturePolicy,"none");assert.ok(Object.isFrozen(value));
     for(const octaves of [1,2,3,4])assert.equal(new StudyRequest({octaves}).octaves,octaves);
     for(const octaves of [0,5,1.5,"2",NaN,Infinity])assert.throws(()=>new StudyRequest({octaves}),ValidationError);
     assert.deepEqual(Study.STUDY_MEASURES_PER_SYSTEM,[1,2,4,8,16]);
@@ -33,6 +34,10 @@ test("study preflight and expansion produce bounded immutable ExerciseSet reques
         assert.equal(first.exerciseSetRequest.sections[0].items[6].metadata.root,"F#");assert.equal(first.exerciseSetRequest.sections[0].items[6].metadata.octaves,2);
         assert.ok(first.exerciseSetRequest.sections.every(section=>section.items.every(item=>item.id.length<=160)));
     }finally{await kernel.dispose();}
+});
+
+test("the default full daily study executes through ExerciseSetApplication with conservative signatures",async()=>{
+    const {kernel,study,application}=await applicationFixture();try{const expansion=study.expand(new StudyRequest());assert.ok(expansion.exerciseSetRequest.items.every(item=>item.application.notation.keySignaturePolicy==="none"));const result=application.run(expansion.exerciseSetRequest);assert.equal(result.document.sections.length,12);assert.equal(result.document.sections.flatMap(section=>section.items).length,12);assert.ok(result.document.sections.flatMap(section=>section.items).every(item=>item.presentation.rows.every(row=>row.content.startsWith("<svg"))));}finally{await kernel.dispose();}
 });
 
 test("StudyModule is reusable and leaves no owned service registrations",async()=>{

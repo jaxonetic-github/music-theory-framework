@@ -5,7 +5,7 @@ import { PublishingPanel } from "../publishing/index.js";
 const label=value=>String(value).replaceAll("-"," ");
 export function TechnicalStudiesPanel({engine,application,catalogs,renderingEngine,publishingEngine,accessibilityIdPrefix}){
     const reactId=useId(),id=accessibilityIdPrefix??reactId;
-    const [draft,setDraft]=useState({studyId:"full-daily-technical-study",keyScope:"selected-key",keyTraversal:"canonical",root:"C",octaves:2,startingOctave:4,direction:"ascending-descending",measuresPerSystem:4,duration:{numerator:1,denominator:8},clef:"treble",timeSignature:{beats:4,beatUnit:4},keySignaturePolicy:"exercise-root",progression:"ii-v-i-major",realization:"blocked",harmonicRhythm:"one-per-measure",annotationPolicy:"both"});
+    const [draft,setDraft]=useState({studyId:"full-daily-technical-study",keyScope:"selected-key",keyTraversal:"canonical",root:"C",octaves:2,startingOctave:4,direction:"ascending-descending",measuresPerSystem:4,duration:{numerator:1,denominator:8},clef:"treble",timeSignature:{beats:4,beatUnit:4},keySignaturePolicy:"none",progression:"ii-v-i-major",realization:"blocked",harmonicRhythm:"one-per-measure",annotationPolicy:"both"});
     const [revision,setRevision]=useState(0),[state,setState]=useState({busy:false,result:null,resultRevision:null,error:null}),operation=useRef(0);
     const estimate=(()=>{try{return engine.estimate(draft);}catch{return null;}})();
     const change=patch=>{setDraft(value=>({...value,...patch}));setRevision(value=>value+1);operation.current+=1;};
