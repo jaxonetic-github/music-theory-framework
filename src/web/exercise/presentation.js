@@ -1,27 +1,10 @@
-import { ExerciseApplicationResult } from "../../core/index.js";
+import { ExerciseApplicationResult, validateTrustedSvgContent } from "../../core/index.js";
 
 const SVG_FORMAT = "svg";
 const SVG_MEDIA_TYPE = "image/svg+xml";
 const SVG_PLUGIN_ID = "core.rendering.svg";
 const SVG_STRATEGY_ID = "svg";
-const svgDocument = /^\s*<svg(?:\s|>)[\s\S]*<\/svg>\s*$/i;
-const activeElement = /<(?:[a-z][\w.-]*:)?(?:script|foreignObject|iframe|object|embed|html|body|link|meta|base|form|input|button|textarea|select|video|audio|source)\b/i;
-const eventHandler = /\s(?:[a-z][\w.-]*:)?on[a-z0-9_.:-]*\s*=/i;
-const hrefAttribute = /\s(?:xlink:href|href)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi;
-const safeFragment = /^#[A-Za-z_][A-Za-z0-9_.:-]*$/;
-
-export function validateTrustedSvgContent(content) {
-    if (typeof content !== "string" || !content.trim() || !svgDocument.test(content)) return false;
-    if (/<\?|<!doctype\b/i.test(content) || activeElement.test(content) || eventHandler.test(content)) return false;
-    if (/<style\b|\sstyle\s*=|@import\b|url\s*\(/i.test(content)) return false;
-    const withoutNamespace = content.replace(/\sxmlns(?::[\w.-]+)?\s*=\s*(["'])http:\/\/www\.w3\.org\/(?:2000\/svg|1999\/xlink)\1/gi, "");
-    if (/(?:javascript|data|https?):\s*|(?:^|[\s"'=])\/\//i.test(withoutNamespace)) return false;
-    hrefAttribute.lastIndex = 0;
-    for (let match = hrefAttribute.exec(content); match; match = hrefAttribute.exec(content)) {
-        if (!safeFragment.test(match[1] ?? match[2] ?? match[3] ?? "")) return false;
-    }
-    return true;
-}
+export { validateTrustedSvgContent };
 
 export function validateExercisePresentation(result) {
     if (!(result instanceof ExerciseApplicationResult)) throw new TypeError("A completed ExerciseApplicationResult is required.");

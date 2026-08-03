@@ -1,0 +1,13 @@
+export * from "./values.js";
+export * from "./textLayout.js";
+export { PublicationPlanner } from "./PublicationPlanner.js";
+export { PublishingStrategy } from "./PublishingStrategy.js";
+export { PublishingStrategyRegistry } from "./PublishingStrategyRegistry.js";
+export { PublishingEngine } from "./PublishingEngine.js";
+export { PublishingModule } from "./PublishingModule.js";
+export * from "./strategies/index.js";
+export * from "./descriptors.js";
+export { publishingPackageDescriptor } from "./package.descriptor.js";
+import * as values from "./values.js";import * as textLayout from "./textLayout.js";import{PublicationPlanner}from"./PublicationPlanner.js";import{PublishingStrategy}from"./PublishingStrategy.js";import{PublishingStrategyRegistry}from"./PublishingStrategyRegistry.js";import{PublishingEngine}from"./PublishingEngine.js";import{PublishingModule}from"./PublishingModule.js";import{formatPublishingPoints,HtmlPublishingStrategy,SvgPublishingStrategy,PdfPublishingStrategy,PDF_SVG_GEOMETRY_LIMITS}from"./strategies/index.js";import{publishingServiceDescriptors,publishingPluginDescriptor,publishingStrategyDescriptors}from"./descriptors.js";import{publishingPackageDescriptor}from"./package.descriptor.js";
+export const Publishing=Object.freeze({...values,...textLayout,PublicationPlanner,PublishingStrategy,PublishingStrategyRegistry,PublishingEngine,PublishingModule,formatPublishingPoints,HtmlPublishingStrategy,SvgPublishingStrategy,PdfPublishingStrategy,PDF_SVG_GEOMETRY_LIMITS,serviceDescriptors:publishingServiceDescriptors,pluginDescriptor:publishingPluginDescriptor,strategyDescriptors:publishingStrategyDescriptors,descriptor:publishingPackageDescriptor});
+export default Publishing;

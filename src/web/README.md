@@ -1,6 +1,6 @@
-# Embeddable React Web Application, Exercise, and Curriculum Adapters
+# Embeddable React Web Application, Curriculum, and Publishing Adapters
 
-The v8.9 Web package preserves the general workflow, playback UI, Exercise Practice adapter, heterogeneous Exercise Set worksheet, responsive engraving, and Vite/Next.js embedding while adding catalog-driven template and curriculum browsing. React does not generate theory or exercises, expand curricula, calculate engraving positions, traverse `ScoreGraph`, serialize SVG or MusicXML, schedule audio nodes, or manage AudioContext directly.
+The v9.0 Web package preserves the general workflow, playback UI, Exercise Practice adapter, heterogeneous Exercise Set worksheet, responsive engraving, catalog-driven curriculum browsing, and Vite/Next.js embedding while adding publication preview, print, and download controls. React does not generate theory or exercises, expand curricula, paginate, calculate engraving positions, traverse `ScoreGraph`, serialize notation SVG, schedule audio nodes, or manage AudioContext directly.
 
 ## Embedding
 
@@ -44,8 +44,12 @@ Curriculum Browser consumes the active template/curriculum services plus present
 
 `ResponsiveNotation` observes its own notation container only after client mount. It rounds CSS-pixel widths into one layout unit per CSS pixel, ignores zero and duplicate effective widths, coalesces callbacks in a microtask, and disconnects on cleanup. It reruns only Core layout and SVG rendering against the completed row's unchanged `ScoreGraph`; generation requests, semantic summaries, and authoritative result ownership do not change. Monotonic operation IDs reject stale completions, and layout errors are announced separately while the last trusted SVG remains visible. Observer injection keeps tests deterministic, multiple embeds isolated, and Web/Next imports safe during server analysis.
 
+## Publishing
+
+Publishing consumes only the last successful authoritative worksheet. Core supplies page boundaries and format assets; React scales the preview without repagination, invokes print only from a user action, and revokes download object URLs. See [`publishing/README.md`](publishing/README.md).
+
 ## Exclusions and validation
 
 This milestone excludes pause/resume, seeking, scrubbing, looping, tempo changes during playback, score-following, cursor animation, Web MIDI, recording, samples, effects, mixer UI, server APIs, persistence, and networking. Core imports remain React-, DOM-, browser-, AudioContext-, and MIDI-free.
 
-The v8.9 repository suite contains **400 passing tests**: 342 plain-Node tests and 58 React DOM tests. `npm ci` installs 154 packages and audits 155; `npm audit` reports **0 vulnerabilities**. Vite transforms **342 modules** and emits 572.17 kB JavaScript (152.86 kB gzip). The Next.js 15.5.22 fixture statically prerenders with a 95.3 kB app route and 197 kB first-load JavaScript.
+The v9.0 repository suite contains **438 passing tests**: 365 plain-Node tests and 73 React DOM tests. `npm ci` installs 154 packages and audits 155; `npm audit` reports **0 vulnerabilities**. Vite transforms **363 modules** and emits 624.65 kB JavaScript (169.54 kB gzip). The Next.js 15.5.22 fixture statically prerenders with a 112 kB app route and 214 kB first-load JavaScript.

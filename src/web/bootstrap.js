@@ -11,6 +11,7 @@ import {
     LayoutModule,
     NotationModule,
     PlaybackModule,
+    PublishingModule,
     RenderingModule,
     TheoryModule
 } from "../core/index.js";
@@ -35,6 +36,7 @@ const defaultModules = () => {
         new ExerciseSetModule(),
         new CurriculumModule(),
         new ExportModule(),
+        new PublishingModule(),
         new ApplicationModule(),
         new PlaybackModule(),
         audio,
@@ -128,6 +130,7 @@ export async function createWebApplication({
             progressions: progressionOptions(progressionCatalog)
         };
         const curriculumEngine = kernel.services.resolve("curriculum.engine", { optional: true });
+        const publishingEngine = kernel.services.resolve("publishing.engine", { optional: true });
         const templateCatalog = kernel.services.resolve("curriculum.template-catalog", { optional: true });
         const curriculumCatalog = kernel.services.resolve("curriculum.catalog", { optional: true });
         const curriculum = curriculumEngine && templateCatalog && curriculumCatalog
@@ -141,6 +144,7 @@ export async function createWebApplication({
             exerciseApplication,
             exerciseSetApplication,
             curriculumEngine,
+            publishingEngine,
             playback,
             transport,
             catalogs,

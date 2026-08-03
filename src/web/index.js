@@ -14,6 +14,7 @@ export * from "./exercise/index.js";
 export * from "./exercise-set/index.js";
 export * from "./curriculum/index.js";
 export * from "./layout/index.js";
+export * from "./publishing/index.js";
 import {
     ExercisePracticePanel, ExercisePracticeApp, useExercisePracticeWorkflow, validateExercisePresentation,
     buildExerciseApplicationRequest, createInitialExercisePracticeState, transitionExercisePracticeState,

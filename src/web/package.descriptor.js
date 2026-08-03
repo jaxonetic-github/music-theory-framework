@@ -3,8 +3,8 @@ import { PackageDescriptor } from "../core/index.js";
 export const reactWebPackageDescriptor = new PackageDescriptor({
     id: "web.react-application",
     name: { value: "react-web-application", displayName: "React Web Application Adapter" },
-    description: "Accessible React workflows for generation, playback, exercise practice, worksheets, templates, and curricula.",
-    version: "8.9.0",
+    description: "Accessible React workflows for generation, playback, exercise practice, curricula, and worksheet publishing.",
+    version: "9.0.0",
     layer: "presentation",
     category: "application",
     role: "provider",
@@ -21,12 +21,13 @@ export const reactWebPackageDescriptor = new PackageDescriptor({
         { target: "core.exercise-set", kind: "required" },
         { target: "core.curriculum", kind: "required" },
         { target: "core.export", kind: "required" },
+        { target: "core.publishing", kind: "required" },
         { target: "core.application", kind: "required" },
         { target: "core.playback", kind: "required" },
         { target: "web.audio-playback", kind: "required" },
         { target: "web.playback-transport", kind: "required" }
     ],
-    capabilities: ["react-adapter", "embeddable-application", "nextjs-client-boundary", "scoped-styles", "accessible-workflow", "accessible-exercise-practice", "advanced-exercise-practice", "exercise-worksheet", "exercise-template-browser", "curriculum-browser", "responsive-engraving", "resize-observer-adapter", "accessible-playback-controls", "transport-subscription", "trusted-svg-view", "musicxml-download", "responsive-layout", "print-styles"],
+    capabilities: ["react-adapter", "embeddable-application", "nextjs-client-boundary", "scoped-styles", "accessible-workflow", "accessible-exercise-practice", "advanced-exercise-practice", "exercise-worksheet", "exercise-template-browser", "curriculum-browser", "worksheet-publishing", "page-preview", "print", "asset-download", "responsive-engraving", "resize-observer-adapter", "accessible-playback-controls", "transport-subscription", "trusted-svg-view", "musicxml-download", "responsive-layout", "print-styles"],
     consumes: [
         { id: "application.engine", kind: "service" },
         { id: "exercise.application.engine", kind: "service" },
@@ -38,6 +39,7 @@ export const reactWebPackageDescriptor = new PackageDescriptor({
         { id: "theory.chordCatalog", kind: "service" },
         { id: "exercise.progressionCatalog", kind: "service" },
         { id: "layout.engine", kind: "service" },
+        { id: "publishing.engine", kind: "service" },
         { id: "playback.engine", kind: "service" },
         { id: "web.playback.transport", kind: "service" }
     ],
