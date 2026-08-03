@@ -2,8 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
     ExportModule, ExerciseApplicationModule, ExerciseModule, ExerciseNotationModule,
-    ExerciseSetModule, Kernel, LayoutModule, NotationModule, PageProfile, PublishingModule,
-    RenderingModule, TheoryModule, formatPublishingPoints, layoutPublicationText, measurePublicationText, parseSvgTransform,
+    ExerciseSetModule, Kernel, LayoutModule, NotationModule, PageProfile, PdfPublishingStrategy,
+    PublicationBlock, PublicationPage, PublicationPlan, PublishingModule, RenderingModule, TheoryModule,
+    formatPublishingPoints, layoutPublicationText, measurePublicationText, parseSvgTransform,
     trustedSvgPdfOperations
 } from "../src/core/index.js";
 
@@ -257,4 +258,74 @@ test("PDF applies scale, matrix, rotation, and translation to lines and paths", 
     assert.equal(converted.operations.length, 2);
     assert.match(converted.operations[0], /^q (?!1 0 0 -1)[^c]+ cm/);
     assert.match(converted.operations[1], /^q (?!1 0 0 -1)[^c]+ cm/);
+});
+
+test("PDF geometry attributes use strict required finite numeric validation", () => {
+    const invalid = [
+        [`<line x1="bad" y1="0" x2="1" y2="1" stroke="black"/>`, /line.*x1.*bad/i],
+        [`<line x1="0" y1="0" y2="1" stroke="black"/>`, /line.*missing.*x2/i],
+        [`<ellipse cx="bad" cy="1" rx="2" ry="3"/>`, /ellipse.*cx.*bad/i],
+        [`<ellipse cx="1" cy="1" rx="-1" ry="3"/>`, /ellipse.*rx.*safe geometry range/i],
+        [`<circle cx="1" cy="1"/>`, /circle.*missing.*r/i],
+        [`<path d="M0 0L1 1" stroke="black" stroke-width="NaN"/>`, /stroke-width.*NaN/i],
+        [`<path d="M0 0L1 1" opacity="2"/>`, /opacity.*safe geometry range/i],
+        [`<line x1="Infinity" y1="0" x2="1" y2="1"/>`, /x1.*Infinity/i],
+        [`<line x1="-Infinity" y1="0" x2="1" y2="1"/>`, /x1.*Infinity/i],
+        [`<line x1="10bad" y1="0" x2="1" y2="1"/>`, /x1.*10bad/i],
+        [`<line x1="10000001" y1="0" x2="1" y2="1"/>`, /x1.*safe geometry range/i],
+        [`<g transform="translate(bad)"><path d="M0 0L1 1"/></g>`, /translate.*bad/i],
+        [`<g transform="scale(10000000)"><path d="M0 0L2 1"/></g>`, /transformed point.*safe geometry range/i],
+        [`<rect x="0" y="0" width="-1" height="1"/>`, /does not support.*rect/i],
+        [`<polyline points="0,0 1"/>`, /does not support.*polyline/i]
+    ];
+    invalid.forEach(([body, pattern], index) => assert.throws(() => trustedSvgPdfOperations(svg(body), { context: `page 2, block "bad-${index}"` }), pattern));
+});
+
+test("PDF path parsing rejects incomplete, unknown, non-finite, and unsupported commands", () => {
+    const invalid = [
+        ["M 1", /command "M".*truncated/i], ["M", /command "M".*truncated/i],
+        ["M0 0 L1", /command "L".*truncated/i], ["M0 0 C1 2 3", /command "C".*truncated/i],
+        ["M0 0 Q1 2 3 4", /unsupported command "Q"/i], ["M0 0 A1 1 0 2 0 3 3", /unsupported command "A"/i],
+        ["M0 0 X1 2", /unsupported command "X"/i], ["M0 0 1", /command "L".*truncated/i],
+        ["M0 0 garbage", /unsupported command "g"/i], ["M0 0 LNaN 1", /command "L".*truncated/i],
+        ["M0 0 L10000001 1", /safe geometry range/i], ["M0 0 L1e 2", /command "L".*truncated/i],
+        ["M0 0 L1 2 3", /command "L".*truncated/i], ["L0 0", /must begin with an M/i],
+        ["M0 0 Z 1", /numeric operand without an active command/i], ["M0 0,", /trailing separator/i]
+    ];
+    for (const [data, pattern] of invalid) assert.throws(() => trustedSvgPdfOperations(svg(`<path d="${data}" fill="black"/>`), { context: "page 3, block path-fixture" }), pattern);
+    const accepted = [
+        "M0 0L10 10Z", "M0 0 10 10 20 20", "m1 1l2 3h4v5z",
+        "M0 0C1 2 3 4 5 6c1 1 2 2 3 3"
+    ];
+    for (const data of accepted) {
+        const result = trustedSvgPdfOperations(svg(`<path d="${data}" fill="black"/>`));
+        assert.equal(result.operations.length, 1);
+        assert.doesNotMatch(result.operations[0], /NaN|Infinity|undefined/);
+    }
+});
+
+test("PDF publication validates every notation block atomically before returning an asset", async () => {
+    const { kernel, source, engine } = await fixture(), valid = engine.publish({ source, format: "pdf" }), page = valid.plan.pages.find(value => value.blocks.some(block => block.type === "notation"));
+    const malformedBlocks = page.blocks.map(block => block.type !== "notation" ? block : new PublicationBlock({ id: block.id, type: block.type, x: block.x, y: block.y, width: block.width, height: block.height, svg: svg(`<line x1="bad" y1="0" x2="1" y2="1" stroke="black"/>`), source: JSON.parse(JSON.stringify(block.source)), metadata: block.metadata.toJSON() }));
+    const malformedPage = new PublicationPage({ id: page.id, number: page.number, profile: page.profile, blocks: malformedBlocks, metadata: page.metadata.toJSON() });
+    const malformedPlan = new PublicationPlan({ id: valid.plan.id, request: valid.request, pages: valid.plan.pages.map(value => value === page ? malformedPage : value), metadata: valid.plan.metadata.toJSON() });
+    let document;
+    assert.throws(() => { document = new PdfPublishingStrategy().publish(malformedPlan); }, /page 1.*block.*row.*line.*x1.*bad/i);
+    assert.equal(document, undefined);
+    assert.equal(valid.document.assets.length, 1);
+    assert.equal(valid.plan.request.source, source);
+    await kernel.dispose();
+});
+
+test("all generated PDF content streams contain only finite defined drawing operands", async () => {
+    const { kernel, source, engine } = await fixture();
+    for (const profile of ["letter-portrait", "letter-landscape", "a4-portrait", "a4-landscape"]) {
+        const result = engine.publish({ source, format: "pdf", pageProfile: profile });
+        const text = new TextDecoder("latin1").decode(result.document.assets[0].content);
+        const streams = [...text.matchAll(/stream\n([\s\S]*?)\nendstream/g)].map(match => match[1].replace(/\((?:\\.|[^)])*\)/g, "()"));
+        assert.equal(streams.length, result.plan.pageCount);
+        for (const stream of streams) assert.doesNotMatch(stream, /(?:^|[\s\[])\+?(?:NaN|Infinity|undefined|null)(?=$|[\s\]])/im);
+        assert.match(text, new RegExp(`/Count ${result.plan.pageCount}`));
+    }
+    await kernel.dispose();
 });

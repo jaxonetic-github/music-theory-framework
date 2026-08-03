@@ -8,4 +8,6 @@ Printing snapshots the completed `PublishingResult`, re-emits only that result's
 
 Downloads use completed asset media types and filenames, create no network request, and revoke every object URL in `finally`.
 
+A contextual PDF geometry-validation failure follows the ordinary authoritative failure path: the last successful publication remains visible and stale, the new error is announced separately, and no print, download, iframe, Blob URL, or object URL is created automatically.
+
 All browser APIs execute from user actions. Imports and server rendering remain free of `window`, `document`, object URLs, and print calls. Multiple embedded applications retain independent React state and renderer-owned accessible SVG IDs.
