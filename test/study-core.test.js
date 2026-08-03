@@ -18,7 +18,16 @@ test("study requests use the strict two-octave default and immutable public cont
 });
 
 test("foundational scale generation covers one through four exact octaves without truncation",async()=>{
-    const {kernel,exercise,engine}=await fixture();try{for(const octaves of [1,2,3,4]){const row=exercise.generate({type:"scale",root:"C",octaves}).rows[0];assert.equal(row.writtenPitches.length,octaves*7+1);assert.equal(row.writtenPitches.at(-1),`C${4+octaves}`);}assert.throws(()=>exercise.generate({type:"scale",root:"B#",octaves:4,startingOctave:8}),/MIDI range/);assert.throws(()=>engine.expand({studyId:"daily-scale-studies",root:"B#",octaves:4,startingOctave:8}),/offending written register endpoint/);}finally{await kernel.dispose();}
+    const {kernel,exercise,engine}=await fixture();try{for(const octaves of [1,2,3,4]){const row=exercise.generate({type:"scale",root:"C",octaves}).rows[0];assert.equal(row.writtenPitches.length,octaves*7+1);assert.equal(row.writtenPitches.at(-1),`C${4+octaves}`);}assert.throws(()=>exercise.generate({type:"scale",root:"B#",octaves:4,startingOctave:8}),/MIDI range/);assert.throws(()=>engine.expand({studyId:"daily-scale-studies",root:"B#",octaves:4,startingOctave:8}),/preflight failed.*scale.*B#.*MIDI range/);}finally{await kernel.dispose();}
+});
+
+test("study preflight validates family-specific generated register extensions",async()=>{
+    const {kernel,engine}=await fixture();try{
+        const invalid={studyId:"daily-interval-studies",root:"G",startingOctave:8,octaves:1,direction:"ascending"};
+        assert.throws(()=>engine.estimate(invalid),/daily-interval-studies.*scale-thirds.*G.*MIDI range/);
+        assert.throws(()=>engine.expand(invalid),/daily-interval-studies.*scale-thirds.*G.*MIDI range/);
+        const valid=engine.expand({...invalid,startingOctave:7});assert.equal(valid.exerciseSetRequest.items.length,2);
+    }finally{await kernel.dispose();}
 });
 
 test("key scope and traversal are separate, deterministic, and use the documented F-sharp cycle spelling",async()=>{
