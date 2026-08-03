@@ -10,10 +10,10 @@ export class StudyModule {
     constructor(){this.id=String(studyPackageDescriptor.id);this.descriptor=studyPackageDescriptor;this.engine=null;this.plugin=null;Object.seal(this);}
     configure({services,registries}) {
         if(this.#configured)return this;
-        let scaleCatalog,chordCatalog,progressionCatalog,exerciseEngine;
-        try { scaleCatalog=services.resolve("theory.scaleCatalog");chordCatalog=services.resolve("theory.chordCatalog");progressionCatalog=services.resolve("exercise.progressionCatalog");exerciseEngine=services.resolve("exercise.engine"); }
-        catch(cause){throw new ValidationError("StudyModule requires active Theory, Exercise, and progression services.",{cause});}
-        const engine=new StudyEngine({scaleCatalog,chordCatalog,progressionCatalog,exerciseEngine});
+        let scaleCatalog,chordCatalog,progressionCatalog,exerciseEngine,exerciseNotationEngine;
+        try { scaleCatalog=services.resolve("theory.scaleCatalog");chordCatalog=services.resolve("theory.chordCatalog");progressionCatalog=services.resolve("exercise.progressionCatalog");exerciseEngine=services.resolve("exercise.engine");exerciseNotationEngine=services.resolve("exercise.notation.engine"); }
+        catch(cause){throw new ValidationError("StudyModule requires active Theory, Exercise, ExerciseNotation, and progression services.",{cause});}
+        const engine=new StudyEngine({scaleCatalog,chordCatalog,progressionCatalog,exerciseEngine,exerciseNotationEngine});
         const plugin=Object.freeze({id:String(studyPluginDescriptor.id),studies:builtInStudies});
         const undo=[];
         const service=(id,value)=>{services.register(id,value);undo.push(()=>{if(services.resolve(id,{optional:true})===value)services.unregister(id);});};

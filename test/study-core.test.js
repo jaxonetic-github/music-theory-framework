@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { ExerciseApplicationModule, ExerciseModule, ExerciseNotationModule, ExerciseSetModule, Kernel, LayoutModule, NotationModule, RenderingModule, Study, StudyModule, StudyRequest, TheoryModule, ValidationError } from "../src/core/index.js";
 
-async function fixture(){const kernel=new Kernel().use(new TheoryModule()).use(new ExerciseModule()).use(new StudyModule());await kernel.start();return{kernel,engine:kernel.services.resolve("study.engine"),exercise:kernel.services.resolve("exercise.engine")};}
+async function fixture(){const kernel=new Kernel().use(new TheoryModule()).use(new NotationModule()).use(new ExerciseModule()).use(new ExerciseNotationModule()).use(new StudyModule());await kernel.start();return{kernel,engine:kernel.services.resolve("study.engine"),exercise:kernel.services.resolve("exercise.engine")};}
 async function applicationFixture(){const layout=new LayoutModule(),kernel=new Kernel().use(new TheoryModule()).use(new NotationModule()).use(layout).use(new RenderingModule({layoutEngine:layout.engine})).use(new ExerciseModule()).use(new ExerciseNotationModule()).use(new ExerciseApplicationModule()).use(new ExerciseSetModule()).use(new StudyModule());await kernel.start();return{kernel,study:kernel.services.resolve("study.engine"),application:kernel.services.resolve("exercise.set.application"),exerciseApplication:kernel.services.resolve("exercise.application.engine")};}
 
 test("study requests use the strict two-octave default and immutable public controls",()=>{
@@ -30,6 +30,14 @@ test("study preflight validates family-specific generated register extensions",a
     }finally{await kernel.dispose();}
 });
 
+test("study estimates derive semantic systems from exact generated notation measures",async()=>{
+    const {kernel,engine}=await fixture();try{
+        const blues=engine.estimate({studyId:"daily-harmonic-progressions",progression:"twelve-bar-dominant-blues",measuresPerSystem:4});assert.equal(blues.itemCount,1);assert.equal(blues.estimatedSystems,3);assert.equal(blues.estimatedPages,1);
+        const scale=engine.estimate({studyId:"daily-scale-studies",root:"C",octaves:4,direction:"ascending-descending",measuresPerSystem:4});assert.ok(scale.estimatedSystems>scale.itemCount);assert.equal(scale.estimatedPages,Math.ceil(scale.estimatedSystems/4));
+        assert.equal(engine.estimate({studyId:"daily-harmonic-progressions",progression:"twelve-bar-dominant-blues",measuresPerSystem:16}).estimatedSystems,1);
+    }finally{await kernel.dispose();}
+});
+
 test("key scope and traversal are separate, deterministic, and use the documented F-sharp cycle spelling",async()=>{
     const {kernel,engine}=await fixture();try{
         assert.deepEqual(engine.roots(new StudyRequest({keyScope:"selected-key",root:"Cb",keyTraversal:"cycle-of-fifths"})),["Cb"]);
@@ -54,7 +62,7 @@ test("the default full daily study executes through ExerciseSetApplication with 
 });
 
 test("StudyModule is reusable and leaves no owned service registrations",async()=>{
-    const kernel=new Kernel().use(new TheoryModule()).use(new ExerciseModule()),module=new StudyModule();kernel.use(module);await kernel.start();assert.ok(kernel.services.resolve("study.engine"));await kernel.dispose();assert.equal(kernel.services.resolve("study.engine",{optional:true}),null);assert.equal(String(Study.descriptor.version),"9.1.0");
+    const kernel=new Kernel().use(new TheoryModule()).use(new NotationModule()).use(new ExerciseModule()).use(new ExerciseNotationModule()),module=new StudyModule();kernel.use(module);await kernel.start();assert.ok(kernel.services.resolve("study.engine"));await kernel.dispose();assert.equal(kernel.services.resolve("study.engine",{optional:true}),null);assert.equal(String(Study.descriptor.version),"9.1.0");
 });
 
 test("progression realizations are generated semantically in Core with deterministic metadata",async()=>{
