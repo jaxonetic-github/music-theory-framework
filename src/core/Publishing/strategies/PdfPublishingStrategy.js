@@ -18,12 +18,35 @@ function finiteNumber(value, context, { min = -PDF_SVG_GEOMETRY_LIMITS.coordinat
 }
 const number = value => finiteNumber(value, "PDF drawing operand").toFixed(3).replace(/\.?0+$/, "");
 const matrixNumber = value => finiteNumber(value, "PDF matrix operand", { min: -PDF_SVG_GEOMETRY_LIMITS.matrixComponent, max: PDF_SVG_GEOMETRY_LIMITS.matrixComponent }).toFixed(6).replace(/\.?0+$/, "");
-const pdfText = value => String(value)
-    .replaceAll("𝄫", "bb").replaceAll("𝄪", "##")
-    .replaceAll("♭", "b").replaceAll("♯", "#").replaceAll("♮", " natural ")
-    .replaceAll("·", "-")
-    .replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)")
-    .replace(/[^\x20-\x7E]/g, "?");
+const WIN_ANSI_BYTES = Object.freeze(new Map([
+    [0x20ac, 0x80], [0x201a, 0x82], [0x0192, 0x83], [0x201e, 0x84], [0x2026, 0x85],
+    [0x2020, 0x86], [0x2021, 0x87], [0x02c6, 0x88], [0x2030, 0x89], [0x0160, 0x8a],
+    [0x2039, 0x8b], [0x0152, 0x8c], [0x017d, 0x8e], [0x2018, 0x91], [0x2019, 0x92],
+    [0x201c, 0x93], [0x201d, 0x94], [0x2022, 0x95], [0x2013, 0x96], [0x2014, 0x97],
+    [0x02dc, 0x98], [0x2122, 0x99], [0x0161, 0x9a], [0x203a, 0x9b], [0x0153, 0x9c],
+    [0x017e, 0x9e], [0x0178, 0x9f]
+]));
+function pdfVisibleText(value, context) {
+    const bytes = [];
+    for (const character of String(value)) {
+        const codePoint = character.codePointAt(0);
+        const byte = codePoint >= 0x20 && codePoint <= 0x7e ? codePoint
+            : codePoint >= 0xa0 && codePoint <= 0xff ? codePoint
+                : WIN_ANSI_BYTES.get(codePoint);
+        if (byte === undefined) {
+            const notation = `U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`;
+            throw new ValidationError(`${context} contains unsupported visible PDF text character "${character}" (${notation}); the built-in PDF font supports WinAnsi text only.`);
+        }
+        bytes.push(byte.toString(16).toUpperCase().padStart(2, "0"));
+    }
+    return `<${bytes.join("")}>`;
+}
+function pdfMetadataText(value) {
+    let output = "FEFF";
+    const source = String(value);
+    for (let index = 0; index < source.length; index += 1) output += source.charCodeAt(index).toString(16).toUpperCase().padStart(4, "0");
+    return `<${output}>`;
+}
 const attribute = (tag, name) => tag.match(new RegExp(`(?:\\s|<)${name}\\s*=\\s*(["'])(.*?)\\1`, "i"))?.[2];
 function requiredFiniteAttribute(tag, name, context, constraints) {
     const value = attribute(tag, name);
@@ -356,7 +379,7 @@ export function trustedSvgPdfOperations(svg, { offsetX = 0, offsetY = 0, scale =
         if (!fill) continue;
         const alphaKey = `${number(drawing.state.opacity * drawing.state.fillOpacity)}:${number(drawing.state.opacity * drawing.state.strokeOpacity)}`;
         if (!graphicsStates.has(alphaKey)) graphicsStates.set(alphaKey, `GS${graphicsStates.size + 1}`);
-        operations.push(`q ${matrixOperator(drawing.matrix)} cm /${graphicsStates.get(alphaKey)} gs ${fill.map(number).join(" ")} rg BT /F1 ${number(drawing.size)} Tf 1 0 0 -1 ${number(drawing.x)} ${number(drawing.y)} Tm (${pdfText(drawing.text)}) Tj ET Q`);
+        operations.push(`q ${matrixOperator(drawing.matrix)} cm /${graphicsStates.get(alphaKey)} gs ${fill.map(number).join(" ")} rg BT /F1 ${number(drawing.size)} Tf 1 0 0 -1 ${number(drawing.x)} ${number(drawing.y)} Tm ${pdfVisibleText(drawing.text, drawing.context)} Tj ET Q`);
     }
     return Object.freeze({
         operations: Object.freeze(operations),
@@ -379,7 +402,7 @@ function pageStream(page) {
         if (!layout) throw new ValidationError(`Publication text block "${block.id}" is missing its authoritative text layout.`);
         for (const line of layout.lines) {
             const baseline = height - ((block.y + layout.fontSize + line.yOffset) / 100);
-            operations.push(`BT /F1 ${number(layout.fontSize / 100)} Tf ${number(block.x / 100)} ${number(baseline)} Td (${pdfText(line.text || " ")}) Tj ET`);
+            operations.push(`BT /F1 ${number(layout.fontSize / 100)} Tf ${number(block.x / 100)} ${number(baseline)} Td ${pdfVisibleText(line.text || " ", `PDF page ${page.number}, block "${block.id}", line ${line.index}`)} Tj ET`);
         }
     }
     const stream = operations.join("\n"), numericStream = stream.replace(/\((?:\\.|[^)])*\)/g, "()");
@@ -389,7 +412,7 @@ function pageStream(page) {
 function pdf(plan) {
     const objects = [null], reserve = () => { objects.push(""); return objects.length - 1; };
     const catalog = reserve(), pagesRoot = reserve(), font = reserve(), pageIds = [];
-    objects[font] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+    objects[font] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>";
     for (const page of plan.pages) {
         const pageId = reserve(), contentId = reserve(), rendered = pageStream(page), stateObjects = new Map();
         for (const [alpha, name] of rendered.graphicsStates) {
@@ -407,7 +430,7 @@ function pdf(plan) {
     const info = reserve();
     objects[pagesRoot] = `<< /Type /Pages /Kids [${pageIds.map(value => `${value} 0 R`).join(" ")}] /Count ${pageIds.length} >>`;
     objects[catalog] = `<< /Type /Catalog /Pages ${pagesRoot} 0 R >>`;
-    objects[info] = `<< /Title (${pdfText(plan.request.title)}) /Author (${pdfText(plan.request.author || plan.request.organization)}) /Subject (${pdfText(plan.request.subtitle)}) /Creator (Music Theory Framework Publishing Core) >>`;
+    objects[info] = `<< /Title ${pdfMetadataText(plan.request.title)} /Author ${pdfMetadataText(plan.request.author || plan.request.organization)} /Subject ${pdfMetadataText(plan.request.subtitle)} /Creator ${pdfMetadataText("Music Theory Framework Publishing Core")} >>`;
     let body = "%PDF-1.7\n%\xE2\xE3\xCF\xD3\n", offsets = [0];
     for (let index = 1; index < objects.length; index += 1) { offsets[index] = enc.encode(body).length; body += `${index} 0 obj\n${objects[index]}\nendobj\n`; }
     const xref = enc.encode(body).length;

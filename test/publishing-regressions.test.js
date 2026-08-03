@@ -135,7 +135,28 @@ test("SVG, HTML, and PDF consume the same planned wrapped line sequence", async 
     assert.equal((html.document.assets[0].content.match(/class="publication-line"/g) ?? []).length, html.plan.blocks.filter(value => value.type !== "notation").reduce((sum, value) => sum + value.metadata.textLayout.lineCount, 0));
     assert.equal((svgResult.document.assets.map(asset => asset.content).join("").match(/<tspan\b/g) ?? []).length, svgResult.plan.blocks.filter(value => value.type !== "notation").reduce((sum, value) => sum + value.metadata.textLayout.lineCount, 0));
     const pdfText = new TextDecoder("latin1").decode(pdf.document.assets[0].content);
-    for (const line of block.metadata.textLayout.lines.filter(value => value.text)) assert.match(pdfText, new RegExp(`\\(${line.text.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}\\) Tj`));
+    for (const line of block.metadata.textLayout.lines.filter(value => value.text)) assert.match(pdfText, new RegExp(`<${Buffer.from(line.text, "ascii").toString("hex").toUpperCase()}> Tj`));
+    await kernel.dispose();
+});
+
+test("PDF preserves WinAnsi publication text without substitutions and rejects unsupported painted Unicode atomically", async () => {
+    const { kernel, source, engine } = await fixture();
+    const title = "Étude — façade €";
+    const instructions = "Crème brûlée, déjà vu.";
+    const result = engine.publish({ source, format: "pdf", title, instructions, author: "École" });
+    const content = new TextDecoder("latin1").decode(result.document.assets[0].content);
+    const titleBlock = result.plan.blocks.find(value => value.type === "title");
+    assert.equal(titleBlock.metadata.textLayout.sourceText, title);
+    assert.equal(titleBlock.metadata.textLayout.lines.map(value => value.text).join(""), title);
+    assert.match(content, /\/Encoding \/WinAnsiEncoding/);
+    assert.match(content, /<C9747564652097206661E76164652080> Tj/);
+    assert.match(content, /\/Title <FEFF00C900740075006400650020201400200066006100E7006100640065002020AC>/);
+    assert.doesNotMatch(content, /\?tude| natural |\?{1,}/);
+    let rejected;
+    assert.throws(() => { rejected = engine.publish({ source, format: "pdf", title: "Study ♮" }); }, /PDF page 1, block .*unsupported visible PDF text character "♮" \(U\+266E\).*WinAnsi/);
+    assert.equal(rejected, undefined);
+    assert.match(engine.publish({ source, format: "html", title: "Study ♮" }).document.assets[0].content, /Study ♮/);
+    assert.match(engine.publish({ source, format: "svg", title: "Study ♮" }).document.assets[0].content, /Study ♮/);
     await kernel.dispose();
 });
 
@@ -205,7 +226,7 @@ test("PDF SVG traversal inherits paint through nested groups without sibling lea
     assert.match(converted.operations[1], /0 0 0 RG[\s\S]* S Q$/);
     assert.match(converted.operations[2], /1 1 1 rg[\s\S]* f Q$/);
     assert.match(converted.operations[3], /0 0 0 RG[\s\S]* S Q$/);
-    assert.ok(converted.operations[4].includes("(Bass & staff) Tj"));
+    assert.ok(converted.operations[4].includes("<426173732026207374616666> Tj"));
     assert.match(converted.operations[1], /1 J 1 j/);
     assert.ok(converted.graphicsStates.some(value => value.alpha === "0.5:0.5"));
 });

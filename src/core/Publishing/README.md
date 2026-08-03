@@ -34,6 +34,8 @@ Page headers capture an immutable context when the first content block enters a 
 
   Strict path support is `M/m`, repeated move pairs as implicit lines, `L/l`, `H/h`, `V/v`, `C/c`, and `Z/z`. Commands require complete operand groups, paths must begin with a move, relative state and subpath closure are exact, and leftover operands or tokens reject. Smooth/quadratic commands and arcs (`S/s`, `Q/q`, `T/t`, `A/a`) are not approximated; they reject as unsupported, as do unknown commands. The built-in clef, accidental, rest, meter, and other repository glyph paths use the supported subset.
 
+  Visible PDF text uses Helvetica with an explicit WinAnsi encoding and deterministic hexadecimal strings. This preserves ASCII, Latin-1, and the defined Windows-1252 characters one glyph per planned code point, so accepted text cannot be transliterated, expanded, or replaced after line planning. Unsupported painted characters reject the complete PDF publication with page/block or SVG-element context. PDF document-information metadata uses deterministic UTF-16BE strings and retains full Unicode independently. HTML and SVG publication remain Unicode-native.
+
 No PDF dependency was added, so there is no third-party license, vulnerability, SSR, or bundle-loading cost. PDF output is not a tagged PDF and does not claim PDF/UA compliance.
 
 ## Metadata, filenames, and lifecycle
