@@ -102,6 +102,21 @@ test("progressions preserve harmonic order, Roman numerals, quality, members, an
     }
 });
 
+test("progression inversions validate against each resolved event chord without modulo wrapping", () => {
+    const definition = new ProgressionDefinition({ id: "triad-progression", name: "Triad progression", mode: "major", events: [
+        { degree: 1, romanNumeral: "I", function: "tonic", quality: "major" },
+        { degree: 5, romanNumeral: "V", function: "dominant", quality: "major" }
+    ] });
+    const strategy = new AdvancedExerciseStrategy({ scaleGenerator: new ScaleGenerator(), chordGenerator: new ChordGenerator(), progressionCatalog: new ProgressionCatalog([definition]) });
+    const second = strategy.generate(new ExerciseRequest({ type: "chord-progression", progression: "triad-progression", inversion: 2, octaves: 2 })).rows[0];
+    assert.deepEqual(second.steps[0].chordMembers, [5, 1, 3]);
+    assert.equal(second.steps[0].metadata.voicing, "inversion-2");
+    assert.throws(
+        () => strategy.generate(new ExerciseRequest({ type: "chord-progression", progression: "triad-progression", inversion: 3, octaves: 2 })),
+        /Progression "triad-progression" event "triad-progression:event:1" uses major with 3 chord members.*does not support inversion 3.*highest available inversion is 2/
+    );
+});
+
 test("progressions preserve exact flat and sharp spellings and canonical all-key order", async () => {
     const { engine } = await fixture();
     const flat = engine.generate({ type: "chord-progression", root: "Db", progression: "ii-v-i-major" }).rows[0];

@@ -117,7 +117,10 @@ export class AdvancedExerciseStrategy extends ExerciseStrategy {
             const roles = chordMemberRoles(chord.pattern);
             let notes = chord.pattern.intervals.map((interval, index) => noteAt(index === 0 ? eventRoot : roleSpelling(eventRoot, chord.pitchClasses[index].semitones, roles[index] - 1), rootMidi + interval));
             let members=[...roles];
-            if(request.inversion){const count=request.inversion%notes.length;notes=[...notes.slice(count),...notes.slice(0,count).map(note=>noteAt(note.pitchClass,note.midi+12))];members=[...members.slice(count),...members.slice(0,count)];}
+            if(request.inversion){
+                if(request.inversion>=notes.length)throw new ValidationError(`Progression "${definition.id}" event "${event.id}" uses ${event.quality} with ${notes.length} chord members and does not support inversion ${request.inversion}; the highest available inversion is ${notes.length-1}.`);
+                const count=request.inversion;notes=[...notes.slice(count),...notes.slice(0,count).map(note=>noteAt(note.pitchClass,note.midi+12))];members=[...members.slice(count),...members.slice(0,count)];
+            }
             if(request.realization==="guide-tones"){const selected=members.map((member,index)=>({member,index})).filter(value=>[3,7].includes(value.member));if(selected.length<2)throw new ValidationError(`Progression "${definition.id}" event "${event.id}" does not provide both third and seventh guide tones.`);notes=selected.map(value=>notes[value.index]);members=selected.map(value=>value.member);}
             if(request.realization==="voice-led"&&previousVoicing){const low=tonic.midi,high=low+request.octaves*12;notes=notes.map((note,index)=>{const candidates=[];for(let midi=note.midi-24;midi<=note.midi+24;midi+=12)if(midi>=low&&midi<=high)try{candidates.push(noteAt(note.pitchClass,midi));}catch{}if(!candidates.length)throw new ValidationError(`Progression "${definition.id}" cannot voice ${note.pitchClass} inside the requested ${request.octaves}-octave register.`);return candidates.sort((a,b)=>Math.abs(a.midi-previousVoicing[Math.min(index,previousVoicing.length-1)].midi)-Math.abs(b.midi-previousVoicing[Math.min(index,previousVoicing.length-1)].midi)||a.midi-b.midi)[0];}).sort((a,b)=>a.midi-b.midi);}
             previousVoicing=notes;
