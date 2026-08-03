@@ -214,6 +214,32 @@ test("PDF SVG traversal supports direct overrides, combined paint, none, and rej
     assert.throws(() => trustedSvgPdfOperations("<svg><script/></svg>"), /trusted SVG/);
 });
 
+test("PDF rendered-tree traversal rejects unsupported semantic elements before visiting descendants", () => {
+    const unsupported = [
+        `<defs><path d="M0 0h4v4z"/></defs>`, `<symbol><path d="M0 0h4v4z"/></symbol>`,
+        `<svg><path d="M0 0h4v4z"/></svg>`, `<use href="#glyph"/>`, `<clipPath><path d="M0 0h4v4z"/></clipPath>`,
+        `<mask><path d="M0 0h4v4z"/></mask>`, `<pattern><path d="M0 0h4v4z"/></pattern>`, `<marker><path d="M0 0h4v4z"/></marker>`,
+        `<filter/>`, `<foreignObject/>`, `<style>.x{fill:black}</style>`, `<switch><path d="M0 0h4v4z"/></switch>`, `<unknown><path d="M0 0h4v4z"/></unknown>`
+    ];
+    for (const body of unsupported) assert.throws(() => trustedSvgPdfOperations(svg(body), { context: "page 4, block semantic-tree" }), /trusted SVG|does not support|nested <svg>/i);
+    assert.throws(() => trustedSvgPdfOperations(svg(`<g clip-path="url(#clip)"><path d="M0 0h4v4z"/></g>`)), /trusted SVG|semantic attribute/i);
+});
+
+test("PDF rendered-tree traversal preserves metadata and inherited hidden state without sibling leakage", () => {
+    const result = trustedSvgPdfOperations(svg(`
+      <title>Accessible score title</title><desc>Not visible notation</desc><metadata>{&quot;source&quot;:&quot;immutable&quot;}</metadata>
+      <g display="none"><path d="M0 0h4v4z" fill="black"/><g display="inline"><path d="M5 0h4v4z" fill="black"/></g></g>
+      <g visibility="hidden"><path d="M10 0h4v4z" fill="black"/><g visibility="visible"><path d="M15 0h4v4z" fill="black"/></g></g>
+      <g opacity="0"><path d="M20 0h4v4z" fill="black"/></g>
+      <g transform="translate(2 3)" fill="black"><path d="M25 0h4v4z"/></g>
+    `));
+    assert.equal(result.operations.length, 1);
+    assert.match(result.operations[0], /1 0 0 -1 2 789 cm/);
+    assert.doesNotMatch(result.operations[0], /Accessible|Not visible|immutable/);
+    assert.throws(() => trustedSvgPdfOperations(svg(`<g display="block"><path d="M0 0h1v1z"/></g>`)), /unsupported display/i);
+    assert.throws(() => trustedSvgPdfOperations(svg(`<g visibility="inherit"><path d="M0 0h1v1z"/></g>`)), /unsupported visibility/i);
+});
+
 test("PDF affine transforms compose in SVG order and reject unsupported syntax", () => {
     assert.deepEqual(parseSvgTransform("translate(10 20) scale(2,3)"), [2, 0, 0, 3, 10, 20]);
     assert.deepEqual(parseSvgTransform("matrix(1 2 3 4 5 6)"), [1, 2, 3, 4, 5, 6]);

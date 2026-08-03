@@ -39,8 +39,15 @@ const DEFAULT_PRESENTATION = Object.freeze({
     fill: "black", stroke: "none", color: "black", fillOpacity: 1,
     strokeOpacity: 1, opacity: 1, fillRule: "nonzero", strokeWidth: 1,
     strokeLinecap: "butt", strokeLinejoin: "miter",
-    matrix: IDENTITY_MATRIX
+    matrix: IDENTITY_MATRIX, hidden: false
 });
+const RENDERED_CONTAINERS = Object.freeze(["svg", "g"]);
+const RENDERED_PRIMITIVES = Object.freeze(["path", "line", "circle", "ellipse", "text"]);
+const METADATA_ELEMENTS = Object.freeze(["title", "desc", "metadata"]);
+const UNSUPPORTED_SVG_ELEMENTS = Object.freeze([
+    "defs", "symbol", "use", "marker", "pattern", "mask", "clippath", "filter", "style", "switch", "foreignobject",
+    "animate", "animatemotion", "animatetransform", "set", "image", "rect", "polyline", "polygon"
+]);
 
 function opacity(value, name, context) {
     return finiteNumber(value, `${context} attribute "${name}"`, { min: 0, max: 1 });
@@ -108,23 +115,31 @@ export function parseSvgTransform(value = "", context = "Published notation tran
     return matrix;
 }
 function presentation(parent, tag, context) {
+    for (const name of ["href", "xlink:href", "clip-path", "mask", "filter", "marker", "marker-start", "marker-mid", "marker-end"]) {
+        if (attribute(tag, name) !== undefined) throw new ValidationError(`${context} uses unsupported SVG semantic attribute "${name}".`);
+    }
+    const display = attribute(tag, "display") ?? "inline", visibility = attribute(tag, "visibility") ?? "visible";
+    if (!["inline", "none"].includes(display)) throw new ValidationError(`${context} uses unsupported display value "${display}".`);
+    if (!["visible", "hidden", "collapse"].includes(visibility)) throw new ValidationError(`${context} uses unsupported visibility value "${visibility}".`);
     const color = attribute(tag, "color") ?? parent.color;
     const fillRule = attribute(tag, "fill-rule") ?? parent.fillRule;
     if (!["nonzero", "evenodd"].includes(fillRule)) throw new ValidationError(`Published notation uses unsupported fill-rule "${fillRule}".`);
     const localMatrix = parseSvgTransform(attribute(tag, "transform") ?? "", context);
     const localOpacity = attribute(tag, "opacity") === undefined ? 1 : opacity(attribute(tag, "opacity"), "opacity", context);
+    const computedOpacity = finiteNumber(parent.opacity * localOpacity, `${context} computed opacity`, { min: 0, max: 1 });
     return Object.freeze({
         fill: attribute(tag, "fill") ?? parent.fill,
         stroke: attribute(tag, "stroke") ?? parent.stroke,
         color,
         fillOpacity: attribute(tag, "fill-opacity") === undefined ? parent.fillOpacity : opacity(attribute(tag, "fill-opacity"), "fill-opacity", context),
         strokeOpacity: attribute(tag, "stroke-opacity") === undefined ? parent.strokeOpacity : opacity(attribute(tag, "stroke-opacity"), "stroke-opacity", context),
-        opacity: finiteNumber(parent.opacity * localOpacity, `${context} computed opacity`, { min: 0, max: 1 }),
+        opacity: computedOpacity,
         fillRule,
         strokeWidth: optionalFiniteAttribute(tag, "stroke-width", parent.strokeWidth, context, { min: 0, max: PDF_SVG_GEOMETRY_LIMITS.strokeWidth }),
         strokeLinecap: attribute(tag, "stroke-linecap") ?? parent.strokeLinecap,
         strokeLinejoin: attribute(tag, "stroke-linejoin") ?? parent.strokeLinejoin,
-        matrix: multiplyMatrix(parent.matrix, localMatrix, context)
+        matrix: multiplyMatrix(parent.matrix, localMatrix, context),
+        hidden: parent.hidden || display === "none" || visibility !== "visible" || computedOpacity === 0
     });
 }
 function lineStyle(state) {
@@ -232,47 +247,104 @@ function paintedGeometry(geometry, state, matrix, graphicsStates) {
     return output.join(" ");
 }
 
+function svgTagEnd(source, start, context) {
+    let quote = null;
+    for (let index = start + 1; index < source.length; index += 1) {
+        const character = source[index];
+        if (quote) { if (character === quote) quote = null; continue; }
+        if (character === "\"" || character === "'") { quote = character; continue; }
+        if (character === ">") return index;
+    }
+    throw new ValidationError(`${context} contains an unterminated SVG element beginning at character ${start + 1}.`);
+}
+function freezeSvgNode(node) {
+    return Object.freeze({ ...node, children: Object.freeze(node.children.map(freezeSvgNode)) });
+}
+function parseTrustedSvgTree(source, context) {
+    const roots = [], stack = [];
+    let cursor = 0;
+    while (cursor < source.length) {
+        const opening = source.indexOf("<", cursor), text = source.slice(cursor, opening < 0 ? source.length : opening);
+        if (text) {
+            if (!stack.length && text.trim()) throw new ValidationError(`${context} contains text outside its root SVG element.`);
+            if (stack.length) stack.at(-1).text += text;
+        }
+        if (opening < 0) break;
+        if (source.startsWith("<!--", opening)) throw new ValidationError(`${context} contains unsupported SVG comment markup.`);
+        const end = svgTagEnd(source, opening, context), tag = source.slice(opening, end + 1);
+        if (/^<\//.test(tag)) {
+            const closing = tag.match(/^<\/\s*([A-Za-z][\w:.-]*)\s*>$/)?.[1]?.toLowerCase();
+            if (!closing || !stack.length || stack.at(-1).name !== closing) throw new ValidationError(`${context} contains an unbalanced closing SVG element "${tag}".`);
+            stack.pop(); cursor = end + 1; continue;
+        }
+        const match = tag.match(/^<\s*([A-Za-z][\w:.-]*)\b[\s\S]*?>$/), name = match?.[1]?.toLowerCase();
+        if (!name) throw new ValidationError(`${context} contains malformed SVG element "${tag.slice(0, 40)}".`);
+        const parent = stack.at(-1), siblingIndex = (parent?.childCounts[name] ?? roots.filter(value => value.name === name).length) + 1;
+        if (parent) parent.childCounts[name] = siblingIndex;
+        const path = parent ? `${parent.path}/${name}[${siblingIndex}]` : `${name}[${siblingIndex}]`;
+        const node = { name, tag, path, text: "", children: [], childCounts: Object.create(null) };
+        if (parent) parent.children.push(node); else roots.push(node);
+        const selfClosing = /\/\s*>$/.test(tag);
+        if (!selfClosing) stack.push(node);
+        cursor = end + 1;
+    }
+    if (stack.length) throw new ValidationError(`${context} contains unclosed SVG element <${stack.at(-1).name}> at ${stack.at(-1).path}.`);
+    if (roots.length !== 1 || roots[0].name !== "svg") throw new ValidationError(`${context} must contain exactly one authoritative root <svg> element.`);
+    return freezeSvgNode(roots[0]);
+}
+function validateSvgElement(node, context, { root = false } = {}) {
+    const elementContext = `${context}, element ${node.path}`;
+    if (node.name === "svg") {
+        if (!root) throw new ValidationError(`${elementContext} uses unsupported nested <svg> viewport semantics.`);
+    } else if (!RENDERED_CONTAINERS.includes(node.name) && !RENDERED_PRIMITIVES.includes(node.name) && !METADATA_ELEMENTS.includes(node.name)) {
+        const reason = UNSUPPORTED_SVG_ELEMENTS.includes(node.name) ? "unsupported SVG semantic element" : "unrecognized SVG element";
+        throw new ValidationError(`${elementContext} does not support ${reason} <${node.name}>; PDF conversion will not flatten or paint its descendants.`);
+    }
+    if ((RENDERED_PRIMITIVES.includes(node.name) || METADATA_ELEMENTS.includes(node.name)) && node.children.length) throw new ValidationError(`${elementContext} contains unsupported nested markup.`);
+    if ((node.name === "svg" || node.name === "g") && node.text.trim()) throw new ValidationError(`${elementContext} contains unsupported visible text outside a <text> element.`);
+    if (METADATA_ELEMENTS.includes(node.name)) {
+        for (const name of ["transform", "display", "visibility", "opacity", "fill", "stroke", "style"]) if (attribute(node.tag, name) !== undefined) throw new ValidationError(`${elementContext} metadata cannot alter presentation with "${name}".`);
+        return;
+    }
+    for (const child of node.children) validateSvgElement(child, context);
+}
+
 export function trustedSvgPdfOperations(svg, { offsetX = 0, offsetY = 0, scale = 1, pageHeight = 792, context = "notation SVG" } = {}) {
     if (!validateTrustedSvgContent(svg)) throw new ValidationError("PDF publishing requires trusted SVG notation.");
     offsetX = finiteNumber(offsetX, `${context} page offset x`); offsetY = finiteNumber(offsetY, `${context} page offset y`);
     scale = finiteNumber(scale, `${context} page scale`, { min: 0, max: PDF_SVG_GEOMETRY_LIMITS.matrixComponent });
     pageHeight = finiteNumber(pageHeight, `${context} page height`, { min: 0, max: PDF_SVG_GEOMETRY_LIMITS.coordinate });
     const pageMatrix = Object.freeze([scale, 0, 0, -scale, offsetX, safeCoordinate(pageHeight - offsetY, `${context} page translation y`)]);
-    const stack = [DEFAULT_PRESENTATION], drawings = [];
-    const unsupported = svg.match(/<(?:rect|polygon|polyline|image|use|foreignObject|clipPath|mask)\b/i);
-    if (unsupported) throw new ValidationError(`${context} does not support visible SVG construct "${unsupported[0].slice(1)}".`);
-    let elementIndex = 0;
-    for (const match of svg.matchAll(/<\/?g\b[^>]*>|<text\b[^>]*>[\s\S]*?<\/text>|<(?:path|line|circle|ellipse)\b[^>]*>/gi)) {
-        const tag = match[0], elementName = tag.match(/^<\/?([A-Za-z]+)/)?.[1]?.toLowerCase() ?? "element";
-        if (/^<\/g/i.test(tag)) { if (stack.length === 1) throw new ValidationError("Published notation contains an unbalanced SVG group."); stack.pop(); continue; }
-        elementIndex += 1;
-        const elementContext = `${context}, <${elementName}> element ${elementIndex}`, parent = stack.at(-1), state = presentation(parent, tag, elementContext);
-        if (/^<g/i.test(tag)) { stack.push(state); continue; }
-        const matrix = multiplyMatrix(pageMatrix, state.matrix, elementContext);
-        if (/^<text/i.test(tag)) {
-            const markup = tag.replace(/^<text\b[^>]*>|<\/text>$/gi, "");
-            if (/<[^>]+>/.test(markup)) throw new ValidationError("PDF publishing does not support nested visible SVG text markup.");
-            const text = markup.replace(/&#(\d+);/g, (_, value) => String.fromCodePoint(Number(value)))
+    const root = parseTrustedSvgTree(svg, context), drawings = [];
+    validateSvgElement(root, context, { root: true });
+    const visit = (node, parentState) => {
+        const elementContext = `${context}, element ${node.path}`;
+        if (METADATA_ELEMENTS.includes(node.name)) return;
+        const state = presentation(parentState, node.tag, elementContext);
+        if (RENDERED_CONTAINERS.includes(node.name)) { for (const child of node.children) visit(child, state); return; }
+        const tag = node.tag, matrix = multiplyMatrix(pageMatrix, state.matrix, elementContext);
+        if (node.name === "text") {
+            const text = node.text.replace(/&#(\d+);/g, (_, value) => String.fromCodePoint(Number(value)))
                 .replace(/&#x([0-9a-f]+);/gi, (_, value) => String.fromCodePoint(Number.parseInt(value, 16)))
                 .replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&quot;", "\"").replaceAll("&apos;", "'").replaceAll("&amp;", "&");
             const size = optionalFiniteAttribute(tag, "font-size", 12, elementContext, { min: 0, max: PDF_SVG_GEOMETRY_LIMITS.strokeWidth });
             const x = requiredFiniteAttribute(tag, "x", elementContext), y = requiredFiniteAttribute(tag, "y", elementContext);
             validateTransformedPoints(matrix, [[x, y]], elementContext);
-            drawings.push(Object.freeze({ kind: "text", text, size, x, y, state, matrix, context: elementContext }));
-            continue;
+            if (!state.hidden) drawings.push(Object.freeze({ kind: "text", text, size, x, y, state, matrix, context: elementContext }));
+            return;
         }
         let geometry;
-        if (/^<path/i.test(tag)) geometry = pathGeometry(tag, elementContext);
-        else if (/^<line/i.test(tag)) {
+        if (node.name === "path") geometry = pathGeometry(tag, elementContext);
+        else if (node.name === "line") {
             const x1 = requiredFiniteAttribute(tag, "x1", elementContext), y1 = requiredFiniteAttribute(tag, "y1", elementContext), x2 = requiredFiniteAttribute(tag, "x2", elementContext), y2 = requiredFiniteAttribute(tag, "y2", elementContext);
             geometry = Object.freeze({ geometry: `${number(x1)} ${number(y1)} m ${number(x2)} ${number(y2)} l`, points: Object.freeze([Object.freeze([x1, y1]), Object.freeze([x2, y2])]) });
-        } else geometry = ellipseGeometry(tag, /^<circle/i.test(tag), elementContext);
+        } else geometry = ellipseGeometry(tag, node.name === "circle", elementContext);
         validateTransformedPoints(matrix, geometry.points, elementContext);
-        const paintState = /^<line/i.test(tag) ? Object.freeze({ ...state, fill: "none" }) : state;
+        const paintState = node.name === "line" ? Object.freeze({ ...state, fill: "none" }) : state;
         validateTransformedStroke(matrix, paintState, elementContext);
-        drawings.push(Object.freeze({ kind: "geometry", geometry: geometry.geometry, state: paintState, matrix, context: elementContext }));
-    }
-    if (stack.length !== 1) throw new ValidationError("Published notation contains an unbalanced SVG group.");
+        if (!state.hidden) drawings.push(Object.freeze({ kind: "geometry", geometry: geometry.geometry, state: paintState, matrix, context: elementContext }));
+    };
+    visit(root, DEFAULT_PRESENTATION);
     const operations = [], graphicsStates = new Map();
     for (const drawing of Object.freeze(drawings)) {
         if (drawing.kind === "geometry") {
