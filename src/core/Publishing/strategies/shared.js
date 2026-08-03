@@ -1,5 +1,10 @@
 import { validateTrustedSvgContent, xmlAttribute, xmlText } from "../../Rendering/index.js";
-export const points = units => `${(units/100).toFixed(2).replace(/\.?0+$/,"")}`;
+export const formatPublishingPoints = units => {
+    if (!Number.isSafeInteger(units) || units < 0) throw new TypeError("Publishing dimensions must be non-negative safe integers in hundredths of a point.");
+    const whole = Math.floor(units / 100), remainder = units % 100;
+    return remainder === 0 ? `${whole}` : `${whole}.${String(remainder).padStart(2, "0").replace(/0+$/, "")}`;
+};
+export const points = formatPublishingPoints;
 export function namespaceSvg(content,prefix,{x=0,y=0,width=null,height=null}={}){
     if(!validateTrustedSvgContent(content))throw new TypeError("Publishing accepts only trusted SVG.");
     const ids=[...content.matchAll(/\bid=(["'])([^"']+)\1/g)].map(match=>match[2]);

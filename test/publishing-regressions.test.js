@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import {
     ExportModule, ExerciseApplicationModule, ExerciseModule, ExerciseNotationModule,
     ExerciseSetModule, Kernel, LayoutModule, NotationModule, PageProfile, PublishingModule,
-    RenderingModule, TheoryModule, layoutPublicationText, measurePublicationText, parseSvgTransform,
+    RenderingModule, TheoryModule, formatPublishingPoints, layoutPublicationText, measurePublicationText, parseSvgTransform,
     trustedSvgPdfOperations
 } from "../src/core/index.js";
 
-async function fixture() {
+async function fixture({ semanticSummary = false, curriculum = false } = {}) {
     const layout = new LayoutModule();
     const kernel = new Kernel()
         .use(new TheoryModule()).use(new NotationModule()).use(layout)
@@ -20,13 +20,14 @@ async function fixture() {
         title: "Sections",
         sections: [
             { id: "section-a", title: "Section A", items: [{ id: "a", label: "A", application: { exercise: { type: "scale", root: "C" }, rendering: { format: "svg" } } }] },
-            { id: "section-b", title: "Section B", items: [{ id: "b", label: "B", application: { exercise: { type: "scale", root: "D" }, rendering: { format: "svg" } } }] }
+            { id: "section-b", title: "Section B", ...(curriculum ? { label: "Unit Two", metadata: { curriculumPluginId: "curriculum.test", curriculumId: "course", unitId: "unit-2", lessonId: "lesson-2" } } : {}), items: [{ id: "b", label: "B", metadata: { ...(semanticSummary ? { semanticSummary: "Name the written pitches before playing." } : {}), ...(curriculum ? { curriculumPluginId: "curriculum.test", curriculumId: "course", unitId: "unit-2", lessonId: "lesson-2", templateId: "major-scales" } : {}) }, application: { exercise: { type: "scale", root: "D" }, rendering: { format: "svg" } } }] }
         ]
     });
     return { kernel, source, engine: kernel.services.resolve("publishing.engine") };
 }
 const header = page => page.blocks.find(block => block.type === "header")?.text;
 const svg = body => `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">${body}</svg>`;
+const shortPage = (height, id = `short-${height}`) => new PageProfile({ id, name: id, width: 61200, height, orientation: "landscape", minimumContentHeight: 1 });
 
 test("section headers are captured per page before the next section changes planner state", async () => {
     const { kernel, source, engine } = await fixture();
@@ -48,6 +49,53 @@ test("a mid-page section transition retains the section active at page start", a
     const transitionPage = result.plan.pages.find(page => page.blocks.some(block => block.source.sectionId === "section-b" && block.type === "section-heading"));
     assert.equal(header(transitionPage), "Sections");
     assert.ok(transitionPage.blocks.some(block => block.type === "section-heading" && block.text === "Section B"));
+    await kernel.dispose();
+});
+
+test("minimum heading chains paginate atomically through the first notation system", async () => {
+    const { kernel, source, engine } = await fixture();
+    const exact = engine.publish({ source, format: "html", headerPolicy: "section-title", pageProfile: shortPage(50812, "exact-chain") });
+    assert.equal(exact.plan.pageCount, 1);
+    const exactSection = exact.plan.pages[0].blocks.filter(block => block.source.sectionId === "section-b").map(block => block.type);
+    assert.deepEqual(exactSection, ["section-heading", "item-heading", "notation"]);
+    const oneUnitOver = engine.publish({ source, format: "html", headerPolicy: "section-title", pageProfile: shortPage(50811, "one-unit-over") });
+    const sectionPages = oneUnitOver.plan.pages.filter(page => page.blocks.some(block => block.source.sectionId === "section-b"));
+    assert.equal(sectionPages.length, 1);
+    assert.deepEqual(sectionPages[0].blocks.filter(block => block.source.sectionId === "section-b" && ["section-heading", "item-heading", "notation"].includes(block.type)).map(block => block.type), ["section-heading", "item-heading", "notation"]);
+    assert.notEqual(sectionPages[0].number, 1);
+    assert.notEqual(header(oneUnitOver.plan.pages[0]), "Section B");
+    assert.equal(header(sectionPages[0]), "Section B");
+    assert.equal(Object.isFrozen(oneUnitOver.plan.metadata.keepGroups), true);
+    assert.ok(oneUnitOver.plan.metadata.keepGroups.every(Object.isFrozen));
+    const repeated = engine.publish({ source, format: "html", headerPolicy: "section-title", pageProfile: shortPage(50811, "one-unit-over") });
+    assert.deepEqual(repeated.plan.pages.map(page => page.blocks.map(block => block.id)), oneUnitOver.plan.pages.map(page => page.blocks.map(block => block.id)));
+    assert.deepEqual(repeated.plan.metadata.keepGroups, oneUnitOver.plan.metadata.keepGroups);
+    await kernel.dispose();
+});
+
+test("section headings never remain where only the heading fits", async () => {
+    const { kernel, source, engine } = await fixture();
+    const result = engine.publish({ source, format: "html", headerPolicy: "section-title", pageProfile: shortPage(37006, "heading-only-room") });
+    const sectionPages = result.plan.pages.filter(page => page.blocks.some(block => block.source.sectionId === "section-b"));
+    assert.equal(sectionPages.length, 1);
+    assert.deepEqual(sectionPages[0].blocks.filter(block => block.source.sectionId === "section-b" && ["section-heading", "item-heading", "notation"].includes(block.type)).map(block => block.type), ["section-heading", "item-heading", "notation"]);
+    await kernel.dispose();
+});
+
+test("semantic and curriculum heading chains participate in the same transitive keep group", async () => {
+    const { kernel, source, engine } = await fixture({ semanticSummary: true, curriculum: true });
+    const result = engine.publish({ source, format: "html", headerPolicy: "section-title", pageProfile: shortPage(56000, "curriculum-chain") });
+    const group = result.plan.metadata.keepGroups.find(value => value.blockTypes.includes("unit-heading"));
+    assert.deepEqual(group.blockTypes, ["unit-heading", "section-heading", "item-heading", "semantic-summary", "notation"]);
+    const page = result.plan.pages.find(value => value.number === group.pageNumber);
+    for (const type of group.blockTypes) assert.ok(page.blocks.some(block => block.type === type && block.source.sectionId === "section-b"));
+    assert.equal(header(page), "Section B");
+    await kernel.dispose();
+});
+
+test("oversized introductory keep groups reject with complete source context", async () => {
+    const { kernel, source, engine } = await fixture();
+    assert.throws(() => engine.publish({ source, format: "html", pageProfile: shortPage(28400, "oversized-chain") }), /keep group.*section "section-a".*item "a".*row .*systems/);
     await kernel.dispose();
 });
 
@@ -96,6 +144,36 @@ test("authoritative print HTML emits exact built-in and custom page geometry", a
         assert.equal((html.match(/class="publication-page"/g) ?? []).length, result.plan.pageCount);
         assert.match(html, /publication-page:last-child\{break-after:auto\}/);
         assert.doesNotMatch(html, /width:100%[^}]*publication-page/);
+    }
+    await kernel.dispose();
+});
+
+test("standalone SVG pages use exact physical points while preserving canonical viewBox units", async () => {
+    assert.equal(formatPublishingPoints(61200), "612");
+    assert.equal(formatPublishingPoints(59528), "595.28");
+    assert.equal(formatPublishingPoints(84189), "841.89");
+    assert.throws(() => formatPublishingPoints(1.5), /safe integers/);
+    assert.throws(() => formatPublishingPoints(-1), /safe integers/);
+    const { kernel, source, engine } = await fixture();
+    const profiles = [
+        ["letter-portrait", "612", "792", 61200, 79200],
+        ["letter-landscape", "792", "612", 79200, 61200],
+        ["a4-portrait", "595.28", "841.89", 59528, 84189],
+        ["a4-landscape", "841.89", "595.28", 84189, 59528],
+        [new PageProfile({ id: "fractional", width: 60001, height: 70003 }), "600.01", "700.03", 60001, 70003]
+    ];
+    for (const [profile, width, height, unitsWidth, unitsHeight] of profiles) {
+        const svgResult = engine.publish({ source, format: "svg", pageProfile: profile });
+        const htmlResult = engine.publish({ source, format: "html", pageProfile: profile });
+        const pdfResult = engine.publish({ source, format: "pdf", pageProfile: profile });
+        const content = svgResult.document.assets[0].content;
+        assert.match(content, new RegExp(`width="${width.replace(".", "\\.")}pt" height="${height.replace(".", "\\.")}pt" viewBox="0 0 ${unitsWidth} ${unitsHeight}"`));
+        assert.doesNotMatch(content, new RegExp(`<svg[^>]+width="${unitsWidth}"`));
+        assert.match(htmlResult.document.assets[0].content, new RegExp(`@page\\{size:${width.replace(".", "\\.")}pt ${height.replace(".", "\\.")}pt`));
+        const pdfText = new TextDecoder("latin1").decode(pdfResult.document.assets[0].content);
+        assert.match(pdfText, new RegExp(`/MediaBox \\[0 0 ${width.replace(".", "\\.")} ${height.replace(".", "\\.")}\\]`));
+        assert.equal(svgResult.document.assets[0].metadata.physicalWidth, `${width}pt`);
+        assert.equal(svgResult.document.assets[0].metadata.physicalHeight, `${height}pt`);
     }
     await kernel.dispose();
 });

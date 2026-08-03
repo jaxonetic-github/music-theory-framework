@@ -5,7 +5,7 @@ import { namespaceSvg, pageTitle, points, xmlAttribute, xmlText } from "./shared
 function block(block,page){
     const style=`left:${points(block.x)}pt;top:${points(block.y)}pt;width:${points(block.width)}pt;height:${points(block.height)}pt`;
     if(block.type==="notation")return `<figure class="publication-block notation" style="${style}" data-block-id="${xmlAttribute(block.id)}">${namespaceSvg(block.svg,block.id,{width:"100%",height:"100%"})}</figure>`;
-    const tag=block.type==="title"?"h1":block.type==="section-heading"?"h2":block.type==="item-heading"?"h3":block.type==="subtitle"?"p":"div";
+    const tag=block.type==="title"?"h1":["curriculum-heading","unit-heading","section-heading"].includes(block.type)?"h2":["lesson-heading","item-heading"].includes(block.type)?"h3":block.type==="subtitle"?"p":"div";
     const layout=block.metadata.textLayout;
     if(!layout)throw new TypeError(`Publication text block "${block.id}" is missing its authoritative text layout.`);
     const lines=layout.lines.map(line=>`<span class="publication-line" data-line-index="${line.index}" data-line-width="${line.width}">${xmlText(line.text || " ")}</span>`).join("");

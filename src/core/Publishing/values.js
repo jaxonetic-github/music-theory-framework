@@ -79,7 +79,7 @@ export class PublishingRequest {
 
 export class PublicationBlock {
     constructor({ id, type, x, y, width, height, text: value = "", svg = "", source = {}, metadata: extra = {} } = {}) {
-        if (!["title", "subtitle", "instructions", "section-heading", "item-heading", "notation", "spacer", "header", "footer", "page-number"].includes(type)) throw new ValidationError(`Unsupported publication block type "${String(type)}".`);
+        if (!["title", "subtitle", "instructions", "curriculum-heading", "unit-heading", "lesson-heading", "section-heading", "item-heading", "semantic-summary", "notation", "spacer", "header", "footer", "page-number"].includes(type)) throw new ValidationError(`Unsupported publication block type "${String(type)}".`);
         Object.assign(this, { id: text(id, "Publication block id", 160), type, x: integer(x, "Block x"), y: integer(y, "Block y"), width: integer(width, "Block width", { min: 1 }), height: integer(height, "Block height", { min: 1 }), text: text(value, "Publication block text"), svg: String(svg ?? ""), source: metadata(source), metadata: new PublishingMetadata(extra) });
         Object.freeze(this);
     }

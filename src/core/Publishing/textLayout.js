@@ -4,8 +4,12 @@ export const PUBLICATION_TYPOGRAPHY = Object.freeze({
     title: Object.freeze({ fontSize: 2200, lineHeight: 2800, weight: 700 }),
     subtitle: Object.freeze({ fontSize: 1200, lineHeight: 1600, weight: 400 }),
     instructions: Object.freeze({ fontSize: 1000, lineHeight: 1500, weight: 400 }),
+    "curriculum-heading": Object.freeze({ fontSize: 1800, lineHeight: 2300, weight: 700 }),
+    "unit-heading": Object.freeze({ fontSize: 1700, lineHeight: 2200, weight: 700 }),
+    "lesson-heading": Object.freeze({ fontSize: 1600, lineHeight: 2100, weight: 700 }),
     "section-heading": Object.freeze({ fontSize: 1600, lineHeight: 2100, weight: 700 }),
     "item-heading": Object.freeze({ fontSize: 1300, lineHeight: 1800, weight: 600 }),
+    "semantic-summary": Object.freeze({ fontSize: 1000, lineHeight: 1500, weight: 400 }),
     header: Object.freeze({ fontSize: 850, lineHeight: 1000, weight: 400 }),
     footer: Object.freeze({ fontSize: 800, lineHeight: 900, weight: 400 }),
     "page-number": Object.freeze({ fontSize: 800, lineHeight: 900, weight: 400 })
