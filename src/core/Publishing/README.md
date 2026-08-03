@@ -38,4 +38,6 @@ No PDF dependency was added, so there is no third-party license, vulnerability, 
 
 Dates and creation labels are caller-supplied only. Safe filename bases contain no paths or controls and derive from the completed authoritative title when omitted. `PublishingStrategyRegistry` is plugin-scoped with deterministic selection. `PublishingModule` resolves active Layout, Rendering, Export, and ExerciseSet services on each lifecycle and transactionally registers its engine, registry, plugin, and built-ins.
 
+Publication instructions inherit the authoritative worksheet instructions only when the request property is omitted or explicitly `undefined`. A nonempty string replaces them, an explicit empty string deliberately clears them, and `null` rejects. The normalized value participates in immutable request identity and metadata. A cleared value creates no instructions block, height, spacer, preview content, or HTML/SVG/PDF output. Other optional publication text fields retain their existing explicit defaults; required title normalization and validation are unchanged.
+
 Answer keys, grading, persistence, accounts, networking, audio, server APIs, and general document authoring remain deferred.
