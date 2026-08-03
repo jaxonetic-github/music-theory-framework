@@ -117,6 +117,19 @@ test("progression inversions validate against each resolved event chord without 
     );
 });
 
+test("voice-led progression constrains its first chord and preserves pitch-to-member alignment",()=>{
+    const definition=new ProgressionDefinition({id:"high-first",name:"High first chord",mode:"major",events:[
+        {degree:7,romanNumeral:"VII",function:"leading-tone",quality:"major"},
+        {degree:1,romanNumeral:"I",function:"tonic",quality:"major"}
+    ]});
+    const strategy=new AdvancedExerciseStrategy({scaleGenerator:new ScaleGenerator(),chordGenerator:new ChordGenerator(),progressionCatalog:new ProgressionCatalog([definition])});
+    const row=strategy.generate(new ExerciseRequest({type:"chord-progression",progression:"high-first",realization:"voice-led",root:"C",startingOctave:4,octaves:1})).rows[0];
+    for(const step of row.steps)assert.ok(step.notes.every(note=>note.midi>=60&&note.midi<=72));
+    assert.deepEqual(row.steps[0].writtenPitches,["D#4","F#4","B4"]);
+    assert.deepEqual(row.steps[0].chordMembers,[3,5,1]);
+    assert.deepEqual(row.steps[0].notes.map((note,index)=>[String(note),row.steps[0].chordMembers[index]]),[["D#4",3],["F#4",5],["B4",1]]);
+});
+
 test("progressions preserve exact flat and sharp spellings and canonical all-key order", async () => {
     const { engine } = await fixture();
     const flat = engine.generate({ type: "chord-progression", root: "Db", progression: "ii-v-i-major" }).rows[0];

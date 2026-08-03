@@ -122,7 +122,17 @@ export class AdvancedExerciseStrategy extends ExerciseStrategy {
                 const count=request.inversion;notes=[...notes.slice(count),...notes.slice(0,count).map(note=>noteAt(note.pitchClass,note.midi+12))];members=[...members.slice(count),...members.slice(0,count)];
             }
             if(request.realization==="guide-tones"){const selected=members.map((member,index)=>({member,index})).filter(value=>[3,7].includes(value.member));if(selected.length<2)throw new ValidationError(`Progression "${definition.id}" event "${event.id}" does not provide both third and seventh guide tones.`);notes=selected.map(value=>notes[value.index]);members=selected.map(value=>value.member);}
-            if(request.realization==="voice-led"&&previousVoicing){const low=tonic.midi,high=low+request.octaves*12;notes=notes.map((note,index)=>{const candidates=[];for(let midi=note.midi-24;midi<=note.midi+24;midi+=12)if(midi>=low&&midi<=high)try{candidates.push(noteAt(note.pitchClass,midi));}catch{}if(!candidates.length)throw new ValidationError(`Progression "${definition.id}" cannot voice ${note.pitchClass} inside the requested ${request.octaves}-octave register.`);return candidates.sort((a,b)=>Math.abs(a.midi-previousVoicing[Math.min(index,previousVoicing.length-1)].midi)-Math.abs(b.midi-previousVoicing[Math.min(index,previousVoicing.length-1)].midi)||a.midi-b.midi)[0];}).sort((a,b)=>a.midi-b.midi);}
+            if(request.realization==="voice-led"){
+                const low=tonic.midi,high=low+request.octaves*12;
+                const voiced=notes.map((note,index)=>{
+                    const candidates=[];for(let midi=low;midi<=high;midi+=1)try{candidates.push(noteAt(note.pitchClass,midi));}catch{}
+                    if(!candidates.length)throw new ValidationError(`Progression "${definition.id}" cannot voice ${note.pitchClass} inside the requested ${request.octaves}-octave register.`);
+                    const target=previousVoicing?.[Math.min(index,previousVoicing.length-1)]?.midi??note.midi;
+                    const selected=candidates.sort((a,b)=>Math.abs(a.midi-target)-Math.abs(b.midi-target)||a.midi-b.midi)[0];
+                    return{note:selected,member:members[index]};
+                }).sort((a,b)=>a.note.midi-b.note.midi||a.member-b.member);
+                notes=voiced.map(value=>value.note);members=voiced.map(value=>value.member);
+            }
             if(request.realization==="broken"){const order=[];for(let low=0,high=notes.length-1;low<=high;low+=1,high-=1){order.push(low);if(high!==low)order.push(high);}notes=order.map(index=>notes[index]);members=order.map(index=>members[index]);}
             previousVoicing=notes;
             const simultaneous=request.realization==="blocked"||request.realization==="guide-tones"||request.realization==="voice-led";
