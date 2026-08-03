@@ -49,26 +49,32 @@ export class ExerciseRowNotationStrategy extends NotationStrategy {
         const request = options.request;
         if (!request?.model || !request.duration || !request.timeSignature) throw new ValidationError("Exercise row notation requires a normalized ExerciseNotationRequest.");
         const sectionId = String(options.sectionId ?? ""); if (!sectionId) throw new ValidationError("Exercise row notation requires section identity.");
-        const duration = { n: BigInt(request.duration.numerator), d: BigInt(request.duration.denominator) };
+        const fallbackDuration = { n: BigInt(request.duration.numerator), d: BigInt(request.duration.denominator) };
         const capacity = { n: BigInt(request.timeSignature.beats), d: BigInt(request.timeSignature.beatUnit) };
-        if (compare(duration, capacity) > 0) throw new ValidationError("An exercise notation event cannot be longer than one measure.");
+        if (compare(fallbackDuration, capacity) > 0) throw new ValidationError("An exercise notation event cannot be longer than one measure.");
+        const progressionRhythm = String(row.type) === "chord-progression" ? row.metadata.harmonicRhythm : null;
+        const harmonicSlot = progressionRhythm === "one-per-measure" ? capacity
+            : progressionRhythm === "two-per-measure" ? { n: capacity.n, d: capacity.d * 2n }
+            : progressionRhythm === null ? null
+            : (() => { throw new ValidationError(`Unsupported harmonic rhythm "${progressionRhythm}" for exercise row "${row.id}".`); })();
         const emitted = [];
         for (const step of row.steps) {
             const eventRoles = eventRolesFor(step);
             if (step.simultaneous) {
                 if (step.notes.length < 2) throw new ValidationError(`Malformed simultaneous step "${step.id}".`);
-                emitted.push({ step, notes: step.notes, member: null, chord: true, emittedIndex: 1, eventRole: null });
+                emitted.push({ step, notes: step.notes, member: null, chord: true, emittedIndex: 1, eventRole: null, duration: harmonicSlot ?? fallbackDuration });
             } else {
                 if (step.notes.length < 1) throw new ValidationError(`Malformed sequential step "${step.id}".`);
-                step.notes.forEach((note, index) => emitted.push({ step, notes: [note], member: step.chordMembers[index] ?? null, chord: false, emittedIndex: index + 1, eventRole: eventRoles?.[index] ?? null }));
+                const eventDuration = harmonicSlot === null ? fallbackDuration : { n: harmonicSlot.n, d: harmonicSlot.d * BigInt(step.notes.length) };
+                step.notes.forEach((note, index) => emitted.push({ step, notes: [note], member: step.chordMembers[index] ?? null, chord: false, emittedIndex: index + 1, eventRole: eventRoles?.[index] ?? null, duration: eventDuration }));
             }
         }
         if (!Number.isSafeInteger(emitted.length) || emitted.length < 1) throw new ValidationError("Exercise row event range is unsafe.");
         const measures = []; let current = []; let used = { n: 0n, d: 1n };
         for (const event of emitted) {
-            const next = add(used, duration);
+            const next = add(used, event.duration);
             if (compare(next, capacity) > 0) { measures.push(current); current = []; used = { n: 0n, d: 1n }; }
-            current.push(event); used = add(used, duration);
+            current.push(event); used = add(used, event.duration);
         }
         measures.push(current);
         if (!Number.isSafeInteger(measures.length)) throw new ValidationError("Exercise notation measure range is unsafe.");
@@ -88,7 +94,9 @@ export class ExerciseRowNotationStrategy extends NotationStrategy {
                 const id = `${prefix}:step:${event.step.id}:event:${event.emittedIndex}`;
                 const metadata = sourceMetadata(request.model.id, sectionId, row, event.step, event.emittedIndex, event.member, event.eventRole);
                 if (event.chord) metadata.attributes.memberOrder = [...event.step.chordMembers];
-                const node = event.chord ? new ChordNode({ id, notes: event.notes, duration: request.duration, offset: sequence, metadata }) : new NoteNode({ id, pitch: event.notes[0], duration: request.duration, offset: sequence, metadata });
+                if(event.duration.n>BigInt(Number.MAX_SAFE_INTEGER)||event.duration.d>BigInt(Number.MAX_SAFE_INTEGER))throw new ValidationError(`Exercise row "${row.id}" produced an unsafe exact harmonic duration.`);
+                const eventDuration={numerator:Number(event.duration.n),denominator:Number(event.duration.d)};
+                const node = event.chord ? new ChordNode({ id, notes: event.notes, duration: eventDuration, offset: sequence, metadata }) : new NoteNode({ id, pitch: event.notes[0], duration: eventDuration, offset: sequence, metadata });
                 nodes.push(node); edges.push(new ScoreEdge({ from: voiceId, to: id, type: "contains" }));
                 if (previous) edges.push(new ScoreEdge({ from: previous, to: id, type: "next" })); previous = id;
             });

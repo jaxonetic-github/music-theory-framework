@@ -6,7 +6,7 @@ export const KEY_SCOPES=Object.freeze(["selected-key","all-keys"]);
 export const KEY_TRAVERSALS=Object.freeze(["canonical","chromatic","cycle-of-fifths"]);
 export const KEY_TRAVERSAL_ROOTS=Object.freeze({canonical:Object.freeze(["C","Db","D","Eb","E","F","F#","G","Ab","A","Bb","B"]),chromatic:Object.freeze(["C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"]),"cycle-of-fifths":Object.freeze(["C","G","D","A","E","B","F#","Db","Ab","Eb","Bb","F"])});
 export const PROGRESSION_REALIZATIONS=Object.freeze(["blocked","broken","arpeggiated","guide-tones","voice-led"]);
-export const HARMONIC_RHYTHMS=Object.freeze(["one-per-measure","two-per-measure","one-per-two-measures"]);
+export const HARMONIC_RHYTHMS=Object.freeze(["one-per-measure","two-per-measure"]);
 export const ANNOTATION_POLICIES=Object.freeze(["chord-symbols","roman-numerals","both","none"]);
 export const STUDY_MEASURES_PER_SYSTEM=Object.freeze([1,2,4,8,16]);
 const choice=(value,allowed,label)=>{const normalized=String(value);if(!allowed.includes(normalized))throw new ValidationError(`${label} must be one of: ${allowed.join(", ")}.`);return normalized;};

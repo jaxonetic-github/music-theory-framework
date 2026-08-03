@@ -1,5 +1,5 @@
 import { ValidationError } from "../Foundation/index.js";
-import { ScoreGraph } from "../Notation/index.js";
+import { Duration, ScoreGraph } from "../Notation/index.js";
 import { ExerciseNotationDocument } from "./ExerciseNotationDocument.js";
 import { ExerciseNotationRequest } from "./ExerciseNotationRequest.js";
 import { ExerciseNotationRow } from "./ExerciseNotationRow.js";
@@ -10,11 +10,11 @@ function identity(request) { return `exercise-notation:${request.model.id}:durat
 function complete(graph, request) {
     const events = graph.nodes.filter(node => ["note", "chord"].includes(String(node.type)));
     const lastMeasure = graph.nodesOfType("measure").at(-1); const voice = graph.edges.find(edge => String(edge.from) === String(lastMeasure.id) && String(edge.type) === "contains");
-    const count = graph.edges.filter(edge => String(edge.from) === String(voice?.to) && String(edge.type) === "contains").length;
-    const usedN = BigInt(count) * BigInt(request.duration.numerator) * BigInt(request.timeSignature.beatUnit);
-    const capacityN = BigInt(request.duration.denominator) * BigInt(request.timeSignature.beats);
-    return { events, finalComplete: usedN === capacityN };
+    const ids=new Set(graph.edges.filter(edge => String(edge.from) === String(voice?.to) && String(edge.type) === "contains").map(edge=>String(edge.to)));
+    const used=events.filter(event=>ids.has(String(event.id))).reduce((sum,event)=>({n:sum.n*BigInt(event.duration.denominator)+BigInt(event.duration.numerator)*sum.d,d:sum.d*BigInt(event.duration.denominator)}),{n:0n,d:1n});
+    return { events, finalComplete: used.n*BigInt(request.timeSignature.beatUnit)===used.d*BigInt(request.timeSignature.beats) };
 }
+function expectedDuration(row,step,request){if(String(row.type)!=="chord-progression")return request.duration;const factor=row.metadata.harmonicRhythm==="one-per-measure"?1:row.metadata.harmonicRhythm==="two-per-measure"?2:null;if(factor===null)throw new ValidationError(`Unsupported harmonic rhythm "${row.metadata.harmonicRhythm}" for exercise row "${row.id}".`);return Duration.from({numerator:request.timeSignature.beats,denominator:request.timeSignature.beatUnit*factor*(step.simultaneous?1:step.notes.length)});}
 function validateGraph(graph, request, section, row) {
     const actual = graph.nodes.filter(node => ["note", "chord"].includes(String(node.type))).sort((a, b) => a.offset - b.offset || String(a.id).localeCompare(String(b.id)));
     const expected = row.steps.flatMap(step => step.simultaneous ? [{ step, notes: step.notes, emittedIndex: 1, chord: true }] : step.notes.map((note, index) => ({ step, notes: [note], emittedIndex: index + 1, chord: false })));
@@ -22,7 +22,7 @@ function validateGraph(graph, request, section, row) {
     actual.forEach((node, index) => {
         const source = node.metadata.attributes, target = expected[index];
         if (source.modelId !== request.model.id || source.sectionId !== section.id || source.rowId !== row.id || source.stepId !== target.step.id || source.sourceId !== target.step.sourceId || source.emittedIndex !== target.emittedIndex) throw new ValidationError(`Exercise notation strategy returned mismatched source identity for row "${row.id}".`);
-        if (String(node.type) !== (target.chord ? "chord" : "note") || String(node.duration) !== String(request.duration)) throw new ValidationError(`Exercise notation strategy returned mismatched event shape for row "${row.id}".`);
+        if (String(node.type) !== (target.chord ? "chord" : "note") || String(node.duration) !== String(expectedDuration(row,target.step,request))) throw new ValidationError(`Exercise notation strategy returned mismatched event shape for row "${row.id}".`);
         const pitches = target.chord ? node.notes.map(String) : [String(node.pitch)]; if (pitches.length !== target.notes.length || pitches.some((pitch, position) => pitch !== String(target.notes[position]))) throw new ValidationError(`Exercise notation strategy returned mismatched pitches for row "${row.id}".`);
     });
 }

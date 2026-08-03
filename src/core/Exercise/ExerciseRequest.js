@@ -7,7 +7,7 @@ import { ApproachPattern, ChordTarget, EnclosurePattern } from "./advanced/index
 
 export const CANONICAL_EXERCISE_ROOTS = Object.freeze(["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]);
 const keys = new Set(["type", "root", "roots", "allKeys", "pattern", "quality", "direction", "octaves", "startingOctave", "pluginId", "strategyId", "approachPattern", "enclosurePattern", "target", "progression", "realization", "inversion", "annotationPolicy", "harmonicRhythm"]);
-const progressionChoices=Object.freeze({realization:["blocked","broken","arpeggiated","guide-tones","voice-led"],annotationPolicy:["chord-symbols","roman-numerals","both","none"],harmonicRhythm:["one-per-measure","two-per-measure","one-per-two-measures"]});
+const progressionChoices=Object.freeze({realization:["blocked","broken","arpeggiated","guide-tones","voice-led"],annotationPolicy:["chord-symbols","roman-numerals","both","none"],harmonicRhythm:["one-per-measure","two-per-measure"]});
 
 function optionalId(value, label) {
     if (value === undefined || value === null) return null;

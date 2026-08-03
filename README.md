@@ -66,4 +66,4 @@ git diff --check
 
 The production build is emitted to `dist/`. See [`src/web/README.md`](src/web/README.md) for the adapter architecture, trusted SVG boundary, and MusicXML download behavior.
 
-The v9.1 repository suite contains **479 passing tests**: 395 plain-Node tests and 84 React DOM tests. `npm ci` installs 154 packages and audits 155; `npm audit` reports **0 vulnerabilities**. The production Vite build transforms **373 modules** and emits 669.20 kB JavaScript (181.66 kB gzip), a 26.33 kB / 5.92 kB gzip increase over v9.0. The Next.js 15.5.22 fixture compiles and statically prerenders successfully; its app route is 124 kB with 226 kB first-load JavaScript.
+The v9.1 repository suite contains **480 passing tests**: 396 plain-Node tests and 84 React DOM tests. `npm ci` installs 154 packages and audits 155; `npm audit` reports **0 vulnerabilities**. The production Vite build transforms **373 modules** and emits 670.42 kB JavaScript (182.04 kB gzip), a 27.55 kB / 6.30 kB gzip increase over v9.0. The Next.js 15.5.22 fixture compiles and statically prerenders successfully; its app route is 124 kB with 226 kB first-load JavaScript.
