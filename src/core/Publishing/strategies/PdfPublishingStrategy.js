@@ -6,6 +6,7 @@ import { PublishingStrategy } from "../PublishingStrategy.js";
 
 const enc = new TextEncoder();
 const number = value => Number(value).toFixed(3).replace(/\.?0+$/, "");
+const matrixNumber = value => Number(value).toFixed(6).replace(/\.?0+$/, "");
 const pdfText = value => String(value)
     .replaceAll("𝄫", "bb").replaceAll("𝄪", "##")
     .replaceAll("♭", "b").replaceAll("♯", "#").replaceAll("♮", " natural ")
@@ -14,11 +15,12 @@ const pdfText = value => String(value)
     .replace(/[^\x20-\x7E]/g, "?");
 const attribute = (tag, name) => tag.match(new RegExp(`\\b${name}="([^"]*)"`, "i"))?.[1];
 const numericAttribute = (tag, name, fallback = 0) => Number(attribute(tag, name) ?? fallback);
+const IDENTITY_MATRIX = Object.freeze([1, 0, 0, 1, 0, 0]);
 const DEFAULT_PRESENTATION = Object.freeze({
     fill: "black", stroke: "none", color: "black", fillOpacity: 1,
     strokeOpacity: 1, opacity: 1, fillRule: "nonzero", strokeWidth: 1,
     strokeLinecap: "butt", strokeLinejoin: "miter",
-    translateX: 0, translateY: 0
+    matrix: IDENTITY_MATRIX
 });
 
 function opacity(value, name) {
@@ -34,21 +36,58 @@ function paint(value, color, name) {
     if (normalized === "white" || normalized === "#fff" || normalized === "#ffffff") return [1, 1, 1];
     throw new ValidationError(`Published notation uses unsupported ${name} paint "${resolved}".`);
 }
+function multiplyMatrix(left, right) {
+    const [a, b, c, d, e, f] = left, [g, h, i, j, k, l] = right;
+    return Object.freeze([
+        a * g + c * h, b * g + d * h,
+        a * i + c * j, b * i + d * j,
+        a * k + c * l + e, b * k + d * l + f
+    ]);
+}
+function transformNumbers(value, name) {
+    const normalized = String(value).trim();
+    if (!normalized) throw new ValidationError(`Published notation has an empty ${name} transform.`);
+    const tokens = normalized.split(/[\s,]+/).map(Number);
+    if (tokens.some(numberValue => !Number.isFinite(numberValue))) throw new ValidationError(`Published notation has a malformed ${name} transform.`);
+    return tokens;
+}
+function transformMatrix(name, value) {
+    const values = transformNumbers(value, name);
+    if (name === "translate" && (values.length === 1 || values.length === 2)) return Object.freeze([1, 0, 0, 1, values[0], values[1] ?? 0]);
+    if (name === "scale" && (values.length === 1 || values.length === 2)) return Object.freeze([values[0], 0, 0, values[1] ?? values[0], 0, 0]);
+    if (name === "matrix" && values.length === 6) return Object.freeze(values);
+    if (name === "rotate" && (values.length === 1 || values.length === 3)) {
+        const radians = values[0] * Math.PI / 180, cosine = Math.cos(radians), sine = Math.sin(radians);
+        const rotation = Object.freeze([cosine, sine, -sine, cosine, 0, 0]);
+        if (values.length === 1) return rotation;
+        const [, cx, cy] = values;
+        return multiplyMatrix(
+            Object.freeze([1, 0, 0, 1, cx, cy]),
+            multiplyMatrix(rotation, Object.freeze([1, 0, 0, 1, -cx, -cy]))
+        );
+    }
+    throw new ValidationError(`Published notation uses malformed or unsupported ${name}(${value}) transform.`);
+}
+export function parseSvgTransform(value = "") {
+    const source = String(value).trim();
+    if (!source) return IDENTITY_MATRIX;
+    let matrix = IDENTITY_MATRIX, cursor = 0;
+    const expression = /([A-Za-z]+)\s*\(([^)]*)\)/g;
+    for (let match = expression.exec(source); match; match = expression.exec(source)) {
+        if (source.slice(cursor, match.index).trim().replaceAll(",", "")) throw new ValidationError(`Published notation has malformed transform list "${source}".`);
+        const name = match[1].toLowerCase();
+        if (!["translate", "scale", "rotate", "matrix"].includes(name)) throw new ValidationError(`Published notation uses unsupported transform "${match[1]}".`);
+        matrix = multiplyMatrix(matrix, transformMatrix(name, match[2]));
+        cursor = expression.lastIndex;
+    }
+    if (cursor === 0 || source.slice(cursor).trim().replaceAll(",", "")) throw new ValidationError(`Published notation has malformed transform list "${source}".`);
+    return matrix;
+}
 function presentation(parent, tag) {
     const color = attribute(tag, "color") ?? parent.color;
     const fillRule = attribute(tag, "fill-rule") ?? parent.fillRule;
     if (!["nonzero", "evenodd"].includes(fillRule)) throw new ValidationError(`Published notation uses unsupported fill-rule "${fillRule}".`);
-    const transform = attribute(tag, "transform");
-    let translateX = parent.translateX, translateY = parent.translateY;
-    if (transform) {
-        const match = transform.match(/^translate\(\s*([-+.\d]+)(?:[\s,]+([-+.\d]+))?\s*\)$/i);
-        if (match) {
-            translateX += Number(match[1]);
-            translateY += Number(match[2] ?? 0);
-        } else if (!/^rotate\(\s*-?18(?:[\s,]+[-+.\d]+){2}\s*\)$/i.test(transform)) {
-            throw new ValidationError(`Published notation uses unsupported transform "${transform}".`);
-        }
-    }
+    const localMatrix = parseSvgTransform(attribute(tag, "transform") ?? "");
     return Object.freeze({
         fill: attribute(tag, "fill") ?? parent.fill,
         stroke: attribute(tag, "stroke") ?? parent.stroke,
@@ -60,7 +99,7 @@ function presentation(parent, tag) {
         strokeWidth: attribute(tag, "stroke-width") === undefined ? parent.strokeWidth : numericAttribute(tag, "stroke-width"),
         strokeLinecap: attribute(tag, "stroke-linecap") ?? parent.strokeLinecap,
         strokeLinejoin: attribute(tag, "stroke-linejoin") ?? parent.strokeLinejoin,
-        translateX, translateY
+        matrix: multiplyMatrix(parent.matrix, localMatrix)
     });
 }
 function lineStyle(state) {
@@ -69,12 +108,12 @@ function lineStyle(state) {
     if (!(state.strokeLinejoin in joins)) throw new ValidationError(`Published notation uses unsupported stroke-linejoin "${state.strokeLinejoin}".`);
     return `${caps[state.strokeLinecap]} J ${joins[state.strokeLinejoin]} j`;
 }
-function pathGeometry(tag, mapX, mapY) {
+function pathGeometry(tag) {
     const data = attribute(tag, "d");
     if (!data) return "";
     const tokens = data.match(/[a-zA-Z]|[-+]?(?:\d*\.)?\d+(?:e[-+]?\d+)?/gi) ?? [];
     let index = 0, command = "", cx = 0, cy = 0, sx = 0, sy = 0;
-    const out = [], numeric = () => Number(tokens[index++]), point = (x, y) => `${number(mapX(x))} ${number(mapY(y))}`;
+    const out = [], numeric = () => Number(tokens[index++]), point = (x, y) => `${number(x)} ${number(y)}`;
     while (index < tokens.length) {
         if (/[a-zA-Z]/.test(tokens[index])) command = tokens[index++];
         if (!command) break;
@@ -97,26 +136,28 @@ function pathGeometry(tag, mapX, mapY) {
     }
     return out.join(" ");
 }
-function ellipseGeometry(tag, mapX, mapY, scale, circle) {
-    const cx = mapX(numericAttribute(tag, "cx")), cy = mapY(numericAttribute(tag, "cy"));
-    const rx = numericAttribute(tag, circle ? "r" : "rx") * scale, ry = numericAttribute(tag, circle ? "r" : "ry") * scale, k = .5522847498;
+function ellipseGeometry(tag, circle) {
+    const cx = numericAttribute(tag, "cx"), cy = numericAttribute(tag, "cy");
+    const rx = numericAttribute(tag, circle ? "r" : "rx"), ry = numericAttribute(tag, circle ? "r" : "ry"), k = .5522847498;
     return `${number(cx + rx)} ${number(cy)} m ${number(cx + rx)} ${number(cy + k * ry)} ${number(cx + k * rx)} ${number(cy + ry)} ${number(cx)} ${number(cy + ry)} c ${number(cx - k * rx)} ${number(cy + ry)} ${number(cx - rx)} ${number(cy + k * ry)} ${number(cx - rx)} ${number(cy)} c ${number(cx - rx)} ${number(cy - k * ry)} ${number(cx - k * rx)} ${number(cy - ry)} ${number(cx)} ${number(cy - ry)} c ${number(cx + k * rx)} ${number(cy - ry)} ${number(cx + rx)} ${number(cy - k * ry)} ${number(cx + rx)} ${number(cy)} c`;
 }
-function paintedGeometry(geometry, state, scale, graphicsStates) {
+function matrixOperator(matrix) { return matrix.map(matrixNumber).join(" "); }
+function paintedGeometry(geometry, state, matrix, graphicsStates) {
     const fill = paint(state.fill, state.color, "fill"), stroke = paint(state.stroke, state.color, "stroke");
     if (!fill && !stroke) return "";
     const fillAlpha = state.opacity * state.fillOpacity, strokeAlpha = state.opacity * state.strokeOpacity;
     const alphaKey = `${number(fillAlpha)}:${number(strokeAlpha)}`;
     if (!graphicsStates.has(alphaKey)) graphicsStates.set(alphaKey, `GS${graphicsStates.size + 1}`);
-    const output = [`/${graphicsStates.get(alphaKey)} gs`];
+    const output = [`q ${matrixOperator(matrix)} cm`, `/${graphicsStates.get(alphaKey)} gs`];
     if (fill) output.push(`${fill.map(number).join(" ")} rg`);
-    if (stroke) output.push(`${stroke.map(number).join(" ")} RG`, `${number(Math.max(.35, state.strokeWidth * scale))} w`, lineStyle(state));
-    output.push(geometry, fill && stroke ? (state.fillRule === "evenodd" ? "B*" : "B") : fill ? (state.fillRule === "evenodd" ? "f*" : "f") : "S");
+    if (stroke) output.push(`${stroke.map(number).join(" ")} RG`, `${number(state.strokeWidth)} w`, lineStyle(state));
+    output.push(geometry, fill && stroke ? (state.fillRule === "evenodd" ? "B*" : "B") : fill ? (state.fillRule === "evenodd" ? "f*" : "f") : "S", "Q");
     return output.join(" ");
 }
 
 export function trustedSvgPdfOperations(svg, { offsetX = 0, offsetY = 0, scale = 1, pageHeight = 792 } = {}) {
     if (!validateTrustedSvgContent(svg)) throw new ValidationError("PDF publishing requires trusted SVG notation.");
+    const pageMatrix = Object.freeze([scale, 0, 0, -scale, offsetX, pageHeight - offsetY]);
     const stack = [DEFAULT_PRESENTATION], operations = [], graphicsStates = new Map();
     const unsupported = svg.match(/<(?:rect|polygon|polyline|image|use|foreignObject|clipPath|mask)\b/i);
     if (unsupported) throw new ValidationError(`PDF publishing does not support visible SVG construct "${unsupported[0].slice(1)}".`);
@@ -125,8 +166,7 @@ export function trustedSvgPdfOperations(svg, { offsetX = 0, offsetY = 0, scale =
         if (/^<\/g/i.test(tag)) { if (stack.length === 1) throw new ValidationError("Published notation contains an unbalanced SVG group."); stack.pop(); continue; }
         const parent = stack.at(-1), state = presentation(parent, tag);
         if (/^<g/i.test(tag)) { stack.push(state); continue; }
-        const mapX = value => offsetX + (value + state.translateX) * scale;
-        const mapY = value => pageHeight - (offsetY + (value + state.translateY) * scale);
+        const matrix = multiplyMatrix(pageMatrix, state.matrix);
         if (/^<text/i.test(tag)) {
             const markup = tag.replace(/^<text\b[^>]*>|<\/text>$/gi, "");
             if (/<[^>]+>/.test(markup)) throw new ValidationError("PDF publishing does not support nested visible SVG text markup.");
@@ -137,17 +177,17 @@ export function trustedSvgPdfOperations(svg, { offsetX = 0, offsetY = 0, scale =
             if (fill) {
                 const alphaKey = `${number(state.opacity * state.fillOpacity)}:${number(state.opacity * state.strokeOpacity)}`;
                 if (!graphicsStates.has(alphaKey)) graphicsStates.set(alphaKey, `GS${graphicsStates.size + 1}`);
-                const size = numericAttribute(tag, "font-size", 12) * scale;
-                operations.push(`/${graphicsStates.get(alphaKey)} gs ${fill.map(number).join(" ")} rg BT /F1 ${number(size)} Tf ${number(mapX(numericAttribute(tag, "x")))} ${number(mapY(numericAttribute(tag, "y")))} Td (${pdfText(text)}) Tj ET`);
+                const size = numericAttribute(tag, "font-size", 12);
+                operations.push(`q ${matrixOperator(matrix)} cm /${graphicsStates.get(alphaKey)} gs ${fill.map(number).join(" ")} rg BT /F1 ${number(size)} Tf 1 0 0 -1 ${number(numericAttribute(tag, "x"))} ${number(numericAttribute(tag, "y"))} Tm (${pdfText(text)}) Tj ET Q`);
             }
             continue;
         }
         let geometry;
-        if (/^<path/i.test(tag)) geometry = pathGeometry(tag, mapX, mapY);
-        else if (/^<line/i.test(tag)) geometry = `${number(mapX(numericAttribute(tag, "x1")))} ${number(mapY(numericAttribute(tag, "y1")))} m ${number(mapX(numericAttribute(tag, "x2")))} ${number(mapY(numericAttribute(tag, "y2")))} l`;
-        else geometry = ellipseGeometry(tag, mapX, mapY, scale, /^<circle/i.test(tag));
+        if (/^<path/i.test(tag)) geometry = pathGeometry(tag);
+        else if (/^<line/i.test(tag)) geometry = `${number(numericAttribute(tag, "x1"))} ${number(numericAttribute(tag, "y1"))} m ${number(numericAttribute(tag, "x2"))} ${number(numericAttribute(tag, "y2"))} l`;
+        else geometry = ellipseGeometry(tag, /^<circle/i.test(tag));
         const paintState = /^<line/i.test(tag) ? Object.freeze({ ...state, fill: "none" }) : state;
-        const painted = paintedGeometry(geometry, paintState, scale, graphicsStates);
+        const painted = paintedGeometry(geometry, paintState, matrix, graphicsStates);
         if (painted) operations.push(painted);
     }
     if (stack.length !== 1) throw new ValidationError("Published notation contains an unbalanced SVG group.");

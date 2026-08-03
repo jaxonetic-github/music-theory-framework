@@ -18,14 +18,6 @@
 .music-theory-app .publication-preview-block.item-heading{font-weight:600}
 .music-theory-app .publication-preview-notation svg{display:block;width:100%;height:100%}
 
-@media print{
-  html.publishing-print-active body *{visibility:hidden!important}
-  html.publishing-print-active .publication-preview,
-  html.publishing-print-active .publication-preview *{visibility:visible!important}
-  html.publishing-print-active .publication-preview{position:absolute;inset:0;display:block;padding:0;background:white}
-  html.publishing-print-active .publication-preview-page{width:100%;height:auto;margin:0;box-shadow:none;break-after:page}
-}
-
 @scope (.music-theory-app) {
 * { box-sizing: border-box; }
 :scope { min-width: 280px; background: radial-gradient(circle at 85% 0%, #d9dfc9 0, transparent 30rem), #f2eee3; }

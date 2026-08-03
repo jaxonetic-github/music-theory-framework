@@ -1,2 +1,2 @@
 export { PublishingPanel } from "./PublishingPanel.jsx";
-export { downloadPublishedAsset, printPublication } from "./download.js";
+export { authoritativePrintAsset, downloadPublishedAsset, PublicationPrintController } from "./download.js";
